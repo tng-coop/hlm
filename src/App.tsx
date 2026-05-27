@@ -906,15 +906,47 @@ Provide a highly informative, encouraging, and clear response to help the user m
       const active = await apiGetPhrases();
       const archived = await apiGetArchivedPhrases();
       const allLocal = [...active, ...archived];
+      
+      console.log(`[CloudSync] Initiating sync. Local deck size: ${allLocal.length} (Active: ${active.length}, Archived: ${archived.length})`);
+      console.log(`[CloudSync] Local phrases inventory:`, allLocal.map(p => ({ id: p.id, phrase: p.phrase, reps: p.repetition_count, hasEtym: !!(p.nuance || p.origin) })));
 
+      console.log(`[CloudSync] Pushing local deck to Yugawara cloud...`);
       await apiSyncPush(keyToUse, allLocal);
+      console.log(`[CloudSync] Push succeeded. Pulling merged deck from Yugawara cloud...`);
 
       const pullResult = await apiSyncPull(keyToUse);
 
       if (pullResult && Array.isArray(pullResult.phrases)) {
+        console.log(`[CloudSync] Pull succeeded. Pulled deck size: ${pullResult.phrases.length}`);
+        
+        // Detailed analysis and logging of changes
+        for (const pulled of pullResult.phrases) {
+          const local = allLocal.find(p => p.phrase.toLowerCase() === pulled.phrase.toLowerCase());
+          if (!local) {
+            console.log(`[CloudSync] Merge Log: New phrase "${pulled.phrase}" pulled from cloud.`);
+          } else {
+            const localHasEtym = !!(local.nuance || local.origin);
+            const pulledHasEtym = !!(pulled.nuance || pulled.origin);
+            
+            console.log(`[CloudSync] Merge Comparison for "${local.phrase}":`);
+            console.log(`  - Local: reps=${local.repetition_count}, hasEtym=${localHasEtym ? 'YES' : 'NO'}`);
+            console.log(`  - Pulled: reps=${pulled.repetition_count}, hasEtym=${pulledHasEtym ? 'YES' : 'NO'}`);
+            
+            if (localHasEtym && !pulledHasEtym) {
+              console.warn(`  ⚠️ WARNING: Local etymology for "${local.phrase}" is MISSING in pulled cloud data! Server might have discarded local updates.`);
+            } else if (!localHasEtym && pulledHasEtym) {
+              console.log(`  🎉 INFO: Pulled etymology details from cloud for "${local.phrase}".`);
+            } else if (local.repetition_count !== pulled.repetition_count) {
+              console.log(`  📈 INFO: Card progress synced for "${local.phrase}". Local reps [${local.repetition_count}] -> Cloud reps [${pulled.repetition_count}].`);
+            }
+          }
+        }
+        
+        console.log(`[CloudSync] Importing merged deck into local database...`);
         await apiImportPhrases(pullResult.phrases);
         setSyncSuccess(`Synchronization successful! Merged ${pullResult.phrases.length} cards.`);
         await refreshData();
+        console.log(`[CloudSync] Sync complete. Local database successfully updated and refreshed!`);
       } else {
         setSyncError('Failed to pull synchronized data from the server.');
       }
