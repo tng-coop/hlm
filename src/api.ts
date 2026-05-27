@@ -10,7 +10,25 @@ import {
 } from './demoData';
 import type { Phrase, LearningStats } from './types';
 
-export const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+// Auto-detect serverless vs. locally-hosted database mode
+export const isDemoMode = (() => {
+    // If explicitly defined in environment variables
+    if (import.meta.env.VITE_DEMO_MODE === 'true') {
+        return true;
+    }
+    if (import.meta.env.VITE_DEMO_MODE === 'false') {
+        return false;
+    }
+    // Default to demo mode if hosted on GitHub Pages (static cloud hosting)
+    if (typeof window !== 'undefined') {
+        const host = window.location.hostname;
+        if (host.includes('github.io') || host.includes('pages.dev')) {
+            return true;
+        }
+    }
+    // Default to local database mode for local development/hosting
+    return false;
+})();
 
 if (isDemoMode) {
     initDemoData();
