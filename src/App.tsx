@@ -841,11 +841,12 @@ Provide a highly informative, encouraging, and clear response to help the user m
     setSyncError(null);
     setSyncSuccess(null);
 
+    const cleanEmail = syncEmail.trim().toLowerCase();
     try {
-      const response = await apiSyncRequestCode(syncEmail);
+      const response = await apiSyncRequestCode(cleanEmail);
       if (response.success) {
         setSyncStep('code_requested');
-        localStorage.setItem('hlm_sync_email', syncEmail);
+        localStorage.setItem('hlm_sync_email', cleanEmail);
         localStorage.setItem('hlm_sync_code_requested', 'true');
         setSyncSuccess(lang === 'ja' ? t('sync_msg_code_emailed') : (response.message || t('sync_msg_code_emailed')));
       } else {
@@ -1944,6 +1945,9 @@ Respond strictly in valid JSON format with the following keys:
               data-testid="input-backup-email"
               placeholder={t('placeholder_backup_email')}
               value={backupEmail}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               onChange={(e) => {
                 setBackupEmail(e.target.value);
                 localStorage.setItem('hlm_backup_email', e.target.value);
@@ -2540,6 +2544,9 @@ Respond strictly in valid JSON format with the following keys:
                           data-testid="sync-email-input"
                           placeholder={t('sync_placeholder_email')}
                           value={syncEmail}
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
                           onChange={(e) => setSyncEmail(e.target.value)}
                           style={{
                             flex: 1,
@@ -2589,6 +2596,9 @@ Respond strictly in valid JSON format with the following keys:
                             data-testid="sync-code-input"
                             placeholder={t('sync_placeholder_code_paste')}
                             value={syncVerificationCode}
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
                             onChange={(e) => setSyncVerificationCode(e.target.value)}
                             style={{
                               flex: 1,
