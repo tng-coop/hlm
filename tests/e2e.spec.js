@@ -17,7 +17,6 @@ test.describe('HLM Study Deck E2E Suite', () => {
   test('Immersive Card Review and AI Sentence Checker', async ({ page, i18n }) => {
     // 1. Dashboard Integrity & A11y Audit
     await page.getByTestId('tab-dashboard').click();
-    await expect(page.locator('.demo-badge')).toBeVisible();
     await expect(page.getByTestId('stat-total-cards').locator('.stat-number')).toHaveText('20');
     
     // Wait for animations to settle

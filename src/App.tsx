@@ -1663,16 +1663,10 @@ Respond strictly in valid JSON format with the following keys:
       <div className="bg-orb orb-primary" />
       <div className="bg-orb orb-secondary" />
 
-      <header className="app-header" style={isDemoMode ? { borderBottom: '2px solid #ffcc00' } : {}}>
+      <header className="app-header">
         <h1 className="logo" style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
           <div>
             TNG HLM <span>{t('app_subtitle')}</span>
-            {isDemoMode && (
-              <>
-                <span className="demo-badge" style={{ marginLeft: '1rem', fontSize: '0.8rem', background: '#ffcc00', color: '#000', padding: '0.2rem 0.6rem', borderRadius: '4px', verticalAlign: 'middle', fontWeight: 'bold' }}>DEMO MODE</span>
-                <button title="Reset Demo Data" aria-label="Reset Demo Data" onClick={() => { localStorage.removeItem('hlm_demo_data'); window.location.reload(); }} style={{ marginLeft: '0.5rem', fontSize: '0.7rem', background: '#cc0000', color: '#fff', border: 'none', padding: '0.2rem 0.5rem', borderRadius: '4px', cursor: 'pointer', verticalAlign: 'middle', fontWeight: 'bold' }}>↻ RESET</button>
-              </>
-            )}
           </div>
           <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
             {voices.length > 0 && (
