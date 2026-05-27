@@ -789,6 +789,15 @@ Provide a highly informative, encouraging, and clear response to help the user m
   // Import/Export States
   const [isImportExpanded, setIsImportExpanded] = useState(false);
   const [isLlmGuideExpanded, setIsLlmGuideExpanded] = useState(false);
+  const [isApiPlaygroundExpanded, setIsApiPlaygroundExpanded] = useState(true);
+  const [apiSelectedMethod, setApiSelectedMethod] = useState('apiGetPhrases');
+  const [apiResultJson, setApiResultJson] = useState('');
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiExecutionTime, setApiExecutionTime] = useState<number | null>(null);
+  const [apiCopyFeedback, setApiCopyFeedback] = useState(false);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('hlm_auto_sync_enabled') === 'true';
+  });
   const [importJson, setImportJson] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
@@ -972,6 +981,19 @@ Provide a highly informative, encouraging, and clear response to help the user m
     setSyncStep('idle');
     setSyncSuccess(t('sync_msg_unlinked'));
     setSyncError(null);
+  };
+
+  const triggerAutoSync = async () => {
+    const key = localStorage.getItem('hlm_sync_key');
+    const autoEnabled = localStorage.getItem('hlm_auto_sync_enabled') === 'true';
+    if (autoEnabled && key) {
+      console.log('[AutoSync] Background auto-sync triggered...');
+      try {
+        await performSync(key);
+      } catch (err) {
+        console.error('[AutoSync] Background auto-sync failed', err);
+      }
+    }
   };
 
   // Spaced Repetition Queue Calculation
@@ -1336,6 +1358,7 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
       setCommercialGenPaste('');
       setGenerationInstructions('');
       refreshData();
+      triggerAutoSync();
     } catch (err: any) {
       console.error('Failed to save generated cards', err);
       setGeneratorError(`Error saving cards: ${err.message || 'Unknown database insertion error.'}`);
@@ -1450,12 +1473,51 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
     }
   };
 
+  // Developer Local API Playground executor
+  const handleExecuteApi = async () => {
+    setApiLoading(true);
+    setApiResultJson('');
+    setApiExecutionTime(null);
+    const start = performance.now();
+    try {
+      let result: any;
+      if (apiSelectedMethod === 'apiGetPhrases') {
+        result = await apiGetPhrases();
+      } else if (apiSelectedMethod === 'apiGetStats') {
+        result = await apiGetStats();
+      } else if (apiSelectedMethod === 'apiGetArchivedPhrases') {
+        result = await apiGetArchivedPhrases();
+      } else if (apiSelectedMethod === 'apiTriggerAutoSync') {
+        if (!syncKey) {
+          result = { error: 'No Sync Key found. Please link your device in Card Manager -> Cloud Synchronization first.' };
+        } else {
+          await performSync(syncKey);
+          result = { success: true, message: 'Sync performed successfully.' };
+        }
+      } else if (apiSelectedMethod === 'apiDetectLocalEngine') {
+        result = { activeEngine: await aiDetectLocalEngine() };
+      } else {
+        result = { error: 'Invalid API function selected' };
+      }
+      const end = performance.now();
+      setApiResultJson(JSON.stringify(result, null, 2));
+      setApiExecutionTime(Math.round(end - start));
+    } catch (err: any) {
+      const end = performance.now();
+      setApiResultJson(JSON.stringify({ error: err.message || String(err) }, null, 2));
+      setApiExecutionTime(Math.round(end - start));
+    } finally {
+      setApiLoading(false);
+    }
+  };
+
   // SRS SM-2 Quality Grading Trigger
   const submitReview = async (grade: number) => {
     if (!activeCard) return;
     try {
       await apiReviewPhrase(activeCard.id, grade);
       refreshData();
+      triggerAutoSync();
     } catch (err) {
       console.error('Failed to submit review grade', err);
     }
@@ -1465,6 +1527,7 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
     try {
       await apiMasterPhrase(id);
       refreshData();
+      triggerAutoSync();
     } catch (err) {
       console.error('Failed to mark phrase as known', err);
     }
@@ -1621,6 +1684,7 @@ Respond strictly in valid JSON format with the following keys:
       setGeneratedPreview(null);
       setCommercialPaste('');
       refreshData();
+      triggerAutoSync();
     } catch (err: any) {
       setFormError(err.message || 'Failed to create card.');
     }
@@ -1669,6 +1733,7 @@ Respond strictly in valid JSON format with the following keys:
       await apiUpdatePhrase(editingCard.id, editForm);
       setEditSuccess(t('msg_edit_success'));
       refreshData();
+      triggerAutoSync();
       // Keep it open briefly to show success, then close
       setTimeout(() => {
         setEditingCard(null);
@@ -1721,6 +1786,7 @@ Respond strictly in valid JSON format with the following keys:
       await apiDeletePhrase(id);
       setShowUndoToast(true);
       refreshData();
+      triggerAutoSync();
     } catch (err) {
       console.error('Failed to delete card', err);
     }
@@ -1733,6 +1799,7 @@ Respond strictly in valid JSON format with the following keys:
       setShowUndoToast(false);
       setDeletedCard(null);
       refreshData();
+      triggerAutoSync();
     } catch (err) {
       console.error('Failed to restore card', err);
     }
@@ -1742,6 +1809,7 @@ Respond strictly in valid JSON format with the following keys:
     try {
       await apiRestorePhrase(id);
       refreshData();
+      triggerAutoSync();
     } catch (err) {
       console.error('Failed to restore card', err);
     }
@@ -1751,6 +1819,7 @@ Respond strictly in valid JSON format with the following keys:
     try {
       await apiDeletePhrasePermanently(id);
       refreshData();
+      triggerAutoSync();
     } catch (err) {
       console.error('Failed to delete card permanently', err);
     }
@@ -2709,6 +2778,25 @@ Respond strictly in valid JSON format with the following keys:
                         🔄 {isSyncing ? t('sync_status_syncing') : t('sync_btn_sync_now')}
                       </button>
                     </div>
+
+                    {/* Auto-Sync Checkbox Toggle */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem', background: 'rgba(255,255,255,0.02)', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid var(--border)', width: 'fit-content' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.85rem', color: '#fff', fontWeight: '500' }}>
+                        <input
+                          type="checkbox"
+                          checked={autoSyncEnabled}
+                          onChange={(e) => {
+                            setAutoSyncEnabled(e.target.checked);
+                            localStorage.setItem('hlm_auto_sync_enabled', e.target.checked ? 'true' : 'false');
+                            if (e.target.checked && syncKey) {
+                              performSync(syncKey);
+                            }
+                          }}
+                          style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                        />
+                        🔄 {lang === 'ja' ? '自動同期を有効にする (学習進捗変更時に自動実行)' : 'Enable Auto-Sync (synchronize automatically on deck changes)'}
+                      </label>
+                    </div>
                   </div>
                 )}
 
@@ -2723,6 +2811,16 @@ Respond strictly in valid JSON format with the following keys:
                     ✅ {syncSuccess}
                   </div>
                 )}
+
+                {/* Local-Only Privacy Disclaimer */}
+                <div style={{ background: 'rgba(56, 189, 248, 0.05)', border: '1px dashed rgba(56, 189, 248, 0.25)', borderRadius: '8px', padding: '1rem', marginTop: '1rem', fontSize: '0.82rem', lineHeight: '1.5', color: '#38bdf8' }}>
+                  🛡️ <strong>{lang === 'ja' ? '完全ローカル運用サポート（クラウド同期は任意です）' : 'Privacy First: Cloud Sync is Optional'}</strong><br />
+                  {lang === 'ja' ? (
+                    <span>TNG HLMはローカルファーストのプライバシー重視設計です。データをクラウドに同期することなく、<b>完全にオフライン・ブラウザ単体（ローカル）のみでご利用いただけます</b>。データのバックアップは「Email Backup」機能から手動で行うことができます。</span>
+                  ) : (
+                    <span>HLM is a local-first, privacy-respecting app. <b>You do NOT need to sync your study deck to the cloud</b>. You can run 100% locally and secure your progress using the manual <b>Email Backup</b> feature (which saves compressed backups directly via email).</span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -4070,6 +4168,7 @@ Respond strictly in valid JSON format with the following keys:
                                           onClick={async () => {
                                             await apiReviewPhrase(phrase.id, 0);
                                             refreshData();
+                                            triggerAutoSync();
                                           }}
                                         >
                                           🤷 {t('btn_never_heard')}
@@ -4093,6 +4192,7 @@ Respond strictly in valid JSON format with the following keys:
                                           onClick={async () => {
                                             await apiReviewPhrase(phrase.id, 2);
                                             refreshData();
+                                            triggerAutoSync();
                                           }}
                                         >
                                           🌫️ {t('btn_vague_memory')}
@@ -4332,6 +4432,187 @@ Respond strictly in valid JSON format with the following keys:
                     ) : (
                       <span>Our HLM client code (<code>src/api.ts</code>) is pre-configured to automatically check for <code>window.ai.languageModel</code>, <code>window.ai.assistant</code>, or the standalone <code>window.LanguageModel</code> (Microsoft Edge Phi). Simply enable the flags, and the application will instantly connect!</span>
                     )}
+                  </div>
+
+                </div>
+              )}
+            </div>
+
+            {/* Collapsible Local API Playground & Explorer */}
+            <div className="glass-card" style={{ padding: '1.5rem', marginTop: '0.2rem' }} data-testid="api-playground-panel">
+              <div 
+                onClick={() => setIsApiPlaygroundExpanded(!isApiPlaygroundExpanded)} 
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+              >
+                <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#38bdf8', fontSize: '1.1rem', fontWeight: 'bold' }}>
+                  🔌 {lang === 'ja' ? '開発者向けローカルAPIプレイグラウンド' : 'Developer Local API Playground'}
+                </h4>
+                <button 
+                  type="button"
+                  className="btn-secondary"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
+                >
+                  {isApiPlaygroundExpanded ? '▲ ' + t('btn_collapse') : '▼ ' + t('btn_expand')}
+                </button>
+              </div>
+
+              {isApiPlaygroundExpanded && (
+                <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1.5rem', fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-primary)' }}>
+                  <p style={{ color: 'var(--text-muted)', margin: 0 }}>
+                    {lang === 'ja' 
+                      ? 'HLMのローカルデータ操作およびサーバー同期APIを、ブラウザ上で直接呼び出してレスポンス（JSON）をリアルタイム検証できる対話型コンソールです。' 
+                      : 'An interactive console to directly execute HLM\'s local data actions and synchronizations, inspecting live JSON responses in real-time.'}
+                  </p>
+
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: '1 1 280px' }}>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>
+                        {lang === 'ja' ? '呼び出すAPI関数を選択' : 'Select Client API Function'}
+                      </label>
+                      <select
+                        value={apiSelectedMethod}
+                        onChange={(e) => setApiSelectedMethod(e.target.value)}
+                        style={{
+                          padding: '0.6rem 0.8rem',
+                          background: 'rgba(0,0,0,0.3)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          color: '#fff',
+                          fontSize: '0.9rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="apiGetPhrases">apiGetPhrases() — {lang === 'ja' ? '学習カード一覧を取得' : 'Fetch active study deck'}</option>
+                        <option value="apiGetStats">apiGetStats() — {lang === 'ja' ? '学習統計・SM-2状態を取得' : 'Fetch learning stats'}</option>
+                        <option value="apiGetArchivedPhrases">apiGetArchivedPhrases() — {lang === 'ja' ? 'アーカイブ（削除済み）カードを取得' : 'Fetch archived cards'}</option>
+                        <option value="apiTriggerAutoSync">performSync() — {lang === 'ja' ? '手動/自動クラウド同期の実行' : 'Execute cloud sync merge'}</option>
+                        <option value="apiDetectLocalEngine">aiDetectLocalEngine() — {lang === 'ja' ? 'ローカルAIエンジンの検出状態' : 'Probe active local LLM'}</option>
+                      </select>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleExecuteApi}
+                      disabled={apiLoading}
+                      className="btn-primary"
+                      style={{
+                        padding: '0.6rem 1.2rem',
+                        fontSize: '0.9rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        height: '38px',
+                        background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)',
+                        border: 'none',
+                        color: '#fff',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        borderRadius: '6px',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {apiLoading ? <span className="spinner" style={{ borderLeftColor: '#fff' }} /> : '⚡'}
+                      {lang === 'ja' ? 'APIを実行' : 'Execute API Call'}
+                    </button>
+                  </div>
+
+                  {/* Terminal Console Output */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        🖥️ {lang === 'ja' ? 'コンソール出力' : 'Interactive Console Output'}
+                        {apiExecutionTime !== null && (
+                          <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 'normal' }}>
+                            ({apiExecutionTime}ms)
+                          </span>
+                        )}
+                      </span>
+                      {apiResultJson && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(apiResultJson);
+                            setApiCopyFeedback(true);
+                            setTimeout(() => setApiCopyFeedback(false), 2000);
+                          }}
+                          style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid var(--border)',
+                            color: '#fff',
+                            fontSize: '0.75rem',
+                            padding: '0.2rem 0.6rem',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {apiCopyFeedback ? (lang === 'ja' ? 'コピー完了!' : 'Copied!') : (lang === 'ja' ? '出力をコピー' : 'Copy Output')}
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{
+                      background: '#090b11',
+                      border: '1px solid rgba(56, 189, 248, 0.2)',
+                      borderRadius: '8px',
+                      padding: '1rem',
+                      maxHeight: '260px',
+                      overflowY: 'auto',
+                      fontFamily: 'monospace, Courier New',
+                      fontSize: '0.85rem',
+                      lineHeight: '1.4',
+                      color: '#38bdf8',
+                      boxShadow: 'inset 0 4px 12px rgba(0,0,0,0.5)',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all'
+                    }}>
+                      {apiLoading ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#94a3b8' }}>
+                          <span className="spinner" style={{ borderLeftColor: '#38bdf8' }} />
+                          <span>Executing call...</span>
+                        </div>
+                      ) : apiResultJson ? (
+                        apiResultJson
+                      ) : (
+                        <span style={{ color: '#64748b' }}>
+                          {lang === 'ja' 
+                            ? '// 「APIを実行」をクリックすると、JSON形式のレスポンスデータがここに表示されます。' 
+                            : '// Click "Execute API Call" to see the live JSON response payload here.'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* API Quick Docs Reference Table */}
+                  <div style={{ background: 'rgba(255, 255, 255, 0.01)', borderRadius: '8px', border: '1px solid var(--border)', padding: '1rem' }}>
+                    <h5 style={{ margin: '0 0 0.8rem 0', color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                      📚 {lang === 'ja' ? 'ローカルAPIリファレンス' : 'Local Client API Quick Reference'}
+                    </h5>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                      <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                        <code style={{ color: '#a855f7', minWidth: '160px', fontSize: '0.8rem' }}>apiGetPhrases()</code>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginLeft: '1rem' }}>
+                          {lang === 'ja' ? '現在アクティブな学習用カードの配列（SM-2学習パラメータ含む）を取得します。' : 'Fetches all active phrase cards currently stored in your IndexedDB/LocalStorage.'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                        <code style={{ color: '#a855f7', minWidth: '160px', fontSize: '0.8rem' }}>apiGetStats()</code>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginLeft: '1rem' }}>
+                          {lang === 'ja' ? 'マスター済み・学習中・期日超過カード数などの学習進捗サマリーを取得します。' : 'Aggregates cards by learning states (due today, mastering progress counts).'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                        <code style={{ color: '#a855f7', minWidth: '160px', fontSize: '0.8rem' }}>performSync(key)</code>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginLeft: '1rem' }}>
+                          {lang === 'ja' ? 'Yugawara同期サーバーとカードの双方向 conflict-free マージ差分更新を実行します。' : 'Pushes and pulls local changes with Yugawara synchronization servers securely.'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex' }}>
+                        <code style={{ color: '#a855f7', minWidth: '160px', fontSize: '0.8rem' }}>aiPromptLocalLLM(p)</code>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginLeft: '1rem' }}>
+                          {lang === 'ja' ? '検出されたローカルAIエンジン（Chrome/Edge/Ollama）に対して直接推論を実行します。' : 'Sends a query text to the identified local offline model weights engine.'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
                 </div>
