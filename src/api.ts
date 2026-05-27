@@ -590,7 +590,8 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
                     example_en: "Our old vacuum cleaner finally bit the dust yesterday.",
                     example_ja: "私たちの古い掃除機は、昨日ついに壊れてしまいました。",
                     category: "Idiom",
-                    difficulty: "Intermediate"
+                    difficulty: "Intermediate",
+                    match_reason: "Matches instructions for C.S. Lewis's theological themes regarding struggles, mortality, or ultimate defeat."
                 },
                 {
                     phrase: "Face the music",
@@ -599,7 +600,8 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
                     example_en: "After breaking the window, he had to face the music.",
                     example_ja: "窓を割った後、彼は自分のしたことの責任を取らなければならなかった。",
                     category: "Idiom",
-                    difficulty: "Intermediate"
+                    difficulty: "Intermediate",
+                    match_reason: "Matches instructions for C.S. Lewis's writings regarding ethical responsibility, moral accountability, and consequences."
                 }
             ]),
             engine: 'Offline Mock Simulator'

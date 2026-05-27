@@ -18,6 +18,7 @@ export interface Phrase {
   nuance?: string;
   origin?: string;
   tips?: string;
+  match_reason?: string;
 }
 
 /** @public */

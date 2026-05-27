@@ -699,6 +699,8 @@ Provide a highly informative, encouraging, and clear response to help the user m
   const [isGeneratingCards, setIsGeneratingCards] = useState(false);
   const [copiedGenPrompt, setCopiedGenPrompt] = useState(false);
   const [generatedPreviewCards, setGeneratedPreviewCards] = useState<Phrase[]>([]);
+  const [selectedPreviewIndices, setSelectedPreviewIndices] = useState<Set<number>>(new Set());
+  const [commercialGenPaste, setCommercialGenPaste] = useState<string>('');
   const [generatorError, setGeneratorError] = useState<string | null>(null);
   const [generatorSuccess, setGeneratorSuccess] = useState<string | null>(null);
 
@@ -952,7 +954,6 @@ Provide a highly informative, encouraging, and clear response to help the user m
     }
   };
 
-  // Card Manager AI Card Generator logical handlers
   const buildGeneratorPrompt = (instructions: string, count: number): string => {
     const existingList = phrases.map(p => p.phrase);
     return `You are a professional lexicographer and vocabulary assistant.
@@ -971,7 +972,8 @@ Return ONLY a valid JSON array of objects satisfying this exact schema:
     "meaning_ja": "Japanese definition",
     "example_en": "Authentic example sentence in English",
     "example_ja": "Japanese translation of the example sentence",
-    "category": "Idiom" // choose from: Idiom, Slang, Phrasal Verb, Colloquial
+    "category": "Idiom", // choose from: Idiom, Slang, Phrasal Verb, Colloquial
+    "match_reason": "Explain briefly in 1 sentence why this word/idiom/phrase is relevant and matched the user's specific request/instructions."
   }
 ]
 No other text, conversational intro, markdown fences, or wrap code. Return strictly the raw JSON array.`;
@@ -1029,7 +1031,8 @@ Return ONLY a valid JSON array of objects satisfying this exact schema:
     "meaning_ja": "Japanese definition",
     "example_en": "Authentic example sentence in English",
     "example_ja": "Japanese translation of the example sentence",
-    "category": "Idiom" // choose from: Idiom, Slang, Phrasal Verb, Colloquial
+    "category": "Idiom", // choose from: Idiom, Slang, Phrasal Verb, Colloquial
+    "match_reason": "Explain briefly why this card matches the request instructions."
   }
 ]
 No other text, conversational intro, markdown fences, or wrap code. Return strictly the raw JSON array.`;
@@ -1076,7 +1079,8 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
               next_review_date: todayStr,
               interval_days: 0,
               ease_factor: 2.5,
-              repetition_count: 0
+              repetition_count: 0,
+              match_reason: card.match_reason || 'Matched request instructions.'
             });
           } else {
             console.log(`Detected duplicate generated phrase: "${cleanedPhrase}". Will retry/redo.`);
@@ -1089,6 +1093,7 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
       }
       
       setGeneratedPreviewCards(uniqueGenerated);
+      setSelectedPreviewIndices(new Set(uniqueGenerated.map((_, i) => i)));
       if (uniqueGenerated.length < countVal) {
         setGeneratorSuccess(`Generated ${uniqueGenerated.length} unique card(s) (fewer than requested due to duplicate avoidance).`);
       } else {
@@ -1102,14 +1107,79 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
     }
   };
 
+  const handlePasteCommercialGenerator = (value: string) => {
+    setCommercialGenPaste(value);
+    if (!value || !value.trim()) {
+      setGeneratedPreviewCards([]);
+      setSelectedPreviewIndices(new Set());
+      return;
+    }
+    try {
+      const startIdx = value.indexOf('[');
+      const endIdx = value.lastIndexOf(']') + 1;
+      if (startIdx === -1 || endIdx === -1 || endIdx < startIdx) {
+        return;
+      }
+      const cleanJson = value.substring(startIdx, endIdx);
+      const parsedArray = JSON.parse(cleanJson);
+      if (!Array.isArray(parsedArray)) {
+        return;
+      }
+      
+      const existingSet = new Set(phrases.map(p => p.phrase.toLowerCase().trim()));
+      const uniqueGenerated: Phrase[] = [];
+      
+      for (const card of parsedArray) {
+        const cleanedPhrase = (card.phrase || '').trim();
+        if (!cleanedPhrase) continue;
+        
+        const isDuplicate = existingSet.has(cleanedPhrase.toLowerCase()) ||
+                            uniqueGenerated.some(u => u.phrase.toLowerCase().trim() === cleanedPhrase.toLowerCase());
+        
+        if (!isDuplicate) {
+          const todayStr = new Date().toISOString().split('T')[0];
+          uniqueGenerated.push({
+            id: -9999 - uniqueGenerated.length,
+            phrase: cleanedPhrase,
+            meaning_en: card.meaning_en || '',
+            meaning_ja: card.meaning_ja || '',
+            category: card.category || 'Idiom',
+            example_en: card.example_en || '',
+            example_ja: card.example_ja || '',
+            difficulty: 'Intermediate',
+            next_review_date: todayStr,
+            interval_days: 0,
+            ease_factor: 2.5,
+            repetition_count: 0,
+            match_reason: card.match_reason || 'Matched request instructions.'
+          });
+        }
+      }
+      
+      setGeneratedPreviewCards(uniqueGenerated);
+      setSelectedPreviewIndices(new Set(uniqueGenerated.map((_, i) => i)));
+      setGeneratorError(null);
+      setGeneratorSuccess(`Successfully parsed and loaded ${uniqueGenerated.length} unique card(s) from commercial LLM payload!`);
+    } catch (err: any) {
+      console.error('Failed to parse commercial generator paste', err);
+      setGeneratorError('Invalid JSON array format. Make sure you copy/paste the entire JSON array bracket block from your LLM.');
+    }
+  };
+
   const handleSaveGeneratedCards = async () => {
     if (generatedPreviewCards.length === 0) return;
     setGeneratorError(null);
     setGeneratorSuccess(null);
     
+    const cardsToSave = generatedPreviewCards.filter((_, idx) => selectedPreviewIndices.has(idx));
+    if (cardsToSave.length === 0) {
+      setGeneratorError('Please select at least one card to save.');
+      return;
+    }
+    
     try {
       let addedCount = 0;
-      for (const card of generatedPreviewCards) {
+      for (const card of cardsToSave) {
         // Build Phrase payload
         const payload: Omit<Phrase, 'id' | 'next_review_date' | 'interval_days' | 'ease_factor' | 'repetition_count'> = {
           phrase: card.phrase,
@@ -1118,7 +1188,8 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
           category: card.category,
           example_en: card.example_en,
           example_ja: card.example_ja,
-          difficulty: card.difficulty
+          difficulty: card.difficulty,
+          nuance: card.match_reason ? `Why Matched: ${card.match_reason}` : ''
         };
         await apiAddPhrase(payload);
         addedCount++;
@@ -1126,6 +1197,8 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
       
       setGeneratorSuccess(`Successfully added ${addedCount} card(s) to your study deck!`);
       setGeneratedPreviewCards([]);
+      setSelectedPreviewIndices(new Set());
+      setCommercialGenPaste('');
       setGenerationInstructions('');
       refreshData();
     } catch (err: any) {
@@ -2676,6 +2749,28 @@ Respond strictly in valid JSON format with the following keys:
                     </button>
                   </div>
 
+                  {/* Commercial AI Fallback Paste Area */}
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
+                    <label style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--text-muted)' }}>💡 Commercial AI Fallback Paste Area (Optional)</label>
+                    <textarea
+                      rows={3}
+                      value={commercialGenPaste}
+                      onChange={(e) => handlePasteCommercialGenerator(e.target.value)}
+                      placeholder="Paste the JSON response array from your commercial LLM (e.g. ChatGPT, Gemini Web) here, and the preview below will automatically parse and populate..."
+                      style={{
+                        padding: '0.8rem',
+                        background: 'rgba(0, 0, 0, 0.2)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '8px',
+                        color: '#fff',
+                        fontSize: '0.85rem',
+                        fontFamily: 'monospace',
+                        resize: 'none',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+
                   {/* Generated Cards Preview */}
                   {generatedPreviewCards.length > 0 && (
                     <div className="fade-in" style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -2686,19 +2781,51 @@ Respond strictly in valid JSON format with the following keys:
                       <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
                         <thead>
                           <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                            <th style={{ textAlign: 'center', width: '40px', padding: '0.6rem' }}>
+                              <input
+                                type="checkbox"
+                                checked={generatedPreviewCards.length > 0 && selectedPreviewIndices.size === generatedPreviewCards.length}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedPreviewIndices(new Set(generatedPreviewCards.map((_, i) => i)));
+                                  } else {
+                                    setSelectedPreviewIndices(new Set());
+                                  }
+                                }}
+                                style={{ cursor: 'pointer' }}
+                              />
+                            </th>
                             <th style={{ textAlign: 'left', padding: '0.6rem' }}>{t('lbl_phrase')}</th>
                             <th style={{ textAlign: 'left', padding: '0.6rem' }}>{t('lbl_meaning_en')}</th>
                             {lang !== 'en' && <th style={{ textAlign: 'left', padding: '0.6rem' }}>{t('lbl_meaning_ja')}</th>}
                             <th style={{ textAlign: 'left', padding: '0.6rem' }}>{t('lbl_category')}</th>
+                            <th style={{ textAlign: 'left', padding: '0.6rem' }}>Why Matched</th>
                           </tr>
                         </thead>
                         <tbody>
                           {generatedPreviewCards.map((card, idx) => (
                             <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                              <td style={{ textAlign: 'center', padding: '0.6rem' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedPreviewIndices.has(idx)}
+                                  onChange={(e) => {
+                                    const next = new Set(selectedPreviewIndices);
+                                    if (e.target.checked) {
+                                      next.add(idx);
+                                    } else {
+                                      next.delete(idx);
+                                    }
+                                    setSelectedPreviewIndices(next);
+                                  }}
+                                  style={{ cursor: 'pointer' }}
+                                />
+                              </td>
                               <td style={{ padding: '0.6rem', fontWeight: 'bold', color: '#f59e0b' }}>{card.phrase}</td>
                               <td style={{ padding: '0.6rem' }}>{card.meaning_en}</td>
                               {lang !== 'en' && <td style={{ padding: '0.6rem' }}>{card.meaning_ja}</td>}
                               <td style={{ padding: '0.6rem', color: 'var(--text-muted)' }}>{card.category}</td>
+                              <td style={{ padding: '0.6rem', fontStyle: 'italic', color: '#10b981' }}>{card.match_reason || 'Matched request instructions.'}</td>
                             </tr>
                           ))}
                         </tbody>
