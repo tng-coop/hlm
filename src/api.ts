@@ -5,8 +5,13 @@ import {
     demoGetPhrases, 
     demoGetStats, 
     demoReviewPhrase, 
+    demoMasterPhrase,
     initDemoData,
-    demoGetChartsData
+    demoGetChartsData,
+    demoRestorePhrase,
+    demoDeletePhrasePermanently,
+    demoGetArchivedPhrases,
+    demoUpdateRegions
 } from './demoData';
 import type { Phrase, LearningStats } from './types';
 
@@ -72,6 +77,14 @@ export const apiReviewPhrase = async (id: number, grade: number): Promise<Phrase
     return handleNativeResponse(res);
 };
 
+export const apiMasterPhrase = async (id: number): Promise<Phrase> => {
+    if (isDemoMode) return demoMasterPhrase(id);
+    const res = await fetch(`/api/phrases/${id}/master`, {
+        method: 'PUT'
+    });
+    return handleNativeResponse(res);
+};
+
 export const apiDeletePhrase = async (id: number): Promise<boolean> => {
     if (isDemoMode) return demoDeletePhrase(id);
     const res = await fetch(`/api/phrases/${id}`, {
@@ -79,6 +92,30 @@ export const apiDeletePhrase = async (id: number): Promise<boolean> => {
     });
     const result = await handleNativeResponse(res);
     return result.success;
+};
+
+export const apiRestorePhrase = async (id: number): Promise<boolean> => {
+    if (isDemoMode) return demoRestorePhrase(id);
+    const res = await fetch(`/api/phrases/${id}/restore`, {
+        method: 'PUT'
+    });
+    const result = await handleNativeResponse(res);
+    return result.success;
+};
+
+export const apiDeletePhrasePermanently = async (id: number): Promise<boolean> => {
+    if (isDemoMode) return demoDeletePhrasePermanently(id);
+    const res = await fetch(`/api/phrases/${id}?permanent=true`, {
+        method: 'DELETE'
+    });
+    const result = await handleNativeResponse(res);
+    return result.success;
+};
+
+export const apiGetArchivedPhrases = async (): Promise<Phrase[]> => {
+    if (isDemoMode) return demoGetArchivedPhrases();
+    const res = await fetch('/api/phrases/archived');
+    return handleNativeResponse(res);
 };
 
 export const apiGetStats = async (): Promise<LearningStats> => {
@@ -90,6 +127,47 @@ export const apiGetStats = async (): Promise<LearningStats> => {
 export const apiGetChartsData = () => {
     // Both modes can leverage the mock data generator for offline chart visualizations
     return demoGetChartsData();
+};
+
+export const apiImportPhrases = async (phrases: Phrase[]): Promise<{ success: boolean; count: number }> => {
+    if (isDemoMode) {
+        localStorage.setItem('hlm_demo_data', JSON.stringify({ phrases }));
+        return { success: true, count: phrases.length };
+    }
+    const res = await fetch('/api/phrases/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phrases })
+    });
+    return handleNativeResponse(res);
+};
+
+export const apiUpdateRegions = async (id: number, usedInUs: number, usedInUk: number): Promise<{ success: boolean; id: number; used_in_us: number; used_in_uk: number }> => {
+    if (isDemoMode) return demoUpdateRegions(id, usedInUs, usedInUk);
+    const res = await fetch(`/api/phrases/${id}/regions`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ used_in_us: usedInUs, used_in_uk: usedInUk })
+    });
+    return handleNativeResponse(res);
+};
+
+export const apiEmailBackup = async (email?: string): Promise<{ success: boolean; message: string }> => {
+    const res = await fetch('/api/backup/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+    });
+    return handleNativeResponse(res);
+};
+
+export const apiRestoreBackup = async (zipData: string): Promise<{ success: boolean; message: string }> => {
+    const res = await fetch('/api/backup/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zipData })
+    });
+    return handleNativeResponse(res);
 };
 
 // --- IMMERSIVE LOCAL LLM (GEMINI NANO & OLLAMA & OFFLINE MOCK) INTEGRATION ---
@@ -109,6 +187,7 @@ export interface AIExplanationResult {
 
 // 1. Try to check Ollama local endpoint connectivity
 const checkOllama = async (): Promise<boolean> => {
+    if (isDemoMode) return false;
     try {
         const res = await fetch('http://localhost:11434/api/tags', { method: 'GET', signal: AbortSignal.timeout(1000) });
         return res.ok;
@@ -117,18 +196,37 @@ const checkOllama = async (): Promise<boolean> => {
     }
 };
 
+const getLanguageModelManager = () => {
+    if (isDemoMode) return null;
+    if (typeof window !== 'undefined') {
+        const aiObj = (window as any).ai;
+        const modelManager = aiObj?.languageModel || aiObj?.assistant;
+        if (modelManager) {
+            return modelManager;
+        }
+        const standAlone = (window as any).LanguageModel;
+        if (standAlone) {
+            return standAlone;
+        }
+    }
+    return null;
+};
+
 // 2. Main Local AI Explainer Client
 export const aiExplainNuances = async (phrase: string): Promise<AIExplanationResult> => {
     const promptText = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips".`;
 
-    // A. Chrome Built-in window.ai (Gemini Nano)
+    // A. Chrome Built-in window.ai / window.LanguageModel (Gemini Nano)
     try {
-        const aiObj = (window as any).ai;
-        const modelManager = aiObj?.languageModel || aiObj?.assistant;
+        const modelManager = getLanguageModelManager();
         if (modelManager) {
-            const session = await modelManager.create();
+            const session = await modelManager.create({ outputLanguage: 'en' });
             const rawResponse = await session.prompt(promptText);
-            session.destroy();
+            if (session && typeof session.destroy === 'function') {
+                session.destroy();
+            } else if (session && typeof session.close === 'function') {
+                session.close();
+            }
             const cleanJson = rawResponse.substring(rawResponse.indexOf('{'), rawResponse.lastIndexOf('}') + 1);
             return JSON.parse(cleanJson);
         }
@@ -171,14 +269,17 @@ Check for grammar, natural flow, and correct contextual usage. Respond strictly 
 "flow" (brief review of how natural it sounds),
 "suggestion" (a natural rephrased version of their sentence).`;
 
-    // A. Chrome Built-in window.ai (Gemini Nano)
+    // A. Chrome Built-in window.ai / window.LanguageModel (Gemini Nano)
     try {
-        const aiObj = (window as any).ai;
-        const modelManager = aiObj?.languageModel || aiObj?.assistant;
+        const modelManager = getLanguageModelManager();
         if (modelManager) {
-            const session = await modelManager.create();
+            const session = await modelManager.create({ outputLanguage: 'en' });
             const rawResponse = await session.prompt(promptText);
-            session.destroy();
+            if (session && typeof session.destroy === 'function') {
+                session.destroy();
+            } else if (session && typeof session.close === 'function') {
+                session.close();
+            }
             const cleanJson = rawResponse.substring(rawResponse.indexOf('{'), rawResponse.lastIndexOf('}') + 1);
             return JSON.parse(cleanJson);
         }
@@ -275,12 +376,9 @@ const getOfflineSentenceReview = (phrase: string, sentence: string): AIReviewRes
 };
 
 export const aiDetectLocalEngine = async (): Promise<string> => {
-    if (typeof window !== 'undefined') {
-        const aiObj = (window as any).ai;
-        const modelManager = aiObj?.languageModel || aiObj?.assistant;
-        if (modelManager) {
-            return 'Chrome Gemini Nano (window.ai)';
-        }
+    const modelManager = getLanguageModelManager();
+    if (modelManager) {
+        return 'Chrome Gemini Nano (window.LanguageModel)';
     }
     const hasOllama = await checkOllama();
     if (hasOllama) {
@@ -290,14 +388,17 @@ export const aiDetectLocalEngine = async (): Promise<string> => {
 };
 
 export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: string; engine: string }> => {
-    // A. Chrome Built-in window.ai (Gemini Nano)
+    // A. Chrome Built-in window.ai / window.LanguageModel (Gemini Nano)
     try {
-        const aiObj = (window as any).ai;
-        const modelManager = aiObj?.languageModel || aiObj?.assistant;
+        const modelManager = getLanguageModelManager();
         if (modelManager) {
-            const session = await modelManager.create();
+            const session = await modelManager.create({ outputLanguage: 'en' });
             const rawResponse = await session.prompt(promptText);
-            session.destroy();
+            if (session && typeof session.destroy === 'function') {
+                session.destroy();
+            } else if (session && typeof session.close === 'function') {
+                session.close();
+            }
             return { response: rawResponse, engine: 'Chrome Gemini Nano' };
         }
     } catch (err) {
@@ -326,6 +427,68 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
 
     // C. Mock Fallback
     await new Promise(r => setTimeout(r, 600));
+    
+    // Check if this is a card generation prompt request
+    if (promptText.includes('valid JSON array') || promptText.includes('lexicographer')) {
+        return {
+            response: JSON.stringify([
+                {
+                    phrase: "Bite the dust",
+                    meaning_en: "To die, fail, or be defeated.",
+                    meaning_ja: "死ぬ、失敗する、敗北する（土を噛む）。",
+                    example_en: "Our old vacuum cleaner finally bit the dust yesterday.",
+                    example_ja: "私たちの古い掃除機は、昨日ついに壊れてしまいました。",
+                    category: "Idiom",
+                    difficulty: "Intermediate"
+                },
+                {
+                    phrase: "Face the music",
+                    meaning_en: "Accept the unpleasant consequences of one's actions.",
+                    meaning_ja: "自分の行動の不快な結果を受け入れる（現実を直視する、責任を取る）。",
+                    example_en: "After breaking the window, he had to face the music.",
+                    example_ja: "窓を割った後、彼は自分のしたことの責任を取らなければならなかった。",
+                    category: "Idiom",
+                    difficulty: "Intermediate"
+                }
+            ]),
+            engine: 'Offline Mock Simulator'
+        };
+    }
+
+    // Check if this is a Reality Check request
+    const isRealityCheck = promptText.includes('authenticity') || promptText.includes('correctness') || promptText.includes('信頼性') || promptText.includes('正確性');
+    if (isRealityCheck) {
+        const phraseMatch = promptText.match(/(?:Idiom\/Phrase|表現\/イディオム):\s*["']([^"']+)["']/i);
+        const phraseName = phraseMatch ? phraseMatch[1] : 'Bite the bullet';
+        
+        const isEnglish = promptText.includes('Analyze this language') || promptText.includes('strictly in English');
+        if (isEnglish) {
+            return {
+                response: `### ⚖️ Authenticity Verdict: AUTHENTIC
+The phrase **"${phraseName}"** is a highly common and natural English expression. It is widely used across all English-speaking regions and is completely authentic.
+
+### 📜 Etymology & Origin
+Historically, this expression has fascinating roots, emerging from colloquial usage where physical actions are mapped to metaphorical concepts of state change over time.
+
+### 🌍 Primary Context & Regional Usage
+It is commonly used in informal to semi-formal situations. It is very natural in both American and British English. It is a fantastic idiom for daily conversations.`,
+                engine: 'Offline Mock Simulator'
+            };
+        } else {
+            return {
+                response: `### ⚖️ 検証結果 (Authenticity Verdict): 本物 (<span lang="en">AUTHENTIC</span>)
+この表現 **"${phraseName}"** は、ネイティブスピーカーの間で非常に頻繁に使用される、極めて自然で正確な英語表現です。
+
+### 📜 語源と由来 (Etymology & Origin)
+歴史的に、この表現は物理的な行動が時間の経過とともに精神的な状態変化の比喩的な表現へと移行したという、非常に興味深い起源を持っています。
+
+### 🌍 主な文脈と地域的な使用法 (Primary Context & Regional Usage)
+インフォーマルからセミフォーマルな日常会話で広く用いられます。<span lang="en">American English</span> と <span lang="en">British English</span> の双方で非常によく使われ、ニュアンス学習に最適な表現です。`,
+                engine: 'Offline Mock Simulator'
+            };
+        }
+    }
+
     return {
         response: `[Offline AI Sandbox Response]
 This is a high-fidelity local response simulated by the HLM offline engine.

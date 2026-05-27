@@ -80,7 +80,7 @@ export const initDemoData = () => {
     // Pre-populate intervals deterministically for gorgeous initial reviews and dashboards
     for (let i = 0; i < seedPhrases.length; i++) {
         const seed = seedPhrases[i];
-        
+
         // Spread review dates: some are brand new (due today), some reviewed previously and scheduled dynamically
         let nextReviewDateStr = todayStr;
         if (seed.repetition_count > 0) {
@@ -100,6 +100,8 @@ export const initDemoData = () => {
             example_en: seed.example_en,
             example_ja: seed.example_ja,
             difficulty: seed.difficulty,
+            used_in_us: 1,
+            used_in_uk: 1,
             next_review_date: nextReviewDateStr,
             interval_days: seed.interval_days,
             ease_factor: seed.ease_factor,
@@ -118,8 +120,10 @@ export const demoGetPhrases = async (): Promise<Phrase[]> => {
     await delay();
     const db = loadData();
     if (!db) return [];
-    // Sort by next_review_date ASC (due first)
-    return [...db.phrases].sort((a, b) => new Date(a.next_review_date).getTime() - new Date(b.next_review_date).getTime());
+    // Sort by next_review_date ASC (due first), excluding archived
+    return [...db.phrases]
+        .filter((p: Phrase) => p.is_archived !== 1)
+        .sort((a, b) => new Date(a.next_review_date).getTime() - new Date(b.next_review_date).getTime());
 };
 
 export const demoAddPhrase = async (phraseData: Partial<Phrase>): Promise<Phrase> => {
@@ -140,6 +144,8 @@ export const demoAddPhrase = async (phraseData: Partial<Phrase>): Promise<Phrase
         example_en: phraseData.example_en!,
         example_ja: phraseData.example_ja!,
         difficulty: phraseData.difficulty || 'Intermediate',
+        used_in_us: phraseData.used_in_us !== undefined ? phraseData.used_in_us : 1,
+        used_in_uk: phraseData.used_in_uk !== undefined ? phraseData.used_in_uk : 1,
         next_review_date: todayStr,
         interval_days: 0,
         ease_factor: 2.5,
@@ -171,7 +177,52 @@ export const demoReviewPhrase = async (id: number, grade: number): Promise<Phras
     return updatedCard;
 };
 
+export const demoMasterPhrase = async (id: number): Promise<Phrase> => {
+    await delay();
+    const db = loadData();
+
+    const idx = db.phrases.findIndex((p: Phrase) => p.id === id);
+    if (idx === -1) throw new Error('Phrase card not found');
+
+    const card = db.phrases[idx];
+    const nextReview = new Date();
+    nextReview.setDate(nextReview.getDate() + 365);
+    const next_review_date = nextReview.toISOString().split('T')[0];
+
+    const updatedCard = {
+        ...card,
+        repetition_count: 5,
+        interval_days: 365,
+        ease_factor: 2.9,
+        next_review_date
+    };
+
+    db.phrases[idx] = updatedCard;
+    saveData(db);
+    return updatedCard;
+};
+
 export const demoDeletePhrase = async (id: number): Promise<boolean> => {
+    await delay();
+    const db = loadData();
+    const idx = db.phrases.findIndex((p: Phrase) => p.id === id);
+    if (idx === -1) return false;
+    db.phrases[idx].is_archived = 1;
+    saveData(db);
+    return true;
+};
+
+export const demoRestorePhrase = async (id: number): Promise<boolean> => {
+    await delay();
+    const db = loadData();
+    const idx = db.phrases.findIndex((p: Phrase) => p.id === id);
+    if (idx === -1) return false;
+    db.phrases[idx].is_archived = 0;
+    saveData(db);
+    return true;
+};
+
+export const demoDeletePhrasePermanently = async (id: number): Promise<boolean> => {
     await delay();
     const db = loadData();
     const beforeCount = db.phrases.length;
@@ -180,13 +231,20 @@ export const demoDeletePhrase = async (id: number): Promise<boolean> => {
     return db.phrases.length < beforeCount;
 };
 
+export const demoGetArchivedPhrases = async (): Promise<Phrase[]> => {
+    await delay();
+    const db = loadData();
+    if (!db) return [];
+    return db.phrases.filter((p: Phrase) => p.is_archived === 1);
+};
+
 export const demoGetStats = async (): Promise<LearningStats> => {
     await delay();
     const db = loadData();
     if (!db) return { totalCards: 0, dueToday: 0, masteredCards: 0, learningCards: 0 };
 
     const todayStr = new Date().toISOString().split('T')[0];
-    const phrases: Phrase[] = db.phrases;
+    const phrases: Phrase[] = db.phrases.filter((p: Phrase) => p.is_archived !== 1);
 
     const totalCards = phrases.length;
     const dueToday = phrases.filter(p => p.next_review_date <= todayStr).length;
@@ -201,7 +259,7 @@ export const demoGetChartsData = () => {
     const db = loadData();
     if (!db) return { masteryHistory: [], reviewForecast: [], categoryStats: [] };
 
-    const phrases: Phrase[] = db.phrases;
+    const phrases: Phrase[] = db.phrases.filter((p: Phrase) => p.is_archived !== 1);
     const today = new Date();
 
     // 1. Category Distribution
@@ -237,7 +295,7 @@ export const demoGetChartsData = () => {
         // Simulate daily progress curves
         const progressFactor = (15 - i) / 15; // grows from 0 to 1
         const total = phrases.length;
-        
+
         // Mastered count builds over time
         const mastered = Math.round(phrases.filter(p => p.repetition_count >= 4).length * (0.6 + progressFactor * 0.4));
         const learning = Math.round(phrases.filter(p => p.repetition_count > 0 && p.repetition_count < 4).length * (0.8 + progressFactor * 0.2));
@@ -252,4 +310,15 @@ export const demoGetChartsData = () => {
     }
 
     return { masteryHistory, reviewForecast, categoryStats };
+};
+
+export const demoUpdateRegions = async (id: number, usedInUs: number, usedInUk: number): Promise<{ success: boolean; id: number; used_in_us: number; used_in_uk: number }> => {
+    await delay();
+    const db = loadData();
+    const card = db.phrases.find((p: Phrase) => p.id === id);
+    if (!card) throw new Error('Phrase card not found');
+    card.used_in_us = usedInUs;
+    card.used_in_uk = usedInUk;
+    saveData(db);
+    return { success: true, id, used_in_us: usedInUs, used_in_uk: usedInUk };
 };

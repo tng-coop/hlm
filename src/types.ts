@@ -12,9 +12,13 @@ export interface Phrase {
   ease_factor: number;
   repetition_count: number;
   created_at?: string;
+  is_archived?: number; // 0 or 1
+  used_in_us?: number; // 0 or 1
+  used_in_uk?: number; // 0 or 1
 }
 
-interface ReviewLog {
+/** @public */
+export interface ReviewLog {
   id: number;
   phrase_id: number;
   grade: number; // 0-5 quality score

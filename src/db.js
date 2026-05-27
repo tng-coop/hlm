@@ -20,6 +20,8 @@ const initializeDb = () => {
       example_en TEXT NOT NULL,
       example_ja TEXT NOT NULL,
       difficulty TEXT NOT NULL CHECK(difficulty IN ('Beginner', 'Intermediate', 'Advanced')),
+      used_in_us INTEGER DEFAULT 1,
+      used_in_uk INTEGER DEFAULT 1,
       next_review_date DATE NOT NULL,
       interval_days INTEGER DEFAULT 0,
       ease_factor DECIMAL(5, 2) DEFAULT 2.50,
@@ -39,6 +41,30 @@ const initializeDb = () => {
       FOREIGN KEY(phrase_id) REFERENCES phrases(id) ON DELETE CASCADE
     )
   `);
+
+  // Ensure is_archived column exists (soft-delete support)
+  try {
+    db.exec(`ALTER TABLE phrases ADD COLUMN is_archived INTEGER DEFAULT 0`);
+    console.log('Successfully added is_archived column to phrases table.');
+  } catch {
+    // Column already exists, safe to ignore
+  }
+
+  // Ensure used_in_us column exists
+  try {
+    db.exec(`ALTER TABLE phrases ADD COLUMN used_in_us INTEGER DEFAULT 1`);
+    console.log('Successfully added used_in_us column to phrases table.');
+  } catch {
+    // Column already exists, safe to ignore
+  }
+
+  // Ensure used_in_uk column exists
+  try {
+    db.exec(`ALTER TABLE phrases ADD COLUMN used_in_uk INTEGER DEFAULT 1`);
+    console.log('Successfully added used_in_uk column to phrases table.');
+  } catch {
+    // Column already exists, safe to ignore
+  }
 
   console.log('HLM Database schema successfully initialized.');
 
@@ -121,8 +147,8 @@ const initializeDb = () => {
 
   const checkPhrase = db.prepare('SELECT id FROM phrases WHERE phrase = ?');
   const insertPhrase = db.prepare(`
-    INSERT INTO phrases (phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, next_review_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO phrases (phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, used_in_us, used_in_uk, next_review_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   let addedCount = 0;
@@ -137,6 +163,8 @@ const initializeDb = () => {
         seed.example_en,
         seed.example_ja,
         seed.difficulty,
+        seed.used_in_us !== undefined ? seed.used_in_us : 1,
+        seed.used_in_uk !== undefined ? seed.used_in_uk : 1,
         todayStr
       );
       addedCount++;
