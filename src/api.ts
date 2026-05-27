@@ -178,12 +178,12 @@ Respond strictly in valid JSON format with the following keys:
         if (modelManager) {
             const session = await withTimeout<any>(
                 modelManager.create({ outputLanguage: 'en' }),
-                2500,
+                15000,
                 'window.ai session creation timed out'
             );
             const rawResponse = await withTimeout<string>(
                 session.prompt(promptText),
-                3500,
+                25000,
                 'window.ai prompt response timed out'
             );
             if (session && typeof session.destroy === 'function') {
@@ -320,12 +320,12 @@ export const aiExplainNuances = async (phrase: string): Promise<AIExplanationRes
         if (modelManager) {
             const session = await withTimeout<any>(
                 modelManager.create({ outputLanguage: 'en' }),
-                2500,
+                15000,
                 'window.ai session creation timed out'
             );
             const rawResponse = await withTimeout<string>(
                 session.prompt(promptText),
-                3500,
+                25000,
                 'window.ai prompt response timed out'
             );
             if (session && typeof session.destroy === 'function') {
@@ -382,12 +382,12 @@ Check for grammar, natural flow, and correct contextual usage. Respond strictly 
         if (modelManager) {
             const session = await withTimeout<any>(
                 modelManager.create({ outputLanguage: 'en' }),
-                2500,
+                15000,
                 'window.ai session creation timed out'
             );
             const rawResponse = await withTimeout<string>(
                 session.prompt(promptText),
-                3500,
+                25000,
                 'window.ai prompt response timed out'
             );
             if (session && typeof session.destroy === 'function') {
@@ -593,12 +593,12 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
         if (modelManager) {
             const session = await withTimeout<any>(
                 modelManager.create({ outputLanguage: 'en' }),
-                2500,
+                15000,
                 'window.ai session creation timed out'
             );
             const rawResponse = await withTimeout<string>(
                 session.prompt(promptText),
-                3500,
+                25000,
                 'window.ai prompt response timed out'
             );
             if (session && typeof session.destroy === 'function') {
@@ -750,12 +750,12 @@ CRITICAL RULE: The "phrase" key must ONLY contain the clean vocabulary word, phr
         if (modelManager) {
             const session = await withTimeout<any>(
                 modelManager.create({ outputLanguage: 'en' }),
-                2500,
+                15000,
                 'window.ai session creation timed out'
             );
             const rawResponse = await withTimeout<string>(
                 session.prompt(promptText),
-                3500,
+                25000,
                 'window.ai prompt response timed out'
             );
             if (session && typeof session.destroy === 'function') {
