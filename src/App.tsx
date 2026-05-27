@@ -558,6 +558,7 @@ function App() {
 
   // Blog / Discussion State per card
   const [loadingBlogs, setLoadingBlogs] = useState<{ [id: number]: boolean }>({});
+  const [blogErrors, setBlogErrors] = useState<{ [id: number]: string | null }>({});
   const [blogChats, setBlogChats] = useState<{ [id: number]: { role: 'user' | 'assistant'; content: string }[] }>({});
   const [blogQueries, setBlogQueries] = useState<{ [id: number]: string }>({});
   const [sendingQueries, setSendingQueries] = useState<{ [id: number]: boolean }>({});
@@ -565,6 +566,7 @@ function App() {
   // Load Blog Details dynamically and save permanently to database
   const handleLoadBlog = async (phraseId: number, phraseText: string) => {
     setLoadingBlogs(prev => ({ ...prev, [phraseId]: true }));
+    setBlogErrors(prev => ({ ...prev, [phraseId]: null }));
     try {
       const result = await aiExplainNuances(phraseText);
       // Save permanently to database
@@ -584,8 +586,9 @@ function App() {
           ]
         }));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load blog explanation", err);
+      setBlogErrors(prev => ({ ...prev, [phraseId]: err.message || 'Failed to generate deep-dive content. Please check your connection or local AI settings.' }));
     } finally {
       setLoadingBlogs(prev => ({ ...prev, [phraseId]: false }));
     }
@@ -3607,28 +3610,35 @@ Respond strictly in valid JSON format with the following keys:
                                   {/* Interactive Blog Discussion Panel */}
                                   <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '1rem' }}>
                                     {(!phrase.nuance || !phrase.origin) ? (
-                                      <button
-                                        type="button"
-                                        className="btn-secondary"
-                                        disabled={loadingBlogs[phrase.id]}
-                                        style={{
-                                          padding: '0.6rem 1.2rem',
-                                          fontSize: '0.85rem',
-                                          background: 'rgba(139, 92, 246, 0.15)',
-                                          border: '1px solid #8b5cf6',
-                                          color: '#c084fc',
-                                          borderRadius: '6px',
-                                          fontWeight: 'bold',
-                                          cursor: 'pointer',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: '0.4rem',
-                                          transition: 'all 0.2s'
-                                        }}
-                                        onClick={() => handleLoadBlog(phrase.id, phrase.phrase)}
-                                      >
-                                        {loadingBlogs[phrase.id] ? '⏳ Generating Editorial...' : '📖 Generate Deep-Dive Blog Post & Q&A'}
-                                      </button>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
+                                        <button
+                                          type="button"
+                                          className="btn-secondary"
+                                          disabled={loadingBlogs[phrase.id]}
+                                          style={{
+                                            padding: '0.6rem 1.2rem',
+                                            fontSize: '0.85rem',
+                                            background: 'rgba(139, 92, 246, 0.15)',
+                                            border: '1px solid #8b5cf6',
+                                            color: '#c084fc',
+                                            borderRadius: '6px',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem',
+                                            transition: 'all 0.2s'
+                                          }}
+                                          onClick={() => handleLoadBlog(phrase.id, phrase.phrase)}
+                                        >
+                                          {loadingBlogs[phrase.id] ? '⏳ Generating Editorial...' : '📖 Generate Deep-Dive Blog Post & Q&A'}
+                                        </button>
+                                        {blogErrors[phrase.id] && (
+                                          <div style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 'bold', marginTop: '0.3rem' }}>
+                                            ⚠️ {blogErrors[phrase.id]}
+                                          </div>
+                                        )}
+                                      </div>
                                     ) : (
                                       <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
                                         {/* Stylized Blog Article Card */}

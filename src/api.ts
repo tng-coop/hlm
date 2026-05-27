@@ -24,11 +24,17 @@ export const isDemoMode = (() => {
     if (import.meta.env.VITE_DEMO_MODE === 'false') {
         return false;
     }
-    // Default to demo mode if hosted on GitHub Pages or if explicitly requested via query parameter
+    // Default to demo mode if hosted on GitHub Pages, public web servers (non-localhost), or if explicitly requested via query parameter
     if (typeof window !== 'undefined') {
         const host = window.location.hostname;
         const params = new URLSearchParams(window.location.search);
-        if (host.includes('github.io') || host.includes('pages.dev') || params.get('demo') === 'true') {
+        const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local') || host.startsWith('192.168.') || host.startsWith('10.') || host.startsWith('172.');
+        if (
+            host.includes('github.io') || 
+            host.includes('pages.dev') || 
+            params.get('demo') === 'true' ||
+            !isLocalhost
+        ) {
             return true;
         }
     }
