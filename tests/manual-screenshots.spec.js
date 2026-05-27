@@ -31,7 +31,7 @@ test.describe('Manual Screenshots Generation', () => {
         // 3. Study Deck Tab - Back card with practice sentence & AI
         await page.locator('.study-card-front').click(); // reveal back
         await page.waitForSelector('.study-card-back');
-        await page.locator('textarea[placeholder*="Write a sentence"]').fill('Learning English is a piece of cake!');
+        await page.locator('textarea').fill('Learning English is a piece of cake!');
         await page.getByRole('button', { name: 'AI Check' }).click();
         await page.waitForSelector('.ai-bubble');
         await page.waitForTimeout(500);
