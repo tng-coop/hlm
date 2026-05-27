@@ -597,7 +597,10 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
                     example_ja: "私たちの古い掃除機は、昨日ついに壊れてしまいました。",
                     category: "Idiom",
                     difficulty: "Intermediate",
-                    match_reason: "Matches instructions for C.S. Lewis's theological themes regarding struggles, mortality, or ultimate defeat."
+                    match_reason: "Matches instructions for C.S. Lewis's theological themes regarding struggles, mortality, or ultimate defeat.",
+                    nuance: "An informal, slightly dramatic expression. Used to describe both physical death and mechanical failure of objects.",
+                    origin: "Derived from the ancient practice or imagery of warriors falling face-first into the soil when defeated in battle.",
+                    tips: "Great for lighthearted context when appliances break down. E.g., 'My laptop finally bit the dust.'"
                 },
                 {
                     phrase: "Face the music",
@@ -607,7 +610,10 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
                     example_ja: "窓を割った後、彼は自分のしたことの責任を取らなければならなかった。",
                     category: "Idiom",
                     difficulty: "Intermediate",
-                    match_reason: "Matches instructions for C.S. Lewis's writings regarding ethical responsibility, moral accountability, and consequences."
+                    match_reason: "Matches instructions for C.S. Lewis's writings regarding ethical responsibility, moral accountability, and consequences.",
+                    nuance: "Resolute, slightly formal or serious tone. Often implies courage in accepting responsibility for a mistake.",
+                    origin: "Most likely from old military traditions where a dismissed soldier was drummed out of the camp to the sound of marching music, or from theater performers facing the orchestra.",
+                    tips: "Commonly used in professional or academic contexts when a mistake is admitted. E.g., 'It is time to face the music.'"
                 }
             ]),
             engine: 'Offline Mock Simulator'

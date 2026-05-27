@@ -981,7 +981,10 @@ Return ONLY a valid JSON array of objects satisfying this exact schema:
     "example_en": "Authentic example sentence in English",
     "example_ja": "Japanese translation of the example sentence",
     "category": "Idiom", // choose from: Idiom, Slang, Phrasal Verb, Colloquial
-    "match_reason": "Explain briefly in 1 sentence why this word/idiom/phrase is relevant and matched the user's specific request/instructions."
+    "match_reason": "Explain briefly in 1 sentence why this word/idiom/phrase is relevant and matched the user's specific request/instructions.",
+    "nuance": "Detailed context and usage nuances, including tone, register, and situational guidance.",
+    "origin": "Historical etymology, cultural origin story, or how the phrase came to be.",
+    "tips": "A practical study tip or collocation advice for language learners."
   }
 ]
 No other text, conversational intro, markdown fences, or wrap code. Return strictly the raw JSON array.`;
@@ -1040,7 +1043,10 @@ Return ONLY a valid JSON array of objects satisfying this exact schema:
     "example_en": "Authentic example sentence in English",
     "example_ja": "Japanese translation of the example sentence",
     "category": "Idiom", // choose from: Idiom, Slang, Phrasal Verb, Colloquial
-    "match_reason": "Explain briefly why this card matches the request instructions."
+    "match_reason": "Explain briefly why this card matches the request instructions.",
+    "nuance": "Detailed context and usage nuances, including tone, register, and situational guidance.",
+    "origin": "Historical etymology, cultural origin story, or how the phrase came to be.",
+    "tips": "A practical study tip or collocation advice for language learners."
   }
 ]
 No other text, conversational intro, markdown fences, or wrap code. Return strictly the raw JSON array.`;
@@ -1088,7 +1094,10 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
               interval_days: 0,
               ease_factor: 2.5,
               repetition_count: 0,
-              match_reason: card.match_reason || 'Matched request instructions.'
+              match_reason: card.match_reason || 'Matched request instructions.',
+              nuance: card.nuance || '',
+              origin: card.origin || '',
+              tips: card.tips || ''
             });
           } else {
             console.log(`Detected duplicate generated phrase: "${cleanedPhrase}". Will retry/redo.`);
@@ -1159,7 +1168,10 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
             interval_days: 0,
             ease_factor: 2.5,
             repetition_count: 0,
-            match_reason: card.match_reason || 'Matched request instructions.'
+            match_reason: card.match_reason || 'Matched request instructions.',
+            nuance: card.nuance || '',
+            origin: card.origin || '',
+            tips: card.tips || ''
           });
         }
       }
@@ -1188,6 +1200,11 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
     try {
       let addedCount = 0;
       for (const card of cardsToSave) {
+        let savedNuance = card.nuance || '';
+        if (card.match_reason) {
+          savedNuance = `Why Matched: ${card.match_reason}${savedNuance ? `\n\n${savedNuance}` : ''}`;
+        }
+        
         // Build Phrase payload
         const payload: Omit<Phrase, 'id' | 'next_review_date' | 'interval_days' | 'ease_factor' | 'repetition_count'> = {
           phrase: card.phrase,
@@ -1197,7 +1214,9 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
           example_en: card.example_en,
           example_ja: card.example_ja,
           difficulty: card.difficulty,
-          nuance: card.match_reason ? `Why Matched: ${card.match_reason}` : ''
+          nuance: savedNuance,
+          origin: card.origin || '',
+          tips: card.tips || ''
         };
         await apiAddPhrase(payload);
         addedCount++;
