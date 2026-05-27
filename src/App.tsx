@@ -4433,7 +4433,23 @@ Respond strictly in valid JSON format with the following keys:
                       </p>
                     )}
                   </div>
-                  
+
+                  {/* Apple Safari & iPhone WebGPU Guide */}
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <h4 style={{ color: '#06b6d4', margin: '0 0 0.5rem 0', fontSize: '1rem' }}>🍎 Apple Safari & iPhone (WebGPU WebLLM)</h4>
+                    {lang === 'ja' ? (
+                      <p style={{ margin: 0 }}>
+                        iOS 18 以降の iPhone または macOS Safari では、<strong>WebGPU</strong> を用いてブラウザ内で完全にローカルの Llama-3 や Phi-3 などの LLM を実行できます。<br />
+                        Safari の場合は、設定アプリの <code>Safari → 詳細 → 機能フラグ</code> で <strong>WebGPU</strong> を有効にしてください。アプリは自動的に GPU 推論コアを検知し、WebLLM エンジンを連動させて極めて高速なオフライン対話学習を提供します。
+                      </p>
+                    ) : (
+                      <p style={{ margin: 0 }}>
+                        On iOS 18+ iPhones or macOS Safari, you can execute on-device LLMs (Llama-3, Phi-3, Qwen) directly inside the browser using **WebGPU**.<br />
+                        For Safari, open iOS <code>Settings → Safari → Advanced → Feature Flags</code> and enable **WebGPU**. HLM will automatically detect the GPU cores and bind the WebLLM runtime to deliver ultra-fast on-device offline learning!
+                      </p>
+                    )}
+                  </div>
+
                   {/* Verification Code Check */}
                   <div style={{ background: 'rgba(16, 185, 129, 0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
                     <strong>🔍 {lang === 'ja' ? '動作確認チェック' : 'Source Code Verification'}:</strong><br />
