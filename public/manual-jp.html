@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TNG Co-op - ユーザーマニュアル (日本語)</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --surface: rgba(255, 255, 255, 0.03);
+      --border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #cbd5e1;
+      --primary: #4361ee;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    header {
+      text-align: center;
+      padding: 4rem 2rem;
+      background: linear-gradient(180deg, rgba(67, 97, 238, 0.15) 0%, transparent 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2.5rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    header p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      margin-top: 1rem;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 4rem 2rem;
+    }
+    .lang-btn {
+      display: inline-block;
+      margin-bottom: 2rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .lang-btn:hover { background: rgba(255, 255, 255, 0.15); }
+    .step-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      margin-bottom: 4rem;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .step-card h2 {
+      margin-top: 0;
+      font-size: 1.8rem;
+      color: var(--primary);
+    }
+    .screenshot {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-top: 2rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .desc {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>TNG Co-op ユーザーマニュアル</h1>
+    <p>公式ユーザーガイド＆ドキュメント</p>
+  </header>
+
+  <div class="container">
+    <a href="manual-en.html" class="lang-btn">🇯🇵 現在の表示: 日本語 (Switch to English)</a>
+
+    <div class="step-card">
+      <h2>1. 財務ダッシュボード</h2>
+      <p class="desc">24ヶ月の資本成長と組合員の分布を一目で確認できます。データはデモモードで自動的に初期化されます。</p>
+      <img class="screenshot" src="screenshots/01-dashboard-jp.png" alt="ダッシュボードのスクリーンショット" />
+    </div>
+
+    <div class="step-card">
+      <h2>2. 組合員管理</h2>
+      <p class="desc">新しい組合員を登録し、任意の行をクリックして過去の出資履歴をテーブル内で展開表示します。</p>
+      <img class="screenshot" src="screenshots/02-members-jp.png" alt="組合員管理のスクリーンショット" />
+    </div>
+
+    <div class="step-card">
+      <h2>3. 出資金の記録</h2>
+      <p class="desc">新しい出資金を安全に記録します。ソフトウェアは自動的にアクティブな組合員プロフィールデータベースに入金を帰属させます。</p>
+      <img class="screenshot" src="screenshots/03-contributions-jp.png" alt="出資金記録のスクリーンショット" />
+    </div>
+
+    <div class="step-card">
+      <h2>4. 証明書の印刷</h2>
+      <p class="desc">完璧にスケーリングされたネイティブの印刷用宛名ラベルと公式フォーマットの出資証明書を簡単に生成します。</p>
+      <img class="screenshot" src="screenshots/04-print-labels-jp.png" alt="印刷UIのスクリーンショット" />
+    </div>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,51 @@
+{
+  "name": "hello-react",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "npm run dev",
+    "stop": "npx --no-install kill-port 3001 5173 *>$null",
+    "status": "npm run _status -s",
+    "_status": "node --no-warnings -e \"const net=require('net');const c=p=>new Promise(r=>{const s=new net.Socket();s.setTimeout(500);s.on('connect',()=>{s.destroy();r(1)}).on('error',()=>{r(0)}).on('timeout',()=>{s.destroy();r(0)}).connect(p,'127.0.0.1')});Promise.all([c(5173),c(3001)]).then(([f,b])=>console.log(f&&b?'\\x1b[32m[+] Both Frontend (5173) and Backend (3001) are RUNNING.\\x1b[0m':f?'\\x1b[33m[!] Only Frontend (5173) is RUNNING. Backend is offline.\\x1b[0m':b?'\\x1b[33m[!] Only Backend (3001) is RUNNING. Frontend is offline.\\x1b[0m':'\\x1b[31m[-] System is OFFLINE.\\x1b[0m'))\"",
+    "dev": "npm-run-all --parallel dev:frontend dev:backend",
+    "dev:frontend": "vite --host",
+    "dev:backend": "node server.js",
+    "build": "tsc --noEmit && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:ghpages": "TEST_URL=https://tng-coop.github.io/hlm/ playwright test",
+    "screenshots": "TAKE_SCREENSHOTS=true playwright test tests/manual-screenshots.spec.js",
+    "knip": "knip",
+    "postinstall": "lefthook install"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "npm-run-all": "^4.1.5",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "recharts": "^3.8.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.1",
+    "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "globals": "^16.5.0",
+    "kill-port": "^2.0.1",
+    "knip": "^6.1.0",
+    "lefthook": "^2.1.4",
+    "typescript": "^6.0.2",
+    "vite": "^7.3.1"
+  }
+}

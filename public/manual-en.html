@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TNG Co-op - System Manual (English)</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --surface: rgba(255, 255, 255, 0.03);
+      --border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #cbd5e1;
+      --primary: #4361ee;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    header {
+      text-align: center;
+      padding: 4rem 2rem;
+      background: linear-gradient(180deg, rgba(67, 97, 238, 0.15) 0%, transparent 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2.5rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    header p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      margin-top: 1rem;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 4rem 2rem;
+    }
+    .lang-btn {
+      display: inline-block;
+      margin-bottom: 2rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .lang-btn:hover { background: rgba(255, 255, 255, 0.15); }
+    .step-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      margin-bottom: 4rem;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .step-card h2 {
+      margin-top: 0;
+      font-size: 1.8rem;
+      color: var(--primary);
+    }
+    .screenshot {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-top: 2rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .desc {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>TNG Co-op System Manual</h1>
+    <p>Official User Guide & Documentation</p>
+  </header>
+
+  <div class="container">
+    <a href="manual-jp.html" class="lang-btn">🇺🇸 Currently Viewing English (Switch to 日本語)</a>
+
+    <div class="step-card">
+      <h2>1. The Financial Dashboard</h2>
+      <p class="desc">Review your 24-month capital growth and member distribution at a glance. The data initializes automatically in Demo Mode.</p>
+      <img class="screenshot" src="screenshots/01-dashboard-en.png" alt="Dashboard Screenshot" />
+    </div>
+
+    <div class="step-card">
+      <h2>2. Member Management</h2>
+      <p class="desc">Register new members and click any row to expand their full lifetime contribution history right inside the table.</p>
+      <img class="screenshot" src="screenshots/02-members-en.png" alt="Members Screenshot" />
+    </div>
+
+    <div class="step-card">
+      <h2>3. Recording Capital</h2>
+      <p class="desc">Log new financial contributions securely. The software automatically attributes deposits cleanly directly to your active member profile database.</p>
+      <img class="screenshot" src="screenshots/03-contributions-en.png" alt="Contributions Screenshot" />
+    </div>
+
+    <div class="step-card">
+      <h2>4. Printing Certificates</h2>
+      <p class="desc">Generate perfectly scaled native print-ready mailing labels and officially formatted desktop capital certificates effortlessly.</p>
+      <img class="screenshot" src="screenshots/04-print-labels-en.png" alt="Print UI Screenshot" />
+    </div>
+  </div>
+
+</body>
+</html>
