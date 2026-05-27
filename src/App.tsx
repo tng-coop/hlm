@@ -569,8 +569,13 @@ function App() {
     setBlogErrors(prev => ({ ...prev, [phraseId]: null }));
     try {
       const result = await aiExplainNuances(phraseText);
+      const existingCard = phrases.find(p => p.id === phraseId);
+      if (!existingCard) {
+        throw new Error('Phrase card not found in local deck');
+      }
       // Save permanently to database
       await apiUpdatePhrase(phraseId, {
+        ...existingCard,
         nuance: result.nuance,
         origin: result.origin,
         tips: result.tips
