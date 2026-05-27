@@ -1093,14 +1093,18 @@ Provide a highly informative, encouraging, and clear response to help the user m
   };
 
   const buildGeneratorPrompt = (instructions: string, count: number): string => {
-    const existingList = phrases.map(p => p.phrase);
+    // To protect local LLM token windows and prevent clipboard bloat,
+    // we only pass up to the 100 most recent vocabulary phrases in the prompt exclusion list.
+    // Client-side deduplication handles the remaining database boundaries securely.
+    const rawList = phrases.map(p => p.phrase);
+    const cappedList = rawList.slice(-100);
     return `You are a professional lexicographer and vocabulary assistant.
 Generate exactly ${count} English vocabulary cards based on the following instructions:
 Instructions: "${instructions || 'General everyday idioms/phrases'}"
 
 CRITICAL DUPLICATE EXCLUSION RULE:
 DO NOT generate any of the following phrases as they already exist in my database. Under no circumstances should these phrases be returned:
-${JSON.stringify(existingList)}
+${JSON.stringify(cappedList)}
 
 Return ONLY a valid JSON array of objects satisfying this exact schema:
 [
@@ -1154,7 +1158,13 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
       while (uniqueGenerated.length < countVal && attempts < 3) {
         attempts++;
         const remainingCount = countVal - uniqueGenerated.length;
-        const combinedExclusions = [...phrases.map(p => p.phrase), ...uniqueGenerated.map(p => p.phrase)];
+        
+        // To protect local LLM token windows and context limits,
+        // we only pass up to the 100 most recent vocabulary phrases in the exclusion list.
+        // Client-side deduplication handles the remaining database boundaries.
+        const dbExclusions = phrases.map(p => p.phrase);
+        const cappedDbExclusions = dbExclusions.slice(-100);
+        const combinedExclusions = [...cappedDbExclusions, ...uniqueGenerated.map(p => p.phrase)];
         
         const promptText = `You are a professional lexicographer and vocabulary assistant.
 Generate exactly ${remainingCount} English vocabulary cards based on the following instructions:
