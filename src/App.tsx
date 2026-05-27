@@ -12,9 +12,6 @@ import {
   apiGetStats, 
   apiGetChartsData,
   apiImportPhrases,
-  apiEmailBackup,
-  apiRestoreBackup,
-  isDemoMode,
   aiExplainNuances,
   aiReviewSentence,
   aiDetectLocalEngine,
@@ -692,21 +689,18 @@ function App() {
 
     try {
       let coachReply = "";
-      if (!isDemoMode) {
-        try {
-          const prompt = `You are a professional English language coach. The user is asking a question about the idiom/phrase "${phraseText}".
+      try {
+        const prompt = `You are a professional English language coach. The user is asking a question about the idiom/phrase "${phraseText}".
 Here is their question: "${query}"
 Context history of conversation:
 ${updatedHistory.map(m => `${m.role === 'user' ? 'Student' : 'Coach'}: ${m.content}`).join('\n')}
 
 Provide a highly informative, encouraging, and clear response to help the user master this phrase. Respond in pure text.`;
-          const promptRes = await aiPromptLocalLLM(prompt);
-          coachReply = promptRes.response;
-        } catch (e) {
-          coachReply = `That is a great question! Typically, "${phraseText}" is best mastered through immersive practice. Yes, you can use it in active writing, but pay attention to natural usage context and tone. Let's practice making more sentences using it!`;
-        }
-      } else {
-        await new Promise(r => setTimeout(r, 1200));
+        const promptRes = await aiPromptLocalLLM(prompt);
+        coachReply = promptRes.response;
+      } catch (e) {
+        // High-fidelity fallback simulated answers when local LLM is offline/not found
+        await new Promise(r => setTimeout(r, 600));
         const lower = query.toLowerCase();
         if (lower.includes('business') || lower.includes('formal') || lower.includes('work')) {
           coachReply = `Excellent question! In professional settings, "${phraseText}" is usually considered a bit too casual. If you are speaking with close colleagues, it is perfectly fine, but for formal client presentations or business emails, it is safer to use clear, direct alternatives like "disclose information prematurely" or "handle the difficult challenge directly".`;
@@ -795,7 +789,6 @@ Provide a highly informative, encouraging, and clear response to help the user m
   // Import/Export States
   const [isImportExpanded, setIsImportExpanded] = useState(false);
   const [importJson, setImportJson] = useState('');
-  const [selectedBackupFile, setSelectedBackupFile] = useState<File | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
 
@@ -1392,68 +1385,32 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
   };
 
   // Export Study Deck to Email (mailto: vs. backend xdg-email)
+  // Export Study Deck to Email (Gzip Base64 mailto:)
   const handleEmailBackup = async () => {
     setImportError(null);
     setImportSuccess(null);
     try {
-      if (isDemoMode) {
-        // Fallback for sandboxed offline demo mode: Gzip Base64 mailto:
-        const phraseList = await apiGetPhrases();
-        const base64Str = await compressBackupData(phraseList);
-        
-        const headerText = "=== HLM COMPRESSED STUDY DECK BACKUP ===\n";
-        const footerText = "\n=== END BACKUP ===";
-        const fullText = `${headerText}${base64Str}${footerText}`;
-        const emailBody = `To restore your study deck and progress, copy the entire text block below (including the markers) and paste it into the "Import Backup" panel inside your HLM Card Manager:\n\n${fullText}`;
-        
-        const recipient = backupEmail ? encodeURIComponent(backupEmail) : '';
-        window.location.href = `mailto:${recipient}?subject=HLM%20Study%20Deck%20Backup&body=${encodeURIComponent(emailBody)}`;
-      } else {
-        // Local Database Mode: Real ZIP file attachment opened in native desktop email client!
-        await apiEmailBackup(backupEmail);
-        setImportSuccess('Launched default desktop email application with hlm-backup.zip attached!');
-      }
+      const phraseList = await apiGetPhrases();
+      const base64Str = await compressBackupData(phraseList);
+      
+      const headerText = "=== HLM COMPRESSED STUDY DECK BACKUP ===\n";
+      const footerText = "\n=== END BACKUP ===";
+      const fullText = `${headerText}${base64Str}${footerText}`;
+      const emailBody = `To restore your study deck and progress, copy the entire text block below (including the markers) and paste it into the "Import Backup" panel inside your HLM Card Manager:\n\n${fullText}`;
+      
+      const recipient = backupEmail ? encodeURIComponent(backupEmail) : '';
+      window.location.href = `mailto:${recipient}?subject=HLM%20Study%20Deck%20Backup&body=${encodeURIComponent(emailBody)}`;
     } catch (err: any) {
       console.error("Backup generation failed", err);
       setImportError(err.message || 'Failed to trigger backup');
     }
   };
 
-  // Import/Restore Study Deck from Email
+  // Import/Restore Study Deck from Email Base64 Gzip text
   const handleImportBackup = async () => {
     setImportError(null);
     setImportSuccess(null);
 
-    // Scenario A: User uploaded a physical ZIP file
-    if (selectedBackupFile) {
-      if (isDemoMode) {
-        setImportError('ZIP restore is only available in Local Database Mode. For Demo Mode, please paste the Base64 text.');
-        return;
-      }
-      
-      const reader = new FileReader();
-      reader.onload = async (evt) => {
-        const result = evt.target?.result as string;
-        if (!result) {
-          setImportError('Failed to read backup file.');
-          return;
-        }
-        
-        try {
-          await apiRestoreBackup(result);
-          setImportSuccess(t('msg_import_success'));
-          setSelectedBackupFile(null);
-          refreshData();
-        } catch (err: any) {
-          console.error('ZIP restore failed', err);
-          setImportError(err.message || 'Restoration failed');
-        }
-      };
-      reader.readAsDataURL(selectedBackupFile);
-      return;
-    }
-
-    // Scenario B: User pasted Base64 Gzip text
     if (!importJson.trim()) {
       setImportError(t('msg_import_invalid'));
       return;
@@ -1469,17 +1426,6 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
       console.error("Backup restoration failed", err);
       setImportError(t('msg_import_invalid'));
     }
-  };
-
-  // File Upload Stage (specifically for ZIP files!)
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    setSelectedBackupFile(file);
-    setImportJson('');
-    setImportError(null);
-    setImportSuccess(null);
   };
 
   // AI Sandbox prompt submit handler
@@ -2502,7 +2448,6 @@ Respond strictly in valid JSON format with the following keys:
                     value={importJson}
                     onChange={(e) => {
                       setImportJson(e.target.value);
-                      setSelectedBackupFile(null);
                     }}
                     style={{
                       width: '100%',
@@ -2521,24 +2466,6 @@ Respond strictly in valid JSON format with the following keys:
                     onFocus={(e) => e.target.style.borderColor = '#38bdf8'}
                     onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
                   />
-
-                  {/* File Upload Selector (Only shown when not in demo mode for real ZIP files!) */}
-                  {!isDemoMode && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', border: '1px dashed rgba(56, 189, 248, 0.3)', padding: '0.8rem', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.02)' }}>
-                      <span style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 'bold' }}>📂 Or upload hlm-backup.zip directly:</span>
-                      <input 
-                        key={selectedBackupFile ? selectedBackupFile.name : 'empty'}
-                        type="file" 
-                        accept=".zip" 
-                        onChange={handleFileChange}
-                        style={{
-                          fontSize: '0.8rem',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer'
-                        }}
-                      />
-                    </div>
-                  )}
 
                   {importError && (
                     <div style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: 'bold' }}>

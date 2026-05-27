@@ -1,66 +1,53 @@
 # HLM (Human Language Model) Vocabulary Learning Software 🚀
 
-A premium, high-fidelity, dark-cyber themed language learning platform designed to help users study, practice, and master English idioms, slang, and phrasal verbs. HLM integrates a local **Spaced Repetition System (SRS)** learning algorithm alongside **Local LLM capabilities** (supporting Google Chrome's built-in Gemini Nano model, local Ollama servers, or an interactive context-aware offline mock engine).
+A premium, high-fidelity, dark-cyber themed language learning platform designed to help users study, practice, and master English idioms, slang, and phrasal verbs. HLM operates strictly in the browser as a serverless, local-first web application. It integrates a local **Spaced Repetition System (SRS)** learning algorithm alongside **Local LLM capabilities** (supporting Google Chrome's built-in Gemini Nano model, local Ollama servers, or an interactive context-aware offline mock engine) and seamless cloud sync.
 
 ---
 
-## 🌐 Live Deployments & Cloud Demo
-Access the fully serverless online version instantly. When hosted in the cloud, HLM automatically operates in **Offline / Demo Mode**, utilizing high-fidelity `localStorage` state simulation so users can study without configuring databases:
+## 🌐 Live Deployments
+
+Access the fully serverless online version instantly. HLM runs entirely client-side, utilizing high-fidelity `localStorage` state simulation so users can study without configuring databases:
 
 👉 **[Launch Live HLM Application (English & Japanese Support)](https://tng-coop.github.io/hlm/)**
 
 ---
 
 ## 🛠️ Tech Stack & Advanced Features
+
 * **Frontend UI**: React 18, Vite, Backdrop Glassmorphic theme with 3D CSS card flipping.
 * **Analytics Engine**: Premium Recharts visualizing card mastery schedules and 7-day review forecasts.
-* **Dual Persistence Layer**:
-  * **Locally Hosted Mode**: Connects to an Express server backed by an optimized, self-seeding SQLite database (`hlm.db`).
-  * **Static Serverless Mode**: Leverages browser `localStorage` for server-free operation (e.g. on GitHub Pages).
+* **Persistence Layer**: Browser `localStorage` for server-free, secure, local-first operation.
 * **Immersive Local LLM Playgrounds**:
   * **Chrome Prompt API**: Native, zero-network connection to browser-based **Gemini Nano** (`window.ai`).
   * **Ollama Local Fallback**: Integrates seamlessly with local Ollama endpoints (at port `11434`) running model benchmarks like `gemma:2b` or `llama3`.
   * **Contextual Offline Simulator**: Programmed to grade sentence structures, grammar, natural flow, and explain cultural context completely offline.
 * **SRS Engine**: Implements the classic **SuperMemo-2 (SM-2)** algorithm to calculate review intervals and card grades (`0` - `5`).
+* **Cloud Synchronization (Yugawara)**: Easily sync and back up your local vocabulary deck and learning history across devices using our secure email handshake system.
 
 ---
 
-## 🚀 Getting Started (Locally Hosted SQLite Mode)
+## 🚀 Getting Started (Local Development)
 
-To run the application with full SQLite database persistent storage and Express API connections locally, follow these steps:
+To run the application locally on your machine, follow these steps:
 
 ### 1. Synchronize Dependencies
-Install all package requirements (Vite, Express, TypeScript, Better-SQLite3):
+Install all package requirements (Vite, TypeScript, React, Recharts):
 ```bash
 npm install
 ```
 
-### 2. Configure Environment (`.env`)
-By default, HLM is equipped with an **intelligent auto-detection routing script**:
-* Running on **`localhost` or `127.0.0.1`** automatically enables the **Express + SQLite Database Mode** (no `.env` tweaks required!).
-* Running on **GitHub Pages or static endpoints** automatically falls back to **Demo Serverless Mode** to prevent API crash loops.
-
-To explicitly force a specific mode, create a `.env` file in the root directory:
-```env
-# Force Demo/localStorage mode in local development
-# VITE_DEMO_MODE=true
-
-# Force SQLite/Express API connection
-VITE_DEMO_MODE=false
-```
-
-### 3. Start Frontend & Backend
-Run both the React development environment and Express API server concurrently:
+### 2. Start Frontend Server
+Start the Vite development server locally:
 ```bash
-npm start
+npm run dev
 ```
-* The **Express API Server** boots on **`http://localhost:3001`**.
 * The **Vite Dev Server** launches on **`http://localhost:5173`** (and will open automatically in your browser).
-* The local SQLite database (`hlm.db`) is automatically initialized and seeded with premium Japanese-translated English idioms (e.g., *Bite the bullet*, *Break a leg*, *Spill the beans*, *On the fence*) on first startup!
+* The local storage database initializes automatically and seeds with premium Japanese-translated English idioms (e.g., *Bite the bullet*, *Break a leg*, *Spill the beans*, *On the fence*) on first startup!
 
 ---
 
 ## 🤖 Local LLM Sandbox & Prompt Playground
+
 Use the dedicated **AI Sandbox** tab in the top navigation bar to test and benchmark local AI engines:
 1. **Chrome Gemini Nano**:
    * Navigate to `chrome://flags` in your Google Chrome browser.
@@ -76,6 +63,7 @@ Use the dedicated **AI Sandbox** tab in the top navigation bar to test and bench
 ---
 
 ## 📈 Spaced Repetition Scheduling (SuperMemo-2)
+
 When reviewing study cards, grade your memory quality from `0` to `5`:
 * **`0`**: Forgot completely.
 * **`1`**: Heavy help/hint required.
