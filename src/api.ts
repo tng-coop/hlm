@@ -271,7 +271,6 @@ export interface AIExplanationResult {
 
 // 1. Try to check Ollama local endpoint connectivity
 const checkOllama = async (): Promise<boolean> => {
-    if (isDemoMode) return false;
     try {
         const res = await fetch('http://localhost:11434/api/tags', { method: 'GET', signal: AbortSignal.timeout(1000) });
         return res.ok;
@@ -296,7 +295,6 @@ const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, errorMsg: string
 };
 
 const getLanguageModelManager = () => {
-    if (isDemoMode) return null;
     if (typeof window !== 'undefined') {
         const aiObj = (window as any).ai;
         const modelManager = aiObj?.languageModel || aiObj?.assistant;
