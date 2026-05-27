@@ -19,10 +19,11 @@ export const isDemoMode = (() => {
     if (import.meta.env.VITE_DEMO_MODE === 'false') {
         return false;
     }
-    // Default to demo mode if hosted on GitHub Pages (static cloud hosting)
+    // Default to demo mode if hosted on GitHub Pages or if explicitly requested via query parameter
     if (typeof window !== 'undefined') {
         const host = window.location.hostname;
-        if (host.includes('github.io') || host.includes('pages.dev')) {
+        const params = new URLSearchParams(window.location.search);
+        if (host.includes('github.io') || host.includes('pages.dev') || params.get('demo') === 'true') {
             return true;
         }
     }

@@ -13,7 +13,7 @@ test.describe('Manual Screenshots Generation', () => {
         const localeTag = testInfo.project.name === 'Desktop JP' ? 'jp' : 'en';
         
         // 1. Dashboard Tab (With Recharts mastery history)
-        await page.goto('./');
+        await page.goto('./?demo=true');
         await page.evaluate(() => localStorage.clear());
         await page.evaluate((lang) => localStorage.setItem('hlm_lang', lang), localeTag);
         await page.reload();

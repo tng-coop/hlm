@@ -7,7 +7,7 @@ import { expect, test } from './fixtures.js';
 test.describe('HLM Study Deck E2E Suite', () => {
   test.beforeEach(async ({ page, i18n }) => {
     // Navigate to local server root
-    await page.goto('./');
+    await page.goto('./?demo=true');
     // Clear mock storage and reload to start with a perfectly clean seed deck
     await page.evaluate(() => localStorage.clear());
     await page.evaluate((lang) => localStorage.setItem('hlm_lang', lang), i18n.__lang);

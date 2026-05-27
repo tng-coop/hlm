@@ -45,7 +45,8 @@ const calculateSM2 = (card: Phrase, grade: number) => {
 };
 
 export const initDemoData = () => {
-    if (loadData()) return;
+    const data = loadData();
+    if (data && Array.isArray(data.phrases)) return;
 
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];

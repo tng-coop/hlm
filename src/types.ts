@@ -14,7 +14,7 @@ export interface Phrase {
   created_at?: string;
 }
 
-export interface ReviewLog {
+interface ReviewLog {
   id: number;
   phrase_id: number;
   grade: number; // 0-5 quality score
