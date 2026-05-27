@@ -688,6 +688,20 @@ option {
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     padding-top: 1.5rem;
   }
+
+  .expanded-row {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .expanded-td {
+    display: block !important;
+    width: calc(100vw - 4rem) !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    box-sizing: border-box !important;
+    padding: 1.2rem !important;
+  }
 }
 
 /* --- HLM (Human Language Model) Study Card Styles --- */
@@ -883,4 +897,10 @@ option {
   gap: 1rem;
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   padding-left: 1.5rem;
+}
+
+/* Expanded Row Manager Classes */
+.expanded-row {}
+.expanded-td {
+  white-space: normal;
 }

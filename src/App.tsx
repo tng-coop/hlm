@@ -3637,8 +3637,8 @@ Respond strictly in valid JSON format with the following keys:
                             </td>
                           </tr>
                           {isExpanded && (
-                            <tr style={{ background: 'rgba(255,255,255,0.015)' }}>
-                              <td colSpan={6} style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', whiteSpace: 'normal' }}>
+                            <tr className="expanded-row" style={{ background: 'rgba(255,255,255,0.015)' }}>
+                              <td colSpan={6} className="expanded-td" style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', whiteSpace: 'normal' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.95rem' }}>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', borderBottom: '1px dashed rgba(255,255,255,0.06)', paddingBottom: '0.5rem' }}>
                                     <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#c084fc' }}>📋 Card Details</span>
