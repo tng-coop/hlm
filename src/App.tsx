@@ -871,7 +871,8 @@ Provide a highly informative, encouraging, and clear response to help the user m
     setSyncSuccess(null);
 
     try {
-      const response = await apiSyncVerifyCode(syncVerificationCode);
+      const cleanCode = syncVerificationCode.replace(/\s+/g, '');
+      const response = await apiSyncVerifyCode(cleanCode);
       if (response.success && response.sync_key) {
         localStorage.setItem('hlm_sync_key', response.sync_key);
         localStorage.setItem('hlm_sync_email', response.email);
