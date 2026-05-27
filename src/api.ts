@@ -131,7 +131,8 @@ export const apiGetChartsData = () => {
 
 export const apiImportPhrases = async (phrases: Phrase[]): Promise<{ success: boolean; count: number }> => {
     if (isDemoMode) {
-        localStorage.setItem('hlm_demo_data', JSON.stringify({ phrases }));
+        const nextId = phrases.reduce((max, p) => Math.max(max, p.id || 0), 0) + 1;
+        localStorage.setItem('hlm_demo_data', JSON.stringify({ phrases, nextId }));
         return { success: true, count: phrases.length };
     }
     const res = await fetch('/api/phrases/import', {
@@ -147,14 +148,13 @@ export const aiGenerateCardDetails = async (phrase: string): Promise<Partial<Phr
 
 Instructions:
 1. Extract the clean target word, idiom, or phrase (e.g. if the user inputs "Cross (to betray)", "I want to double cross someone", "piece of cake - very easy", or "spill the beans", you should extract "Cross", "Double-cross", "Piece of cake", or "Spill the beans" respectively as the target). Place this cleanly extracted base target in the "phrase" key.
-2. Use any context, parenthetical hints, senses, parts of speech, or sentence structures provided in the user input to guide, restrict, and tailor the generated category, difficulty, English/Japanese meanings, example sentences, and regional US/UK usage to that exact semantic sense.
+2. Use any context, parenthetical hints, senses, parts of speech, or sentence structures provided in the user input to guide, restrict, and tailor the generated category, English/Japanese meanings, example sentences, and regional US/UK usage to that exact semantic sense.
 3. If the user input is already just a simple word, phrase, or idiom, extract it cleanly and generate the details naturally.
 
 Respond strictly in valid JSON format with the following keys:
 {
   "phrase": "The cleanly extracted target vocabulary word, idiom, or phrase (e.g. 'Cross', 'Double-cross', 'Piece of cake')",
   "category": "One of: Idiom, Slang, Phrasal Verb, Colloquial",
-  "difficulty": "One of: Beginner, Intermediate, Advanced",
   "used_in_us": 1 or 0 (1 if widely used in American English, 0 otherwise),
   "used_in_uk": 1 or 0 (1 if widely used in British English, 0 otherwise),
   "meaning_en": "A clear, concise, and professional English definition/meaning suitable for language learners.",
@@ -675,7 +675,9 @@ Respond strictly in valid JSON format with the following keys. Only include a ke
   "meaning_ja": "Optimized japanese translation/meaning",
   "example_en": "Optimized english example sentence (extremely natural and modern)",
   "example_ja": "Optimized japanese translation of the example sentence"
-}`;
+}
+
+CRITICAL RULE: The "phrase" key must ONLY contain the clean vocabulary word, phrasal verb, or idiom itself (e.g. "Cross" or "Double-cross"). Under no circumstances should you put a full definition, sentence, or explanation in the "phrase" key.`;
 
     // A. Chrome window.ai
     try {
@@ -750,3 +752,46 @@ Respond strictly in valid JSON format with the following keys. Only include a ke
         example_ja: exampleJa.endsWith('。') || exampleJa.endsWith('.') ? exampleJa : exampleJa + '。'
     };
 };
+
+// --- REMOTE YUGAWARA CLOUD SYNC ENDPOINTS ---
+
+export const apiSyncRequestCode = async (email: string): Promise<{ success: boolean; message: string }> => {
+    const res = await fetch('https://yugawara.net/request_sync.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+    });
+    return handleNativeResponse(res);
+};
+
+export const apiSyncVerifyCode = async (code: string): Promise<{ success: boolean; email: string; sync_key: string; message: string }> => {
+    const res = await fetch('https://yugawara.net/verify_sync.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+    });
+    return handleNativeResponse(res);
+};
+
+export const apiSyncPush = async (syncKey: string, phrases: Phrase[]): Promise<{ success: boolean; message: string }> => {
+    const res = await fetch('https://yugawara.net/sync.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${syncKey}`
+        },
+        body: JSON.stringify({ phrases })
+    });
+    return handleNativeResponse(res);
+};
+
+export const apiSyncPull = async (syncKey: string): Promise<{ phrases: Phrase[]; sync_meta?: any }> => {
+    const res = await fetch('https://yugawara.net/sync.php', {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${syncKey}`
+        }
+    });
+    return handleNativeResponse(res);
+};
+

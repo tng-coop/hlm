@@ -25,6 +25,10 @@ import {
   aiGenerateCardDetails,
   apiUpdatePhrase,
   aiRefineCard,
+  apiSyncRequestCode,
+  apiSyncVerifyCode,
+  apiSyncPush,
+  apiSyncPull,
   type AIReviewResult,
   type AIExplanationResult
 } from './api';
@@ -180,6 +184,24 @@ function App() {
     localStorage.setItem('hlm_audio_rate', val.toString());
   };
 
+  // --- Cloud Sync state variables ---
+  const [syncEmail, setSyncEmail] = useState<string>(() => {
+    return localStorage.getItem('hlm_sync_email') || '';
+  });
+  const [syncKey, setSyncKey] = useState<string>(() => {
+    return localStorage.getItem('hlm_sync_key') || '';
+  });
+  const [syncVerificationCode, setSyncVerificationCode] = useState<string>('');
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncSuccess, setSyncSuccess] = useState<string | null>(null);
+  const [syncStep, setSyncStep] = useState<'idle' | 'code_requested'>(() => {
+    const hasKey = !!localStorage.getItem('hlm_sync_key');
+    const requested = localStorage.getItem('hlm_sync_code_requested') === 'true';
+    return requested && !hasKey ? 'code_requested' : 'idle';
+  });
+
+
   // Load browser's speech synthesis voices dynamically
   useEffect(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -243,84 +265,7 @@ function App() {
     }).filter(item => item.text.trim().length > 0);
   };
 
-  // Text-to-Speech native browser speech synthesis helper with premium voice selection
-  const handleSpeak = (text: string, voiceLang: 'en' | 'ja' = 'en') => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      activeSpeakPlayIdRef.current++;
-      const currentSpeakSessionId = activeSpeakPlayIdRef.current;
-      
-      window.speechSynthesis.cancel();
-      
-      // Strip markdown syntax from spoken text to prevent the TTS from saying asterisks or backticks out loud!
-      const cleanText = text
-        .replace(/\*\*/g, '')
-        .replace(/\*/g, '')
-        .replace(/`/g, '')
-        .replace(/#/g, '');
 
-      const runs = splitMixedTextIntoRuns(cleanText, voiceLang);
-      if (runs.length === 0) return;
-
-      let currentRunIndex = 0;
-
-      const playNextRun = () => {
-        if (activeSpeakPlayIdRef.current !== currentSpeakSessionId) return;
-        if (currentRunIndex >= runs.length) return;
-
-        const run = runs[currentRunIndex];
-        const utterance = new SpeechSynthesisUtterance(run.text);
-        utterance.lang = run.lang === 'en' ? 'en-US' : 'ja-JP';
-        utterance.rate = audioRateRef.current;
-        utterance.pitch = 1.0;
-
-        const voicesList = window.speechSynthesis.getVoices();
-        const activeVoiceName = run.lang === 'ja' ? selectedVoiceNameJa : selectedVoiceNameEn;
-        let chosenVoice = voicesList.find(v => v.name === activeVoiceName);
-
-        if (!chosenVoice) {
-          const targetVoices = voicesList.filter(v => 
-            run.lang === 'en' 
-              ? (v.lang.startsWith('en-US') || v.lang.startsWith('en-GB') || v.lang.startsWith('en-'))
-              : (v.lang.startsWith('ja-JP') || v.lang.startsWith('ja-'))
-          );
-
-          const preferredKeywords = run.lang === 'en'
-            ? ['natural', 'google', 'premium', 'zira', 'david', 'samantha', 'karen', 'apple']
-            : ['google', 'microsoft', 'ichiro', 'haruka', 'sayaka', 'nanami', 'apple'];
-
-          for (const keyword of preferredKeywords) {
-            chosenVoice = targetVoices.find(v => v.name.toLowerCase().includes(keyword));
-            if (chosenVoice) break;
-          }
-
-          if (!chosenVoice && targetVoices.length > 0) {
-            chosenVoice = targetVoices[0];
-          }
-        }
-
-        if (chosenVoice) {
-          utterance.voice = chosenVoice;
-        }
-
-        utterance.onend = () => {
-          if (activeSpeakPlayIdRef.current !== currentSpeakSessionId) return;
-          currentRunIndex++;
-          playNextRun();
-        };
-
-        utterance.onerror = (e) => {
-          console.error('Speech synthesis run error', e);
-          if (activeSpeakPlayIdRef.current !== currentSpeakSessionId) return;
-          currentRunIndex++;
-          playNextRun();
-        };
-
-        window.speechSynthesis.speak(utterance);
-      };
-
-      playNextRun();
-    }
-  };
 
   const cleanTextForSpeech = (text: string): string => {
     return text
@@ -775,7 +720,6 @@ Provide a highly informative, encouraging, and clear response to help the user m
   const isAudioPlayingRef = useRef(false);
   const isAudioPausedRef = useRef(false);
   const activeSentencePlayIdRef = useRef(0);
-  const activeSpeakPlayIdRef = useRef(0);
 
   const setIsAudioPlaying = (val: boolean) => {
     isAudioPlayingRef.current = val;
@@ -800,6 +744,117 @@ Provide a highly informative, encouraging, and clear response to help the user m
   const [showUndoToast, setShowUndoToast] = useState<boolean>(false);
   const [showArchivedOnly, setShowArchivedOnly] = useState<boolean>(false);
   const [archivedPhrases, setArchivedPhrases] = useState<Phrase[]>([]);
+
+  // --- Cloud Sync Actions ---
+
+  const handleRequestSyncCode = async () => {
+    if (!syncEmail || !syncEmail.includes('@')) {
+      setSyncError('Please enter a valid email address.');
+      setSyncSuccess(null);
+      return;
+    }
+
+    setIsSyncing(true);
+    setSyncError(null);
+    setSyncSuccess(null);
+
+    try {
+      const response = await apiSyncRequestCode(syncEmail);
+      if (response.success) {
+        setSyncStep('code_requested');
+        localStorage.setItem('hlm_sync_email', syncEmail);
+        localStorage.setItem('hlm_sync_code_requested', 'true');
+        setSyncSuccess(response.message || 'Verification sync code successfully emailed! Please check your inbox.');
+      } else {
+        setSyncError('Failed to request sync code. Please verify server SMTP configuration.');
+      }
+    } catch (err: any) {
+      console.error('Request sync code failed', err);
+      setSyncError(err.message || 'Failed to connect to the sync server.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleVerifySyncCode = async () => {
+    if (!syncVerificationCode.trim()) {
+      setSyncError('Please paste the sync code from your email.');
+      setSyncSuccess(null);
+      return;
+    }
+
+    setIsSyncing(true);
+    setSyncError(null);
+    setSyncSuccess(null);
+
+    try {
+      const response = await apiSyncVerifyCode(syncVerificationCode);
+      if (response.success && response.sync_key) {
+        localStorage.setItem('hlm_sync_key', response.sync_key);
+        localStorage.setItem('hlm_sync_email', response.email);
+        localStorage.removeItem('hlm_sync_code_requested');
+        setSyncKey(response.sync_key);
+        setSyncEmail(response.email);
+        setSyncStep('idle');
+        setSyncSuccess('Handshake verified successfully! Syncing your study deck now...');
+        await performSync(response.sync_key);
+      } else {
+        setSyncError('Verification failed. Invalid or expired sync code.');
+      }
+    } catch (err: any) {
+      console.error('Verification failed', err);
+      setSyncError(err.message || 'Failed to verify sync code.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const performSync = async (keyToUse: string) => {
+    setIsSyncing(true);
+    setSyncError(null);
+    try {
+      const active = await apiGetPhrases();
+      const archived = await apiGetArchivedPhrases();
+      const allLocal = [...active, ...archived];
+
+      await apiSyncPush(keyToUse, allLocal);
+
+      const pullResult = await apiSyncPull(keyToUse);
+
+      if (pullResult && Array.isArray(pullResult.phrases)) {
+        await apiImportPhrases(pullResult.phrases);
+        setSyncSuccess(`Synchronization successful! Merged ${pullResult.phrases.length} cards.`);
+        await refreshData();
+      } else {
+        setSyncError('Failed to pull synchronized data from the server.');
+      }
+    } catch (err: any) {
+      console.error('Synchronization failed', err);
+      setSyncError(err.message || 'Synchronization failed.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    if (!syncKey) {
+      setSyncError('Device is not linked to any account.');
+      return;
+    }
+    await performSync(syncKey);
+  };
+
+  const handleUnlinkSync = () => {
+    localStorage.removeItem('hlm_sync_key');
+    localStorage.removeItem('hlm_sync_email');
+    localStorage.removeItem('hlm_sync_code_requested');
+    setSyncKey('');
+    setSyncEmail('');
+    setSyncVerificationCode('');
+    setSyncStep('idle');
+    setSyncSuccess('Successfully unlinked device from sync account.');
+    setSyncError(null);
+  };
 
   // Spaced Repetition Queue Calculation
   const todayStr = new Date().toISOString().split('T')[0];
@@ -916,8 +971,7 @@ Return ONLY a valid JSON array of objects satisfying this exact schema:
     "meaning_ja": "Japanese definition",
     "example_en": "Authentic example sentence in English",
     "example_ja": "Japanese translation of the example sentence",
-    "category": "Idiom", // choose from: Idiom, Slang, Phrasal Verb, Colloquial
-    "difficulty": "Intermediate" // choose from: Beginner, Intermediate, Advanced
+    "category": "Idiom" // choose from: Idiom, Slang, Phrasal Verb, Colloquial
   }
 ]
 No other text, conversational intro, markdown fences, or wrap code. Return strictly the raw JSON array.`;
@@ -950,51 +1004,96 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
     setIsGeneratingCards(true);
     
     try {
-      const promptText = buildGeneratorPrompt(generationInstructions, countVal);
-      const result = await aiPromptLocalLLM(promptText);
+      let attempts = 0;
+      let uniqueGenerated: Phrase[] = [];
+      const existingSet = new Set(phrases.map(p => p.phrase.toLowerCase().trim()));
       
-      // Clean result text to extract strictly the JSON array
-      let rawText = result.response.trim();
-      
-      // Strip markdown code fences if present
-      if (rawText.startsWith('```')) {
-        // Find JSON block
-        const jsonStart = rawText.indexOf('[');
-        const jsonEnd = rawText.lastIndexOf(']') + 1;
-        if (jsonStart !== -1 && jsonEnd !== -1) {
-          rawText = rawText.substring(jsonStart, jsonEnd);
-        } else {
-          // Fallback regex strips tags
-          rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+      while (uniqueGenerated.length < countVal && attempts < 3) {
+        attempts++;
+        const remainingCount = countVal - uniqueGenerated.length;
+        const combinedExclusions = [...phrases.map(p => p.phrase), ...uniqueGenerated.map(p => p.phrase)];
+        
+        const promptText = `You are a professional lexicographer and vocabulary assistant.
+Generate exactly ${remainingCount} English vocabulary cards based on the following instructions:
+Instructions: "${generationInstructions || 'General everyday idioms/phrases'}"
+
+CRITICAL DUPLICATE EXCLUSION RULE:
+DO NOT generate any of the following phrases as they already exist in my database. Under no circumstances should these phrases be returned:
+${JSON.stringify(combinedExclusions)}
+
+Return ONLY a valid JSON array of objects satisfying this exact schema:
+[
+  {
+    "phrase": "Example Phrase",
+    "meaning_en": "English definition",
+    "meaning_ja": "Japanese definition",
+    "example_en": "Authentic example sentence in English",
+    "example_ja": "Japanese translation of the example sentence",
+    "category": "Idiom" // choose from: Idiom, Slang, Phrasal Verb, Colloquial
+  }
+]
+No other text, conversational intro, markdown fences, or wrap code. Return strictly the raw JSON array.`;
+
+        const result = await aiPromptLocalLLM(promptText);
+        
+        // Clean result text to extract strictly the JSON array
+        let rawText = result.response.trim();
+        
+        // Strip markdown code fences if present
+        if (rawText.startsWith('```')) {
+          const jsonStart = rawText.indexOf('[');
+          const jsonEnd = rawText.lastIndexOf(']') + 1;
+          if (jsonStart !== -1 && jsonEnd !== -1) {
+            rawText = rawText.substring(jsonStart, jsonEnd);
+          } else {
+            rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+          }
+        }
+        
+        const parsedArray = JSON.parse(rawText);
+        if (!Array.isArray(parsedArray)) {
+          throw new Error('AI response did not return a valid array of cards.');
+        }
+        
+        for (const card of parsedArray) {
+          const cleanedPhrase = (card.phrase || '').trim();
+          if (!cleanedPhrase) continue;
+          
+          const isDuplicate = existingSet.has(cleanedPhrase.toLowerCase()) ||
+                              uniqueGenerated.some(u => u.phrase.toLowerCase().trim() === cleanedPhrase.toLowerCase());
+          
+          if (!isDuplicate) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            uniqueGenerated.push({
+              id: -9999 - uniqueGenerated.length,
+              phrase: cleanedPhrase,
+              meaning_en: card.meaning_en || '',
+              meaning_ja: card.meaning_ja || '',
+              category: card.category || 'Idiom',
+              example_en: card.example_en || '',
+              example_ja: card.example_ja || '',
+              difficulty: 'Intermediate',
+              next_review_date: todayStr,
+              interval_days: 0,
+              ease_factor: 2.5,
+              repetition_count: 0
+            });
+          } else {
+            console.log(`Detected duplicate generated phrase: "${cleanedPhrase}". Will retry/redo.`);
+          }
         }
       }
       
-      const parsedArray = JSON.parse(rawText);
-      if (!Array.isArray(parsedArray)) {
-        throw new Error('AI response did not return a valid array of cards.');
+      if (uniqueGenerated.length === 0) {
+        throw new Error('All generated cards were duplicates or generation failed.');
       }
       
-      // Assign temporary IDs and make sure they conform to Phrase structure
-      const formatted: Phrase[] = parsedArray.map((card: any, idx: number) => {
-        const todayStr = new Date().toISOString().split('T')[0];
-        return {
-          id: -9999 - idx, // temporary negative ID to show in preview
-          phrase: card.phrase || 'New Phrase',
-          meaning_en: card.meaning_en || '',
-          meaning_ja: card.meaning_ja || '',
-          category: card.category || 'Idiom',
-          example_en: card.example_en || '',
-          example_ja: card.example_ja || '',
-          difficulty: card.difficulty || 'Intermediate',
-          next_review_date: todayStr,
-          interval_days: 0,
-          ease_factor: 2.5,
-          repetition_count: 0
-        };
-      });
-      
-      setGeneratedPreviewCards(formatted);
-      setGeneratorSuccess(`Successfully generated ${formatted.length} card(s) locally! Review them below.`);
+      setGeneratedPreviewCards(uniqueGenerated);
+      if (uniqueGenerated.length < countVal) {
+        setGeneratorSuccess(`Generated ${uniqueGenerated.length} unique card(s) (fewer than requested due to duplicate avoidance).`);
+      } else {
+        setGeneratorSuccess(`Successfully generated ${uniqueGenerated.length} unique card(s) locally! Review them below.`);
+      }
     } catch (err: any) {
       console.error('Local AI card generation failed', err);
       setGeneratorError(`Failed to generate cards locally: ${err.message || 'Invalid JSON output from local model. Try copying the prompt to a commercial LLM.'}`);
@@ -1216,13 +1315,36 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
       setFormError(t('msg_fill_phrase') || 'Please fill in the Phrase / Idiom / Word field first.');
       return;
     }
+    if (phrases.some(p => p.phrase.toLowerCase().trim() === newCard.phrase.toLowerCase().trim())) {
+      setFormError(`Duplicate phrase detected! "${newCard.phrase}" already exists in your deck.`);
+      return;
+    }
     setFormError(null);
     setFormSuccess(null);
     setIsGeneratingCard(true);
     setGeneratedPreview(null);
     try {
       const generated = await aiGenerateCardDetails(newCard.phrase);
-      setGeneratedPreview(generated);
+      if (!generated.phrase || !generated.meaning_en) {
+        throw new Error('AI response did not contain valid phrase or English meaning.');
+      }
+      
+      const payload: Omit<Phrase, 'id' | 'next_review_date' | 'interval_days' | 'ease_factor' | 'repetition_count'> = {
+        phrase: generated.phrase || newCard.phrase,
+        meaning_en: generated.meaning_en || '',
+        meaning_ja: generated.meaning_ja || '',
+        category: generated.category || 'Idiom',
+        example_en: generated.example_en || '',
+        example_ja: generated.example_ja || '',
+        difficulty: 'Intermediate',
+        used_in_us: typeof generated.used_in_us === 'number' ? generated.used_in_us : 1,
+        used_in_uk: typeof generated.used_in_uk === 'number' ? generated.used_in_uk : 1,
+        nuance: generated.nuance || '',
+        origin: generated.origin || '',
+        tips: generated.tips || ''
+      };
+
+      setGeneratedPreview(payload);
     } catch (err: any) {
       console.error('Local AI generation failed', err);
       setFormError(err.message || 'Failed to generate card details with local AI.');
@@ -1236,18 +1358,24 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
       setFormError(t('msg_fill_phrase') || 'Please fill in the Phrase / Idiom / Word field first.');
       return;
     }
+    if (phrases.some(p => p.phrase.toLowerCase().trim() === newCard.phrase.toLowerCase().trim())) {
+      setFormError(`Duplicate phrase detected! "${newCard.phrase}" already exists in your deck.`);
+      return;
+    }
     const promptText = `You are a professional language teacher and curriculum developer. Generate high-fidelity flashcard details for the English vocabulary word, idiom, or phrase: "${newCard.phrase}".
 Respond strictly in valid JSON format with the following keys:
 {
   "phrase": "${newCard.phrase}",
   "category": "One of: Idiom, Slang, Phrasal Verb, Colloquial",
-  "difficulty": "One of: Beginner, Intermediate, Advanced",
   "used_in_us": 1,
   "used_in_uk": 1,
   "meaning_en": "A clear, concise, and professional English definition/meaning suitable for language learners.",
   "meaning_ja": "A natural, accurate, and easy-to-understand Japanese translation/meaning.",
   "example_en": "An extremely natural, modern, and contextually correct English example sentence using this phrase.",
-  "example_ja": "A natural and accurate Japanese translation of that English example sentence."
+  "example_ja": "A natural and accurate Japanese translation of that English example sentence.",
+  "nuance": "Detailed context and usage nuances, including tone, register, and situational guidance. Additionally, perform a search or draw upon the latest authoritative usage statistics and include a section titled '\\n\\n### 📰 Modern Usage & Frequency Report\\n' describing how frequently it appears today on reputable sites like Merriam-Webster, Oxford, or in recent news publications.",
+  "origin": "Historical etymology, cultural origin story, or how the phrase came to be.",
+  "tips": "A practical study tip or collocation advice for language learners."
 }`;
     navigator.clipboard.writeText(promptText)
       .then(() => {
@@ -1259,20 +1387,46 @@ Respond strictly in valid JSON format with the following keys:
       });
   };
 
-  const handlePasteCommercialAI = (value: string) => {
+  const handlePasteCommercialAI = async (value: string) => {
     setCommercialPaste(value);
     if (!value || !value.trim()) {
       setGeneratedPreview(null);
       return;
     }
     try {
-      const cleanJson = value.substring(value.indexOf('{'), value.lastIndexOf('}') + 1);
+      const startIdx = value.indexOf('{');
+      const endIdx = value.lastIndexOf('}');
+      if (startIdx === -1 || endIdx === -1 || endIdx < startIdx) {
+        return;
+      }
+      const cleanJson = value.substring(startIdx, endIdx + 1);
       const parsed = JSON.parse(cleanJson);
       if (parsed.phrase && parsed.meaning_en) {
-        setGeneratedPreview(parsed);
+        if (phrases.some(p => p.phrase.toLowerCase().trim() === parsed.phrase.toLowerCase().trim())) {
+          setFormError(`Duplicate phrase detected! "${parsed.phrase}" already exists in your deck. Please query the commercial LLM again to generate a unique phrase.`);
+          setGeneratedPreview(null);
+          return;
+        }
         setFormError(null);
+
+        const payload: Omit<Phrase, 'id' | 'next_review_date' | 'interval_days' | 'ease_factor' | 'repetition_count'> = {
+          phrase: parsed.phrase,
+          meaning_en: parsed.meaning_en || '',
+          meaning_ja: parsed.meaning_ja || '',
+          category: parsed.category || 'Idiom',
+          example_en: parsed.example_en || '',
+          example_ja: parsed.example_ja || '',
+          difficulty: 'Intermediate',
+          used_in_us: typeof parsed.used_in_us === 'number' ? parsed.used_in_us : 1,
+          used_in_uk: typeof parsed.used_in_uk === 'number' ? parsed.used_in_uk : 1,
+          nuance: parsed.nuance || '',
+          origin: parsed.origin || '',
+          tips: parsed.tips || ''
+        };
+
+        setGeneratedPreview(payload);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to parse pasted JSON', err);
     }
   };
@@ -1734,7 +1888,7 @@ Respond strictly in valid JSON format with the following keys:
                       
                       {/* FRONT CARD */}
                       <div className="study-card-front">
-                        <span className={`difficulty-badge ${activeCard.difficulty.toLowerCase()}`}>{activeCard.difficulty}</span>
+                        <span className={`difficulty-badge ${activeCard.difficulty.toLowerCase()}`} style={{ display: 'none' }}>{activeCard.difficulty}</span>
                         <span className="category-badge">{activeCard.category}</span>
                         <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', marginBottom: '-0.8rem', marginTop: '0.5rem' }}>
                           {activeCard.used_in_us === 1 && (
@@ -1766,7 +1920,7 @@ Respond strictly in valid JSON format with the following keys:
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleSpeak(activeCard.phrase, 'en');
+                              startAudioReader(activeCard.phrase, activeCard.phrase);
                             }}
                             onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
                             onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
@@ -1779,7 +1933,7 @@ Respond strictly in valid JSON format with the following keys:
 
                       {/* BACK CARD */}
                       <div className="study-card-back" onClick={(e) => e.stopPropagation()}>
-                        <span className={`difficulty-badge ${activeCard.difficulty.toLowerCase()}`}>{activeCard.difficulty}</span>
+                        <span className={`difficulty-badge ${activeCard.difficulty.toLowerCase()}`} style={{ display: 'none' }}>{activeCard.difficulty}</span>
                         <span className="category-badge">{activeCard.category}</span>
                         <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', marginBottom: '-0.8rem', marginTop: '0.5rem' }}>
                           {activeCard.used_in_us === 1 && (
@@ -1810,7 +1964,7 @@ Respond strictly in valid JSON format with the following keys:
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleSpeak(activeCard.phrase, 'en');
+                              startAudioReader(activeCard.phrase, activeCard.phrase);
                             }}
                             onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
                             onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
@@ -1845,7 +1999,7 @@ Respond strictly in valid JSON format with the following keys:
                                 fontSize: '0.8rem',
                                 flexShrink: 0
                               }}
-                              onClick={() => handleSpeak(activeCard.example_en, 'en')}
+                              onClick={() => startAudioReader(activeCard.example_en, 'Example Sentence: ' + activeCard.phrase)}
                               onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
                               onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
                             >
@@ -1872,7 +2026,7 @@ Respond strictly in valid JSON format with the following keys:
                                   fontSize: '0.8rem',
                                   flexShrink: 0
                                 }}
-                                onClick={() => handleSpeak(activeCard.example_ja, 'ja')}
+                                onClick={() => startAudioReader(activeCard.example_ja, '日本語の例文: ' + activeCard.phrase)}
                                 onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
                                 onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
                               >
@@ -1940,7 +2094,7 @@ Respond strictly in valid JSON format with the following keys:
                                   fontSize: '0.7rem',
                                   flexShrink: 0
                                 }}
-                                onClick={() => handleSpeak(aiReview.suggestion, 'en')}
+                                onClick={() => startAudioReader(aiReview.suggestion, 'AI Suggestion: ' + activeCard.phrase)}
                                 onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
                                 onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
                               >
@@ -2187,6 +2341,216 @@ Respond strictly in valid JSON format with the following keys:
               )}
             </div>
 
+            {/* Cloud Synchronization Panel */}
+            <div className="glass-card" style={{ padding: '1.2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f59e0b' }}>
+                  ☁️ Cloud Synchronization (Yugawara)
+                </h3>
+                {syncKey && (
+                  <span style={{ 
+                    background: 'rgba(16, 185, 129, 0.15)', 
+                    border: '1px solid #10b981', 
+                    color: '#10b981', 
+                    borderRadius: '20px', 
+                    padding: '0.2rem 0.6rem', 
+                    fontSize: '0.75rem', 
+                    fontWeight: 'bold' 
+                  }}>
+                    ● Linked
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {!syncKey ? (
+                  <>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+                      Synchronize your vocabulary deck, study progress, and learning history seamlessly across all your devices using our database-free, secure email handshake system.
+                    </p>
+
+                    {syncStep === 'idle' ? (
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <input
+                          type="email"
+                          data-testid="sync-email-input"
+                          placeholder="your.email@example.com"
+                          value={syncEmail}
+                          onChange={(e) => setSyncEmail(e.target.value)}
+                          style={{
+                            flex: 1,
+                            minWidth: '200px',
+                            background: 'rgba(0, 0, 0, 0.25)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '6px',
+                            padding: '0.6rem 0.8rem',
+                            color: '#fff',
+                            fontSize: '0.85rem',
+                            outline: 'none',
+                            transition: 'border-color 0.2s'
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = '#f59e0b'}
+                          onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                        />
+                        <button
+                          data-testid="btn-request-sync-code"
+                          className="btn-primary"
+                          disabled={isSyncing}
+                          onClick={handleRequestSyncCode}
+                          style={{
+                            background: 'rgba(245, 158, 11, 0.15)',
+                            border: '1px solid #f59e0b',
+                            color: '#f59e0b',
+                            padding: '0.6rem 1.2rem',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            fontSize: '0.85rem',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)'}
+                        >
+                          {isSyncing ? 'Sending...' : '✉️ Get Sync Code'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                        <p style={{ fontSize: '0.8rem', color: '#38bdf8', margin: 0, fontWeight: 'bold' }}>
+                          🔑 Enter the code sent to {syncEmail}:
+                        </p>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <input
+                            type="text"
+                            data-testid="sync-code-input"
+                            placeholder="Paste magic sync code from email..."
+                            value={syncVerificationCode}
+                            onChange={(e) => setSyncVerificationCode(e.target.value)}
+                            style={{
+                              flex: 1,
+                              minWidth: '200px',
+                              background: 'rgba(0, 0, 0, 0.25)',
+                              border: '1px solid #38bdf8',
+                              borderRadius: '6px',
+                              padding: '0.6rem 0.8rem',
+                              color: '#fff',
+                              fontFamily: 'monospace',
+                              fontSize: '0.8rem',
+                              outline: 'none'
+                            }}
+                          />
+                          <button
+                            data-testid="btn-verify-sync-code"
+                            className="btn-primary"
+                            disabled={isSyncing}
+                            onClick={handleVerifySyncCode}
+                            style={{
+                              background: 'rgba(56, 189, 248, 0.15)',
+                              border: '1px solid #38bdf8',
+                              color: '#38bdf8',
+                              padding: '0.6rem 1.2rem',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontWeight: 'bold',
+                              fontSize: '0.85rem',
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.15)'}
+                          >
+                            {isSyncing ? 'Verifying...' : '🔗 Verify & Sync'}
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setSyncStep('idle'); setSyncError(null); }}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            alignSelf: 'flex-start',
+                            padding: 0,
+                            textDecoration: 'underline'
+                          }}
+                        >
+                          ← Use a different email address
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                      <div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Linked Sync Account</span>
+                        <strong style={{ fontSize: '0.9rem', color: '#fff' }}>{syncEmail}</strong>
+                      </div>
+                      <button
+                        data-testid="btn-unlink-sync"
+                        onClick={handleUnlinkSync}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.12)',
+                          border: '1px solid #ef4444',
+                          color: '#ef4444',
+                          padding: '0.4rem 0.8rem',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
+                      >
+                        🔌 Unlink Device
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.8rem' }}>
+                      <button
+                        data-testid="btn-sync-now"
+                        disabled={isSyncing}
+                        onClick={handleSyncNow}
+                        style={{
+                          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                          border: 'none',
+                          color: '#000',
+                          padding: '0.7rem 1.5rem',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          fontSize: '0.85rem',
+                          transition: 'transform 0.2s, box-shadow 0.2s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          boxShadow: '0 4px 12px rgba(245, 158, 11, 0.2)'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.3)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.2)'; }}
+                      >
+                        🔄 {isSyncing ? 'Syncing...' : 'Sync study progress now'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {syncError && (
+                  <div data-testid="sync-error-msg" style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.5rem' }}>
+                    ❌ {syncError}
+                  </div>
+                )}
+
+                {syncSuccess && (
+                  <div data-testid="sync-success-msg" style={{ color: '#10b981', fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.5rem' }}>
+                    ✅ {syncSuccess}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* AI Card Generator Accordion */}
             <div className="glass-card" style={{ padding: '1.2rem' }}>
               <div 
@@ -2330,7 +2694,7 @@ Respond strictly in valid JSON format with the following keys:
                           <tr style={{ borderBottom: '1px solid var(--border)' }}>
                             <th style={{ textAlign: 'left', padding: '0.6rem' }}>{t('lbl_phrase')}</th>
                             <th style={{ textAlign: 'left', padding: '0.6rem' }}>{t('lbl_meaning_en')}</th>
-                            <th style={{ textAlign: 'left', padding: '0.6rem' }}>{t('lbl_meaning_ja')}</th>
+                            {lang !== 'en' && <th style={{ textAlign: 'left', padding: '0.6rem' }}>{t('lbl_meaning_ja')}</th>}
                             <th style={{ textAlign: 'left', padding: '0.6rem' }}>{t('lbl_category')}</th>
                           </tr>
                         </thead>
@@ -2339,7 +2703,7 @@ Respond strictly in valid JSON format with the following keys:
                             <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                               <td style={{ padding: '0.6rem', fontWeight: 'bold', color: '#f59e0b' }}>{card.phrase}</td>
                               <td style={{ padding: '0.6rem' }}>{card.meaning_en}</td>
-                              <td style={{ padding: '0.6rem' }}>{card.meaning_ja}</td>
+                              {lang !== 'en' && <td style={{ padding: '0.6rem' }}>{card.meaning_ja}</td>}
                               <td style={{ padding: '0.6rem', color: 'var(--text-muted)' }}>{card.category}</td>
                             </tr>
                           ))}
@@ -2521,21 +2885,46 @@ Respond strictly in valid JSON format with the following keys:
                           <span style={{ background: 'rgba(255,255,255,0.06)', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>
                             {generatedPreview.category}
                           </span>
-                          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>
+                          <span style={{ display: 'none' }}>
                             {generatedPreview.difficulty}
                           </span>
                         </div>
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                        <h3 style={{ margin: 0, fontSize: '1.4rem', color: '#fff' }}>{generatedPreview.phrase}</h3>
+                        <h3 style={{ margin: 0, fontSize: '1.4rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {generatedPreview.phrase}
+                          <button
+                            className="btn-speak-preview-phrase"
+                            title="Speak phrase"
+                            style={{
+                              background: 'rgba(255,255,255,0.06)',
+                              border: 'none',
+                              color: '#fff',
+                              borderRadius: '50%',
+                              width: '28px',
+                              height: '28px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              fontSize: '0.8rem',
+                              transition: 'all 0.2s'
+                            }}
+                            onClick={() => startAudioReader(generatedPreview.phrase || '', generatedPreview.phrase || '')}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                          >
+                            🔊
+                          </button>
+                        </h3>
                         
                         <div>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', fontWeight: 'bold' }}>MEANING (EN)</span>
                           <span style={{ color: '#06b6d4', fontSize: '0.95rem' }}>{generatedPreview.meaning_en}</span>
                         </div>
 
-                        {generatedPreview.meaning_ja && (
+                        {lang !== 'en' && generatedPreview.meaning_ja && (
                           <div>
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', fontWeight: 'bold' }}>MEANING (JA)</span>
                             <span style={{ color: '#fff', fontSize: '0.95rem' }}>{generatedPreview.meaning_ja}</span>
@@ -2544,12 +2933,62 @@ Respond strictly in valid JSON format with the following keys:
 
                         <div style={{ background: 'rgba(0,0,0,0.15)', padding: '0.8rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)', marginTop: '0.2rem' }}>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Example Sentence</span>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                            <p style={{ fontStyle: 'italic', fontSize: '0.9rem', color: '#fff', margin: 0 }}>"{generatedPreview.example_en}"</p>
-                            {generatedPreview.example_ja && (
-                              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, borderTop: '1px dashed rgba(255,255,255,0.05)', paddingTop: '0.4rem' }}>{generatedPreview.example_ja}</p>
-                            )}
+                          
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                            <p style={{ fontStyle: 'italic', fontSize: '0.9rem', color: '#fff', flex: 1, margin: 0 }}>"{generatedPreview.example_en}"</p>
+                            <button
+                              className="btn-speak-preview-example"
+                              title="Speak example sentence"
+                              style={{
+                                background: 'rgba(255,255,255,0.06)',
+                                border: 'none',
+                                color: '#fff',
+                                borderRadius: '50%',
+                                width: '28px',
+                                height: '28px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem',
+                                flexShrink: 0
+                              }}
+                              onClick={() => startAudioReader(generatedPreview.example_en || '', 'Example Sentence: ' + generatedPreview.phrase)}
+                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                            >
+                              🔊
+                            </button>
                           </div>
+
+                          {lang !== 'en' && generatedPreview.example_ja && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginTop: '0.4rem', borderTop: '1px dashed rgba(255,255,255,0.05)', paddingTop: '0.4rem' }}>
+                              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', flex: 1, margin: 0 }}>{generatedPreview.example_ja}</p>
+                              <button
+                                className="btn-speak-preview-example-ja"
+                                title="日本語の例文を読み上げる"
+                                style={{
+                                  background: 'rgba(255,255,255,0.06)',
+                                  border: 'none',
+                                  color: '#fff',
+                                  borderRadius: '50%',
+                                  width: '28px',
+                                  height: '28px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer',
+                                  fontSize: '0.8rem',
+                                  flexShrink: 0
+                                }}
+                                onClick={() => startAudioReader(generatedPreview.example_ja || '', '日本語の例文: ' + generatedPreview.phrase)}
+                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                              >
+                                🔊
+                              </button>
+                            </div>
+                          )}
                         </div>
 
                         <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', alignItems: 'center' }}>
@@ -2559,6 +2998,122 @@ Respond strictly in valid JSON format with the following keys:
                             {generatedPreview.used_in_uk === 1 && <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>🇬🇧 UK</span>}
                           </span>
                         </div>
+
+                        {(generatedPreview.origin || generatedPreview.nuance || generatedPreview.tips) && (
+                          <div style={{
+                            background: 'rgba(255, 255, 255, 0.01)',
+                            border: '1px solid rgba(255, 255, 255, 0.05)',
+                            borderRadius: '8px',
+                            padding: '1.2rem',
+                            marginTop: '0.5rem',
+                            boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.05)'
+                          }}>
+                            <h4 style={{ margin: '0 0 0.8rem 0', color: '#c084fc', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '1rem' }}>
+                              📝 Etymology & Nuance Editorial Draft
+                            </h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.85)', lineHeight: '1.5' }}>
+                              {generatedPreview.origin && (
+                                <div>
+                                  <span style={{ fontWeight: 'bold', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+                                    <span>Historical Origin</span>
+                                    <button
+                                      type="button"
+                                      className="btn-speak-preview-origin"
+                                      title="Speak origin"
+                                      style={{
+                                        background: 'rgba(255,255,255,0.06)',
+                                        border: 'none',
+                                        color: '#fff',
+                                        borderRadius: '50%',
+                                        width: '20px',
+                                        height: '20px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        fontSize: '0.65rem',
+                                        flexShrink: 0,
+                                        transition: 'all 0.2s'
+                                      }}
+                                      onClick={() => startAudioReader(generatedPreview.origin || '', 'Historical Origin: ' + generatedPreview.phrase)}
+                                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+                                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                                    >
+                                      🔊
+                                    </button>
+                                  </span>
+                                  <div style={{ margin: 0, paddingLeft: '0.5rem', borderLeft: '2px solid #38bdf8' }}>{parseMarkdown(generatedPreview.origin)}</div>
+                                </div>
+                              )}
+                              {generatedPreview.nuance && (
+                                <div>
+                                  <span style={{ fontWeight: 'bold', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+                                    <span>Semantic Nuance & Usage Tone</span>
+                                    <button
+                                      type="button"
+                                      className="btn-speak-preview-nuance"
+                                      title="Speak nuance"
+                                      style={{
+                                        background: 'rgba(255,255,255,0.06)',
+                                        border: 'none',
+                                        color: '#fff',
+                                        borderRadius: '50%',
+                                        width: '20px',
+                                        height: '20px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        fontSize: '0.65rem',
+                                        flexShrink: 0,
+                                        transition: 'all 0.2s'
+                                      }}
+                                      onClick={() => startAudioReader(generatedPreview.nuance || '', 'Semantic Nuance & Usage Tone: ' + generatedPreview.phrase)}
+                                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+                                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                                    >
+                                      🔊
+                                    </button>
+                                  </span>
+                                  <div style={{ margin: 0, paddingLeft: '0.5rem', borderLeft: '2px solid #38bdf8' }}>{parseMarkdown(generatedPreview.nuance)}</div>
+                                </div>
+                              )}
+                              {generatedPreview.tips && (
+                                <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '6px', padding: '0.6rem 0.8rem' }}>
+                                  <span style={{ fontWeight: 'bold', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+                                    <span>💡 Language Coach Tip</span>
+                                    <button
+                                      type="button"
+                                      className="btn-speak-preview-tips"
+                                      title="Speak tips"
+                                      style={{
+                                        background: 'rgba(255,255,255,0.06)',
+                                        border: 'none',
+                                        color: '#fff',
+                                        borderRadius: '50%',
+                                        width: '20px',
+                                        height: '20px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        fontSize: '0.65rem',
+                                        flexShrink: 0,
+                                        transition: 'all 0.2s'
+                                      }}
+                                      onClick={() => startAudioReader(generatedPreview.tips || '', 'Language Coach Tip: ' + generatedPreview.phrase)}
+                                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+                                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                                    >
+                                      🔊
+                                    </button>
+                                  </span>
+                                  <div style={{ margin: 0, fontStyle: 'italic' }}>{parseMarkdown(generatedPreview.tips)}</div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <button
@@ -2619,7 +3174,7 @@ Respond strictly in valid JSON format with the following keys:
                   <select
                     value={selectedDifficultyFilter}
                     onChange={(e) => setSelectedDifficultyFilter(e.target.value)}
-                    style={{ padding: '0.5rem 1rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff' }}
+                    style={{ display: 'none' }}
                   >
                     <option value="All">All Difficulties</option>
                     <option value="Beginner">Beginner</option>
@@ -2647,7 +3202,7 @@ Respond strictly in valid JSON format with the following keys:
                     <tr>
                       <th style={{ textAlign: 'left', padding: '1rem' }}>{t('lbl_phrase')}</th>
                       <th style={{ textAlign: 'left', padding: '1rem' }}>{t('lbl_category')}</th>
-                      <th style={{ textAlign: 'left', padding: '1rem' }}>{t('lbl_difficulty')}</th>
+                      <th style={{ display: 'none' }}>{t('lbl_difficulty')}</th>
                       <th style={{ textAlign: 'left', padding: '1rem' }}>Next Review</th>
                       <th style={{ textAlign: 'center', padding: '1rem' }}>SRS Reps</th>
                       <th style={{ textAlign: 'center', padding: '1rem' }}>Actions</th>
@@ -2664,7 +3219,7 @@ Respond strictly in valid JSON format with the following keys:
                           >
                             <td style={{ padding: '1rem', fontWeight: 'bold', color: '#fff' }}>{phrase.phrase}</td>
                             <td style={{ padding: '1rem' }}><span className="category-badge" style={{ position: 'static' }}>{phrase.category}</span></td>
-                            <td style={{ padding: '1rem' }}><span className={`difficulty-badge ${phrase.difficulty.toLowerCase()}`} style={{ position: 'static' }}>{phrase.difficulty}</span></td>
+                            <td style={{ display: 'none' }}><span className={`difficulty-badge ${phrase.difficulty.toLowerCase()}`} style={{ position: 'static' }}>{phrase.difficulty}</span></td>
                             <td style={{ padding: '1rem', color: phrase.next_review_date <= todayStr ? '#ffcc00' : 'var(--text-muted)' }}>
                               {phrase.next_review_date} {phrase.next_review_date <= todayStr ? '⚠️ Due' : ''}
                             </td>
@@ -2891,7 +3446,7 @@ Respond strictly in valid JSON format with the following keys:
                                           fontSize: '0.8rem',
                                           flexShrink: 0
                                         }}
-                                        onClick={() => handleSpeak(phrase.example_en, 'en')}
+                                        onClick={() => startAudioReader(phrase.example_en, 'Example Sentence: ' + phrase.phrase)}
                                         onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'}
                                       >
@@ -2918,7 +3473,7 @@ Respond strictly in valid JSON format with the following keys:
                                             fontSize: '0.8rem',
                                             flexShrink: 0
                                           }}
-                                          onClick={() => handleSpeak(phrase.example_ja, 'ja')}
+                                          onClick={() => startAudioReader(phrase.example_ja, '日本語の例文: ' + phrase.phrase)}
                                           onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
                                           onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'}
                                         >
@@ -2968,16 +3523,94 @@ Respond strictly in valid JSON format with the following keys:
                                           </h4>
                                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', lineHeight: '1.5' }}>
                                             <div>
-                                              <span style={{ fontWeight: 'bold', color: '#38bdf8', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Historical Origin</span>
-                                              <p style={{ margin: 0, paddingLeft: '0.5rem', borderLeft: '2px solid #38bdf8' }}>{phrase.origin}</p>
+                                              <span style={{ fontWeight: 'bold', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+                                                <span>Historical Origin</span>
+                                                <button
+                                                  className="btn-speak-mgr-origin"
+                                                  title="Speak origin"
+                                                  style={{
+                                                    background: 'rgba(255, 255, 255, 0.06)',
+                                                    border: 'none',
+                                                    color: '#fff',
+                                                    borderRadius: '50%',
+                                                    width: '20px',
+                                                    height: '20px',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    cursor: 'pointer',
+                                                    fontSize: '0.65rem',
+                                                    flexShrink: 0,
+                                                    transition: 'all 0.2s'
+                                                  }}
+                                                  onClick={() => startAudioReader(phrase.origin || '', 'Historical Origin: ' + phrase.phrase)}
+                                                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+                                                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'}
+                                                >
+                                                  🔊
+                                                </button>
+                                              </span>
+                                              <div style={{ margin: 0, paddingLeft: '0.5rem', borderLeft: '2px solid #38bdf8' }}>{parseMarkdown(phrase.origin || '')}</div>
                                             </div>
                                             <div>
-                                              <span style={{ fontWeight: 'bold', color: '#38bdf8', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Semantic Nuance & Usage Tone</span>
-                                              <p style={{ margin: 0, paddingLeft: '0.5rem', borderLeft: '2px solid #38bdf8' }}>{phrase.nuance}</p>
+                                              <span style={{ fontWeight: 'bold', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+                                                <span>Semantic Nuance & Usage Tone</span>
+                                                <button
+                                                  className="btn-speak-mgr-nuance"
+                                                  title="Speak nuance"
+                                                  style={{
+                                                    background: 'rgba(255, 255, 255, 0.06)',
+                                                    border: 'none',
+                                                    color: '#fff',
+                                                    borderRadius: '50%',
+                                                    width: '20px',
+                                                    height: '20px',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    cursor: 'pointer',
+                                                    fontSize: '0.65rem',
+                                                    flexShrink: 0,
+                                                    transition: 'all 0.2s'
+                                                  }}
+                                                  onClick={() => startAudioReader(phrase.nuance || '', 'Semantic Nuance & Usage Tone: ' + phrase.phrase)}
+                                                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+                                                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'}
+                                                >
+                                                  🔊
+                                                </button>
+                                              </span>
+                                              <div style={{ margin: 0, paddingLeft: '0.5rem', borderLeft: '2px solid #38bdf8' }}>{parseMarkdown(phrase.nuance || '')}</div>
                                             </div>
                                             <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '6px', padding: '0.6rem 0.8rem' }}>
-                                              <span style={{ fontWeight: 'bold', color: '#10b981', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>💡 Language Coach Tip</span>
-                                              <p style={{ margin: 0, fontStyle: 'italic' }}>{phrase.tips}</p>
+                                              <span style={{ fontWeight: 'bold', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+                                                <span>💡 Language Coach Tip</span>
+                                                <button
+                                                  className="btn-speak-mgr-tips"
+                                                  title="Speak tips"
+                                                  style={{
+                                                    background: 'rgba(255, 255, 255, 0.06)',
+                                                    border: 'none',
+                                                    color: '#fff',
+                                                    borderRadius: '50%',
+                                                    width: '20px',
+                                                    height: '20px',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    cursor: 'pointer',
+                                                    fontSize: '0.65rem',
+                                                    flexShrink: 0,
+                                                    transition: 'all 0.2s'
+                                                  }}
+                                                  onClick={() => startAudioReader(phrase.tips || '', 'Language Coach Tip: ' + phrase.phrase)}
+                                                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+                                                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'}
+                                                >
+                                                  🔊
+                                                </button>
+                                              </span>
+                                              <div style={{ margin: 0, fontStyle: 'italic' }}>{parseMarkdown(phrase.tips || '')}</div>
                                             </div>
                                           </div>
                                         </div>
@@ -3728,7 +4361,7 @@ Respond strictly in valid JSON format with the following keys:
                       <option value="Colloquial">Colloquial</option>
                     </select>
                   </div>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                  <div className="form-group" style={{ display: 'none' }}>
                     <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_difficulty')}</label>
                     <select
                       value={editForm.difficulty}
@@ -3763,7 +4396,7 @@ Respond strictly in valid JSON format with the following keys:
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: lang === 'en' ? '1fr' : '1fr 1fr', gap: '1rem' }}>
                   <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                     <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_meaning_en')}</label>
                     <input
@@ -3773,18 +4406,20 @@ Respond strictly in valid JSON format with the following keys:
                       style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', fontSize: '0.85rem' }}
                     />
                   </div>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_meaning_ja')}</label>
-                    <input
-                      type="text"
-                      value={editForm.meaning_ja}
-                      onChange={(e) => setEditForm({ ...editForm, meaning_ja: e.target.value })}
-                      style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', fontSize: '0.85rem' }}
-                    />
-                  </div>
+                  {lang !== 'en' && (
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_meaning_ja')}</label>
+                      <input
+                        type="text"
+                        value={editForm.meaning_ja}
+                        onChange={(e) => setEditForm({ ...editForm, meaning_ja: e.target.value })}
+                        style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', fontSize: '0.85rem' }}
+                      />
+                    </div>
+                  )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: lang === 'en' ? '1fr' : '1fr 1fr', gap: '1rem' }}>
                   <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                     <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_example_en')}</label>
                     <input
@@ -3794,15 +4429,17 @@ Respond strictly in valid JSON format with the following keys:
                       style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', fontSize: '0.85rem' }}
                     />
                   </div>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_example_ja')}</label>
-                    <input
-                      type="text"
-                      value={editForm.example_ja}
-                      onChange={(e) => setEditForm({ ...editForm, example_ja: e.target.value })}
-                      style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', fontSize: '0.85rem' }}
-                    />
-                  </div>
+                  {lang !== 'en' && (
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_example_ja')}</label>
+                      <input
+                        type="text"
+                        value={editForm.example_ja}
+                        onChange={(e) => setEditForm({ ...editForm, example_ja: e.target.value })}
+                        style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', fontSize: '0.85rem' }}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {editError && <p style={{ color: '#ef4444', fontWeight: 'bold', margin: '0.5rem 0' }}>⚠️ {editError}</p>}
@@ -3913,7 +4550,7 @@ Respond strictly in valid JSON format with the following keys:
                         </div>
                       )}
 
-                      {refinementSuggestion.meaning_ja && refinementSuggestion.meaning_ja !== editForm.meaning_ja && (
+                      {lang !== 'en' && refinementSuggestion.meaning_ja && refinementSuggestion.meaning_ja !== editForm.meaning_ja && (
                         <div>
                           <div style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '0.75rem' }}>{t('lbl_meaning_ja')}</div>
                           <div style={{ textDecoration: 'line-through', color: '#ef4444' }}>{editForm.meaning_ja}</div>
@@ -3929,7 +4566,7 @@ Respond strictly in valid JSON format with the following keys:
                         </div>
                       )}
 
-                      {refinementSuggestion.example_ja && refinementSuggestion.example_ja !== editForm.example_ja && (
+                      {lang !== 'en' && refinementSuggestion.example_ja && refinementSuggestion.example_ja !== editForm.example_ja && (
                         <div>
                           <div style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '0.75rem' }}>{t('lbl_example_ja')}</div>
                           <div style={{ textDecoration: 'line-through', color: '#ef4444' }}>{editForm.example_ja}</div>

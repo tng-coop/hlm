@@ -284,5 +284,95 @@ test.describe('HLM Study Deck E2E Suite', () => {
     // Verify successful addition toast / text
     await expect(page.locator('text=added')).toBeVisible();
   });
+
+  test('Cloud Synchronization Handshake, Verification, and Unlinking', async ({ page }) => {
+    // 1. Intercept network endpoints
+    await page.route('**/request_sync.php', async (route) => {
+      expect(route.request().method()).toBe('POST');
+      const body = route.request().postDataJSON();
+      expect(body.email).toBe('yasutest@yugawara.net');
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, message: 'Sync code successfully emailed!' })
+      });
+    });
+
+    await page.route('**/verify_sync.php', async (route) => {
+      expect(route.request().method()).toBe('POST');
+      const body = route.request().postDataJSON();
+      expect(body.code).toBe('mocked_magic_token_value_abc');
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          email: 'yasutest@yugawara.net',
+          sync_key: 'yasutest@yugawara.net:mocked_sig_123',
+          message: 'Handshake completed successfully!'
+        })
+      });
+    });
+
+    await page.route('**/sync.php', async (route) => {
+      if (route.request().method() === 'POST') {
+        const body = route.request().postDataJSON();
+        expect(Array.isArray(body.phrases)).toBe(true);
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, message: 'Successfully merged.' })
+        });
+      } else if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            phrases: [
+              {
+                id: 999,
+                phrase: 'Bite the bullet',
+                meaning_en: 'Face a difficult situation with courage.',
+                meaning_ja: '腹を括る。',
+                repetition_count: 5
+              }
+            ]
+          })
+        });
+      }
+    });
+
+    // 2. Go to Card Manager tab
+    await page.getByTestId('tab-manager').click();
+
+    // 3. Fill in email input and request sync code
+    const emailInput = page.getByTestId('sync-email-input');
+    await expect(emailInput).toBeVisible();
+    await emailInput.fill('yasutest@yugawara.net');
+
+    const getCodeBtn = page.getByTestId('btn-request-sync-code');
+    await getCodeBtn.click();
+
+    // 4. Verification input should appear
+    const codeInput = page.getByTestId('sync-code-input');
+    await expect(codeInput).toBeVisible();
+    await codeInput.fill('mocked_magic_token_value_abc');
+
+    const verifyBtn = page.getByTestId('btn-verify-sync-code');
+    await verifyBtn.click();
+
+    // 5. Linked state should appear
+    await expect(page.locator('text="● Linked"')).toBeVisible();
+    await expect(page.locator('text=yasutest@yugawara.net')).toBeVisible();
+
+    // 6. Test Unlinking
+    const unlinkBtn = page.getByTestId('btn-unlink-sync');
+    await expect(unlinkBtn).toBeVisible();
+    await unlinkBtn.click();
+
+    // 7. Should go back to the unlinked email input form
+    await expect(page.getByTestId('sync-email-input')).toBeVisible();
+    await expect(page.locator('text="● Linked"')).not.toBeVisible();
+  });
 });
 
