@@ -143,10 +143,16 @@ export const apiImportPhrases = async (phrases: Phrase[]): Promise<{ success: bo
 };
 
 export const aiGenerateCardDetails = async (phrase: string): Promise<Partial<Phrase>> => {
-    const promptText = `You are a professional language teacher and curriculum developer. Generate high-fidelity flashcard details for the English vocabulary word, idiom, or phrase: "${phrase}".
+    const promptText = `You are a professional language teacher and curriculum developer. Analyze the following free-form user input and extract the primary target English vocabulary word, idiom, or phrase that the user wants to learn: "${phrase}".
+
+Instructions:
+1. Extract the clean target word, idiom, or phrase (e.g. if the user inputs "Cross (to betray)", "I want to double cross someone", "piece of cake - very easy", or "spill the beans", you should extract "Cross", "Double-cross", "Piece of cake", or "Spill the beans" respectively as the target). Place this cleanly extracted base target in the "phrase" key.
+2. Use any context, parenthetical hints, senses, parts of speech, or sentence structures provided in the user input to guide, restrict, and tailor the generated category, difficulty, English/Japanese meanings, example sentences, and regional US/UK usage to that exact semantic sense.
+3. If the user input is already just a simple word, phrase, or idiom, extract it cleanly and generate the details naturally.
+
 Respond strictly in valid JSON format with the following keys:
 {
-  "phrase": "${phrase}",
+  "phrase": "The cleanly extracted target vocabulary word, idiom, or phrase (e.g. 'Cross', 'Double-cross', 'Piece of cake')",
   "category": "One of: Idiom, Slang, Phrasal Verb, Colloquial",
   "difficulty": "One of: Beginner, Intermediate, Advanced",
   "used_in_us": 1 or 0 (1 if widely used in American English, 0 otherwise),

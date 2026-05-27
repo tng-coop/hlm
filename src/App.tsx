@@ -2311,7 +2311,7 @@ Respond strictly in valid JSON format with the following keys:
                 <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1.5rem' }}>
                   {/* Single text input */}
                   <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    <label style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#fff' }}>{t('lbl_phrase')} / Idiom / Word</label>
+                    <label style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#fff' }}>{t('lbl_phrase')} / Word</label>
                     <input
                       type="text"
                       placeholder="E.g., Blow off steam"
