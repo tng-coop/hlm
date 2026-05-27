@@ -4346,7 +4346,7 @@ Respond strictly in valid JSON format with the following keys:
                   
                   {/* Chrome Guide */}
                   <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <h4 style={{ color: '#f59e0b', margin: '0 0 0.5rem 0', fontSize: '1rem' }}>🇺🇸 Google Chrome (Gemini Nano)</h4>
+                    <h4 style={{ color: '#f59e0b', margin: '0 0 0.5rem 0', fontSize: '1rem' }}>🌐 Google Chrome (Gemini Nano)</h4>
                     {lang === 'ja' ? (
                       <ol style={{ margin: 0, paddingLeft: '1.2rem' }}>
                         <li><strong>バージョン要件:</strong> Chrome 127以降（Canary/Dev推奨、またはPrompt API体験機能付きの安定版）を使用してください。</li>
@@ -4378,7 +4378,7 @@ Respond strictly in valid JSON format with the following keys:
 
                   {/* Edge Guide */}
                   <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <h4 style={{ color: '#38bdf8', margin: '0 0 0.5rem 0', fontSize: '1rem' }}>🇺🇸 Microsoft Edge (Phi-mini)</h4>
+                    <h4 style={{ color: '#38bdf8', margin: '0 0 0.5rem 0', fontSize: '1rem' }}>🌐 Microsoft Edge (Phi-mini)</h4>
                     {lang === 'ja' ? (
                       <ol style={{ margin: 0, paddingLeft: '1.2rem' }}>
                         <li><strong>バージョン要件:</strong> Edge 138以降（DevまたはCanaryチャンネル推奨）を使用してください。</li>
