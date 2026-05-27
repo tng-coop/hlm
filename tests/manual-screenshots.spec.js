@@ -17,6 +17,7 @@ test.describe('Manual Screenshots Generation', () => {
         await page.evaluate(() => localStorage.clear());
         await page.evaluate((lang) => localStorage.setItem('hlm_lang', lang), localeTag);
         await page.reload();
+        await page.getByTestId('tab-dashboard').click();
 
         await page.waitForSelector('.recharts-wrapper', { timeout: 10000 });
         await page.waitForTimeout(1000); 
@@ -32,7 +33,7 @@ test.describe('Manual Screenshots Generation', () => {
         await page.locator('.study-card-front').click(); // reveal back
         await page.waitForSelector('.study-card-back');
         await page.locator('textarea').fill('Learning English is a piece of cake!');
-        await page.getByRole('button', { name: 'AI Check' }).click();
+        await page.getByRole('button', { name: 'AI Check', exact: true }).click();
         await page.waitForSelector('.ai-bubble');
         await page.waitForTimeout(500);
         await page.screenshot({ path: `dist/screenshots/03-contributions-${localeTag}.png`, fullPage: true });
