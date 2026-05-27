@@ -13,6 +13,8 @@ import {
   isDemoMode,
   aiExplainNuances,
   aiReviewSentence,
+  aiDetectLocalEngine,
+  aiPromptLocalLLM,
   type AIReviewResult,
   type AIExplanationResult
 } from './api';
@@ -71,6 +73,13 @@ function App() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
+  // AI Sandbox States
+  const [sandboxPrompt, setSandboxPrompt] = useState('');
+  const [sandboxResponse, setSandboxResponse] = useState('');
+  const [sandboxResponseEngine, setSandboxResponseEngine] = useState('');
+  const [detectedEngine, setDetectedEngine] = useState('Detecting...');
+  const [isSendingPrompt, setIsSendingPrompt] = useState(false);
+
   // Spaced Repetition Queue Calculation
   const todayStr = new Date().toISOString().split('T')[0];
   const dueQueue = phrases.filter(p => p.next_review_date <= todayStr);
@@ -93,6 +102,11 @@ function App() {
 
   useEffect(() => {
     refreshData();
+    const detect = async () => {
+      const engine = await aiDetectLocalEngine();
+      setDetectedEngine(engine);
+    };
+    detect();
   }, []);
 
   // Card studies trigger automatically when activeCard changes
@@ -130,6 +144,25 @@ function App() {
       setAiExplanation(result);
     } catch (err) {
       console.error('AI explanation failed', err);
+    }
+  };
+
+  // AI Sandbox prompt submit handler
+  const handleSendPrompt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sandboxPrompt.trim()) return;
+    setIsSendingPrompt(true);
+    setSandboxResponse('');
+    setSandboxResponseEngine('');
+    try {
+      const result = await aiPromptLocalLLM(sandboxPrompt);
+      setSandboxResponse(result.response);
+      setSandboxResponseEngine(result.engine);
+    } catch (err) {
+      console.error('Failed to send prompt to local LLM', err);
+      setSandboxResponse('Error: Failed to communicate with local LLM engine.');
+    } finally {
+      setIsSendingPrompt(false);
     }
   };
 
@@ -221,6 +254,7 @@ function App() {
           <button data-testid="tab-dashboard" className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>{t('tab_dashboard')}</button>
           <button data-testid="tab-study" className={activeTab === 'study' ? 'active' : ''} onClick={() => setActiveTab('study')}>{t('tab_study')} <span style={{ background: 'var(--primary)', color: '#fff', borderRadius: '10px', padding: '0.1rem 0.4rem', fontSize: '0.75rem', marginLeft: '0.3rem' }}>{dueQueue.length}</span></button>
           <button data-testid="tab-manager" className={activeTab === 'manager' ? 'active' : ''} onClick={() => setActiveTab('manager')}>{t('tab_manager')}</button>
+          <button data-testid="tab-sandbox" className={activeTab === 'sandbox' ? 'active' : ''} onClick={() => setActiveTab('sandbox')}>{t('tab_sandbox')}</button>
         </nav>
       </header>
 
@@ -584,6 +618,94 @@ function App() {
               )}
             </div>
 
+          </div>
+        )}
+
+        {/* TAB 4: AI SANDBOX */}
+        {activeTab === 'sandbox' && (
+          <div className="sandbox-view fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div className="glass-card">
+              <h3>✨ {t('lbl_test_gemini')}</h3>
+              <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem', fontSize: '0.95rem' }}>
+                {t('lbl_sandbox_description')}
+              </p>
+              
+              {/* Active Engine Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.2rem', padding: '0.8rem 1.2rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '8px', width: 'fit-content' }}>
+                <span style={{ width: '8px', height: '8px', background: '#10b981', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px #10b981' }} />
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  <strong>{t('lbl_detected_llm')}:</strong> <span style={{ color: '#fff', marginLeft: '0.3rem' }}>{detectedEngine}</span>
+                </span>
+              </div>
+
+              {/* Prompt Sandbox Form */}
+              <form onSubmit={handleSendPrompt} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1.5rem' }}>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <textarea
+                    data-testid="sandbox-textarea"
+                    placeholder={t('ph_prompt')}
+                    value={sandboxPrompt}
+                    onChange={(e) => setSandboxPrompt(e.target.value)}
+                    style={{ 
+                      padding: '1rem', 
+                      background: 'rgba(0,0,0,0.2)', 
+                      border: '1px solid var(--border)', 
+                      borderRadius: '8px', 
+                      color: '#fff', 
+                      resize: 'vertical', 
+                      minHeight: '120px', 
+                      fontFamily: 'inherit',
+                      fontSize: '1rem',
+                      lineHeight: '1.5'
+                    }}
+                  />
+                </div>
+
+                <button 
+                  type="submit" 
+                  data-testid="sandbox-submit"
+                  className="btn-primary" 
+                  disabled={isSendingPrompt || !sandboxPrompt.trim()}
+                  style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  {isSendingPrompt ? <span className="spinner" /> : null}
+                  {t('btn_send_prompt')}
+                </button>
+              </form>
+            </div>
+
+            {/* Response Section */}
+            {(isSendingPrompt || sandboxResponse) && (
+              <div className="glass-card fade-in" style={{ borderLeft: '4px solid #8b5cf6' }}>
+                <h4 style={{ color: '#c084fc', marginBottom: '1rem' }}>🤖 AI Response</h4>
+                
+                {isSendingPrompt ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
+                    <span className="spinner" />
+                    <span>Thinking...</span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div 
+                      data-testid="sandbox-response"
+                      style={{ 
+                        whiteSpace: 'pre-wrap', 
+                        lineHeight: '1.6', 
+                        color: '#f8fafc',
+                        fontSize: '1rem'
+                      }}
+                    >
+                      {sandboxResponse}
+                    </div>
+                    {sandboxResponseEngine && (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '0.8rem', display: 'block' }}>
+                        Generated by {sandboxResponseEngine}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

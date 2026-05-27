@@ -97,4 +97,25 @@ test.describe('HLM Study Deck E2E Suite', () => {
     // Row should vanish from search list
     await expect(page.getByRole('cell', { name: 'Blow off steam', exact: true })).not.toBeVisible();
   });
+
+  test('Free Type Mode / AI Sandbox Test', async ({ page, i18n }) => {
+    await page.getByTestId('tab-sandbox').click();
+
+    // Verify header, description, and engine badge
+    await expect(page.locator('h3')).toContainText(i18n.lbl_test_gemini);
+    await expect(page.locator('.sandbox-view')).toContainText(i18n.lbl_detected_llm);
+
+    // Prompt input
+    const promptInput = page.locator('textarea[data-testid="sandbox-textarea"]');
+    await expect(promptInput).toBeVisible();
+    await promptInput.fill("Tell me about the origin of 'bite the bullet'");
+
+    // Send Prompt
+    await page.getByTestId('sandbox-submit').click();
+
+    // Verify response is generated
+    const responseBox = page.locator('[data-testid="sandbox-response"]');
+    await expect(responseBox).toBeVisible();
+    await expect(responseBox).toContainText("bite the bullet");
+  });
 });

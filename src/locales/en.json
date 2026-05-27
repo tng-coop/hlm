@@ -33,5 +33,11 @@
   "chart_review_forecast": "Review Forecast (Next 7 Days)",
   "chart_category_breakdown": "Category Breakdown",
   "msg_no_cards_due": "🎉 Zero cards due today! You are all caught up.",
-  "msg_empty_deck": "No cards in your deck. Create custom cards below!"
+  "msg_empty_deck": "No cards in your deck. Create custom cards below!",
+  "tab_sandbox": "AI Sandbox",
+  "lbl_sandbox_description": "Test and benchmark your local LLM (Gemini Nano / Ollama) in free-type mode.",
+  "lbl_test_gemini": "Local LLM Playground",
+  "ph_prompt": "Ask the local AI anything (e.g., explain the nuance of 'bite the bullet')...",
+  "lbl_detected_llm": "Active Local Engine",
+  "btn_send_prompt": "Send Prompt"
 }

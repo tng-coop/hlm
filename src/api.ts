@@ -254,3 +254,67 @@ const getOfflineSentenceReview = (phrase: string, sentence: string): AIReviewRes
         suggestion: `Your sentence is great! As an alternative, you could also write: "I realized it was best to ${phrase.toLowerCase()} sooner rather than later."`
     };
 };
+
+export const aiDetectLocalEngine = async (): Promise<string> => {
+    if (typeof window !== 'undefined') {
+        const aiObj = (window as any).ai;
+        const modelManager = aiObj?.languageModel || aiObj?.assistant;
+        if (modelManager) {
+            return 'Chrome Gemini Nano (window.ai)';
+        }
+    }
+    const hasOllama = await checkOllama();
+    if (hasOllama) {
+        return 'Ollama Local Server (localhost:11434)';
+    }
+    return 'Offline Mock Simulator (No LLM Detected)';
+};
+
+export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: string; engine: string }> => {
+    // A. Chrome Built-in window.ai (Gemini Nano)
+    try {
+        const aiObj = (window as any).ai;
+        const modelManager = aiObj?.languageModel || aiObj?.assistant;
+        if (modelManager) {
+            const session = await modelManager.create();
+            const rawResponse = await session.prompt(promptText);
+            session.destroy();
+            return { response: rawResponse, engine: 'Chrome Gemini Nano' };
+        }
+    } catch (err) {
+        console.warn('Chrome window.ai prompt failed', err);
+    }
+
+    // B. Ollama Local Fallback
+    const hasOllama = await checkOllama();
+    if (hasOllama) {
+        try {
+            const res = await fetch('http://localhost:11434/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'gemma:2b',
+                    prompt: promptText,
+                    stream: false
+                })
+            });
+            const data = await res.json();
+            return { response: data.response, engine: 'Ollama Local Server' };
+        } catch (err) {
+            console.warn('Ollama local prompt failed', err);
+        }
+    }
+
+    // C. Mock Fallback
+    await new Promise(r => setTimeout(r, 600));
+    return {
+        response: `[Offline AI Sandbox Response]
+This is a high-fidelity local response simulated by the HLM offline engine.
+To enable real local LLM generation, you can either:
+1. Enable Chrome experimental flags in your browser: 'chrome://flags/#optimization-guide-on-device-model' and 'chrome://flags/#prompt-api-for-gemini-nano'.
+2. Start a local Ollama server running at http://localhost:11434.
+
+Your prompt was: "${promptText}"`,
+        engine: 'Offline Mock Simulator'
+    };
+};

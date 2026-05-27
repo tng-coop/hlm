@@ -33,5 +33,11 @@
   "chart_review_forecast": "復習スケジュール予測 (今後7日間)",
   "chart_category_breakdown": "カテゴリ分布",
   "msg_no_cards_due": "🎉 今日の復習カードはすべて完了しました！",
-  "msg_empty_deck": "デッキにカードがありません。以下から追加してください。"
+  "msg_empty_deck": "デッキにカードがありません。以下から追加してください！",
+  "tab_sandbox": "AI サンドボックス",
+  "lbl_sandbox_description": "フリータイプモードでローカルLLM（Gemini Nano / Ollama）の動作や性能をテスト・検証できます。",
+  "lbl_test_gemini": "ローカルLLM プレイグラウンド",
+  "ph_prompt": "ローカルAIに自由に質問してみましょう (例: 'bite the bullet'の語源やニュアンスを教えて)...",
+  "lbl_detected_llm": "動作中のローカルAIエンジン",
+  "btn_send_prompt": "プロンプト送信"
 }
