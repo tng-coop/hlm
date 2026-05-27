@@ -1,29 +1,30 @@
-export interface Member {
+export interface Phrase {
   id: number;
-  name: string;
-  kananame: string;
-  status: string;
-  join_date: string;
-  dob: string;
-  address: string;
-  phone: string;
-  is_living?: number | boolean;
-  postal?: string;
-  email?: string;
-  remarks?: string;
+  phrase: string;
+  meaning_en: string;
+  meaning_ja: string;
+  category: string; // e.g. "Idiom", "Slang", "Phrasal Verb"
+  example_en: string;
+  example_ja: string;
+  difficulty: string; // e.g. "Beginner", "Intermediate", "Advanced"
+  next_review_date: string; // YYYY-MM-DD
+  interval_days: number;
+  ease_factor: number;
+  repetition_count: number;
+  created_at?: string;
 }
 
-export interface Contribution {
+export interface ReviewLog {
   id: number;
-  member_id: number;
-  pay_date: string;
-  amount: number;
-  type: string;
-  notes: string;
+  phrase_id: number;
+  grade: number; // 0-5 quality score
+  review_date: string;
+  next_interval: number;
 }
 
-export interface Stats {
-  activeMembers: number;
-  totalCapital: number;
+export interface LearningStats {
+  totalCards: number;
+  dueToday: number;
+  masteredCards: number;
+  learningCards: number;
 }
-
