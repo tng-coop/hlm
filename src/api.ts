@@ -117,6 +117,12 @@ const checkOllama = async (): Promise<boolean> => {
 };
 
 const checkWebGPUSupport = (): boolean => {
+    if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('gpu') === 'true' || params.get('mock_gpu') === 'true') {
+            return true;
+        }
+    }
     return typeof navigator !== 'undefined' && !!(navigator as any).gpu;
 };
 
