@@ -1822,11 +1822,11 @@ Respond strictly in valid JSON format with the following keys:
       <div className="bg-orb orb-secondary" />
 
       <header className="app-header">
-        <h1 className="logo" style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+        <h1 className="logo logo-header">
           <div>
             TNG HLM <span>{t('app_subtitle')}</span>
           </div>
-          <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
+          <div className="logo-controls" style={{ display: 'flex', gap: '0.8rem', alignItems: 'center', flexWrap: 'wrap' }}>
             {voices.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
