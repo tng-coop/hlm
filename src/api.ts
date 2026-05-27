@@ -11,7 +11,8 @@ import {
     demoRestorePhrase,
     demoDeletePhrasePermanently,
     demoGetArchivedPhrases,
-    demoUpdateRegions
+    demoUpdateRegions,
+    demoUpdateRealityCheck
 } from './demoData';
 import type { Phrase, LearningStats } from './types';
 
@@ -148,6 +149,16 @@ export const apiUpdateRegions = async (id: number, usedInUs: number, usedInUk: n
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ used_in_us: usedInUs, used_in_uk: usedInUk })
+    });
+    return handleNativeResponse(res);
+};
+
+export const apiUpdateRealityCheck = async (id: number, text: string): Promise<{ success: boolean; id: number; reality_check_cache: string }> => {
+    if (isDemoMode) return demoUpdateRealityCheck(id, text);
+    const res = await fetch(`/api/phrases/${id}/reality-check`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reality_check_cache: text })
     });
     return handleNativeResponse(res);
 };

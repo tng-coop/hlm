@@ -23,6 +23,7 @@ import {
   apiDeletePhrasePermanently,
   apiGetArchivedPhrases,
   apiUpdateRegions,
+  apiUpdateRealityCheck,
   type AIReviewResult,
   type AIExplanationResult
 } from './api';
@@ -141,26 +142,14 @@ const parseMarkdown = (text: string): React.ReactNode => {
   );
 };
 
-const getRealityCheckCache = (phraseId: number, lang: string): string | null => {
+const getRealityCheckCache = (phrase: Phrase, lang: string): string | null => {
+  if (!phrase || !phrase.reality_check_cache) return null;
   try {
-    const raw = localStorage.getItem(`hlm_ai_reality_check_cache_${lang}`);
-    if (!raw) return null;
-    const cache = JSON.parse(raw);
-    return cache[phraseId] || null;
+    const cache = JSON.parse(phrase.reality_check_cache);
+    return cache[lang] || null;
   } catch (err) {
     console.error('Failed to parse reality check cache', err);
     return null;
-  }
-};
-
-const saveRealityCheckCache = (phraseId: number, result: string, lang: string) => {
-  try {
-    const raw = localStorage.getItem(`hlm_ai_reality_check_cache_${lang}`);
-    const cache = raw ? JSON.parse(raw) : {};
-    cache[phraseId] = result;
-    localStorage.setItem(`hlm_ai_reality_check_cache_${lang}`, JSON.stringify(cache));
-  } catch (err) {
-    console.error('Failed to save reality check cache', err);
   }
 };
 
@@ -175,6 +164,27 @@ function App() {
     }
     return 'en';
   });
+
+  const saveRealityCheckCache = (phrase: Phrase, result: string, lang: string) => {
+    let cache: Record<string, string> = {};
+    if (phrase.reality_check_cache) {
+      try {
+        cache = JSON.parse(phrase.reality_check_cache);
+      } catch (err) {
+        console.error('Failed to parse existing reality check cache', err);
+      }
+    }
+    cache[lang] = result;
+    const jsonStr = JSON.stringify(cache);
+
+    return apiUpdateRealityCheck(phrase.id, jsonStr)
+      .then(() => {
+        setPhrases(prev => prev.map(p => p.id === phrase.id ? { ...p, reality_check_cache: jsonStr } : p));
+      })
+      .catch(err => {
+        console.error('Failed to save reality check cache to database', err);
+      });
+  };
   const t = (key: string) => (dicts as any)[lang]?.[key] || key;
 
   // Premium speech synthesis voices state
@@ -719,6 +729,7 @@ function App() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
+  const lastActiveCardIdRef = useRef<number | null>(null);
 
   // Card deletion state
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
@@ -742,7 +753,7 @@ function App() {
       let didHeal = false;
       for (const phrase of allPhrases) {
         if (!phrase.used_in_us && !phrase.used_in_uk) {
-          const cachedText = getRealityCheckCache(phrase.id, 'en') || getRealityCheckCache(phrase.id, 'ja');
+          const cachedText = getRealityCheckCache(phrase, 'en') || getRealityCheckCache(phrase, 'ja');
           if (cachedText) {
             const lowercase = cachedText.toLowerCase();
             const hasUS = lowercase.includes('us') || 
@@ -817,22 +828,40 @@ function App() {
 
   // Card studies trigger automatically when activeCard changes
   useEffect(() => {
-    setIsFlipped(false);
-    setUserSentence('');
-    setAiReview(null);
-    setAiExplanation(null);
-    setIsCheckingAuthenticity(false);
-    setCopiedPrompt(false);
-    
-    // Automatically load AI explanation and load cached Reality Check to save study clicks
-    if (activeCard) {
-      triggerExplanation(activeCard.phrase);
-      const cached = getRealityCheckCache(activeCard.id, lang);
-      setRealityCheckResult(cached || '');
-    } else {
+    if (!activeCard) {
+      setIsFlipped(false);
+      setUserSentence('');
+      setAiReview(null);
+      setAiExplanation(null);
+      setIsCheckingAuthenticity(false);
+      setCopiedPrompt(false);
       setRealityCheckResult('');
+      lastActiveCardIdRef.current = null;
+      return;
     }
-  }, [activeCard, lang]);
+
+    // Only reset states if the active card has actually changed to a DIFFERENT card!
+    if (lastActiveCardIdRef.current !== activeCard.id) {
+      setIsFlipped(false);
+      setUserSentence('');
+      setAiReview(null);
+      setAiExplanation(null);
+      setIsCheckingAuthenticity(false);
+      setCopiedPrompt(false);
+
+      triggerExplanation(activeCard.phrase);
+      const cached = getRealityCheckCache(activeCard, lang);
+      setRealityCheckResult(cached || '');
+
+      lastActiveCardIdRef.current = activeCard.id;
+    } else {
+      // If it's the SAME card (e.g. metadata/cache was updated in-place), just reload the cache if not already set or changed
+      const cached = getRealityCheckCache(activeCard, lang);
+      if (cached && !realityCheckResult) {
+        setRealityCheckResult(cached);
+      }
+    }
+  }, [activeCard, lang, realityCheckResult]);
 
   // AI Sentence practice submission
   const checkSentence = async () => {
@@ -936,7 +965,7 @@ CRITICAL: You MUST write your entire analysis, explanations, and verdicts strict
 
       const result = await aiPromptLocalLLM(promptText);
       setRealityCheckResult(result.response);
-      saveRealityCheckCache(activeCard.id, result.response, lang);
+      await saveRealityCheckCache(activeCard, result.response, lang);
       await autoUpdateRegionsIfMissing(activeCard.id, result.response);
     } catch (err) {
       console.error('Reality check local AI execution failed', err);
@@ -1016,7 +1045,7 @@ CRITICAL: You MUST write your entire analysis, explanations, and verdicts strict
 
       const result = await aiPromptLocalLLM(promptText);
       setManagerResults(prev => ({ ...prev, [phrase.id]: result.response }));
-      saveRealityCheckCache(phrase.id, result.response, lang);
+      await saveRealityCheckCache(phrase, result.response, lang);
       await autoUpdateRegionsIfMissing(phrase.id, result.response);
     } catch (err) {
       console.error('Reality check local AI execution failed', err);
@@ -1079,8 +1108,8 @@ Flashcard Data:
       const shouldDoEn = bulkTargetLang === 'both' || lang === 'en';
       const shouldDoJa = bulkTargetLang === 'both' || lang === 'ja';
       
-      const cachedEn = getRealityCheckCache(phrase.id, 'en');
-      const cachedJa = getRealityCheckCache(phrase.id, 'ja');
+      const cachedEn = getRealityCheckCache(phrase, 'en');
+      const cachedJa = getRealityCheckCache(phrase, 'ja');
       
       const isEnCached = !shouldDoEn || (cachedEn && !forceBulkRefresh);
       const isJaCached = !shouldDoJa || (cachedJa && !forceBulkRefresh);
@@ -1112,7 +1141,7 @@ Please evaluate the following:
 CRITICAL: You MUST write your entire analysis, explanations, and verdicts strictly in English. Do not write in Japanese.`;
           
           const result = await aiPromptLocalLLM(promptTextEn);
-          saveRealityCheckCache(phrase.id, result.response, 'en');
+          await saveRealityCheckCache(phrase, result.response, 'en');
           if (lang === 'en') {
             setManagerResults(prev => ({ ...prev, [phrase.id]: result.response }));
           }
@@ -1153,7 +1182,7 @@ CRITICAL: You MUST write your entire analysis, explanations, and verdicts strict
 【重要】解説・説明の文章はすべて日本語で執筆してください。ただし、検証対象の英語表現（例: "Break a leg" や "Bite the bullet"）や、専門用語、検証結果タグ（例: "AUTHENTIC", "QUESTIONABLE", "INCORRECT" など）は、日本語カタカナ表記にせず、半角英数字のネイティブな英語表記のまま、必ず <span lang="en">英単語/英語フレーズ</span> というHTMLタグで囲んで出力してください。`;
           
           const result = await aiPromptLocalLLM(promptTextJa);
-          saveRealityCheckCache(phrase.id, result.response, 'ja');
+          await saveRealityCheckCache(phrase, result.response, 'ja');
           if (lang === 'ja') {
             setManagerResults(prev => ({ ...prev, [phrase.id]: result.response }));
           }
@@ -1170,7 +1199,7 @@ CRITICAL: You MUST write your entire analysis, explanations, and verdicts strict
       
       // Automatic UK/US check update if missing
       if (!phrase.used_in_us && !phrase.used_in_uk) {
-        const textToParse = getRealityCheckCache(phrase.id, 'en') || getRealityCheckCache(phrase.id, 'ja');
+        const textToParse = getRealityCheckCache(phrase, 'en') || getRealityCheckCache(phrase, 'ja');
         if (textToParse) {
           const lowercase = textToParse.toLowerCase();
           const hasUS = lowercase.includes('us') || 
@@ -1537,18 +1566,18 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
 
     const { phrase, meaning_en, meaning_ja, example_en, example_ja, used_in_us, used_in_uk } = newCard;
     if (!phrase || !meaning_en || !meaning_ja || !example_en || !example_ja) {
-      setFormError('Please fill out all fields.');
+      setFormError(t('msg_fill_fields'));
       return;
     }
 
     if (!used_in_us && !used_in_uk) {
-      setFormError('At least one regional usage (US or UK) must be selected.');
+      setFormError(t('msg_select_region'));
       return;
     }
 
     try {
       await apiAddPhrase(newCard as Omit<Phrase, 'id'>);
-      setFormSuccess('Successfully created custom flashcard!');
+      setFormSuccess(t('msg_create_success'));
       setNewCard({
         phrase: '',
         meaning_en: '',
@@ -2687,7 +2716,7 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
                       </select>
                     </div>
                     <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', justifyContent: 'center' }}>
-                      <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Regional Usage</label>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{t('lbl_regional_usage')}</label>
                       <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', height: '100%', minHeight: '40px' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.85rem', color: '#fff', userSelect: 'none' }}>
                           <input
@@ -3099,7 +3128,7 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.95rem' }}>
                                   <p><strong>{t('lbl_meaning_en')}:</strong> <span style={{ color: '#06b6d4' }}>{phrase.meaning_en}</span></p>
                                   <p>
-                                    <strong>Regional Usage:</strong>{' '}
+                                    <strong>{t('lbl_regional_usage')}:</strong>{' '}
                                     <span style={{ display: 'inline-flex', gap: '0.6rem', alignItems: 'center' }}>
                                       {phrase.used_in_us === 1 && (
                                         <span style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem' }}>🇺🇸 US</span>
@@ -3219,7 +3248,7 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
                                     </div>
 
                                     {(() => {
-                                      const displayedResult = managerResults[phrase.id] || getRealityCheckCache(phrase.id, lang);
+                                      const displayedResult = managerResults[phrase.id] || getRealityCheckCache(phrase, lang);
                                       if (!displayedResult) return null;
                                       return (
                                         <div className="ai-bubble fade-in manager-reality-check-result" style={{ marginTop: '0.8rem', background: 'rgba(245, 158, 11, 0.02)', padding: '0.8rem', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.15)' }}>

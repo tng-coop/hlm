@@ -90,7 +90,7 @@ test.describe('HLM Study Deck E2E Suite', () => {
 
     // Submit card form
     await page.getByRole('button', { name: i18n.btn_add_card }).click();
-    await expect(page.locator('text=Successfully created')).toBeVisible();
+    await expect(page.locator(`text=${i18n.msg_create_success}`)).toBeVisible();
 
     // 2. Filter card list
     await page.locator('input[placeholder*="Search"]').fill('Blow off steam');

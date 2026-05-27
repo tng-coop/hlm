@@ -71,11 +71,11 @@ app.post('/api/phrases', (req, res) => {
 
     try {
         const insert = activeDb.prepare(`
-            INSERT INTO phrases (phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, used_in_us, used_in_uk, next_review_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO phrases (phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, used_in_us, used_in_uk, next_review_date, reality_check_cache)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         const todayStr = new Date().toISOString().split('T')[0];
-        const info = insert.run(phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, usVal, ukVal, todayStr);
+        const info = insert.run(phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, usVal, ukVal, todayStr, null);
         
         res.status(201).json({
             id: info.lastInsertRowid,
@@ -287,6 +287,29 @@ app.put('/api/phrases/:id/regions', (req, res) => {
     }
 });
 
+// Update Reality Check cache for a phrase
+app.put('/api/phrases/:id/reality-check', (req, res) => {
+    const phraseId = req.params.id;
+    const { reality_check_cache } = req.body;
+
+    try {
+        const update = activeDb.prepare(`
+            UPDATE phrases
+            SET reality_check_cache = ?
+            WHERE id = ?
+        `);
+        const info = update.run(reality_check_cache || null, phraseId);
+        
+        if (info.changes === 0) {
+            return res.status(404).json({ error: 'Phrase card not found' });
+        }
+
+        res.json({ success: true, id: Number(phraseId), reality_check_cache });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Batch import/restore all cards atomically
 app.post('/api/phrases/import', (req, res) => {
     const { phrases } = req.body;
@@ -305,8 +328,9 @@ app.post('/api/phrases/import', (req, res) => {
                 INSERT INTO phrases (
                     id, phrase, meaning_en, meaning_ja, category, 
                     example_en, example_ja, difficulty, 
+                    used_in_us, used_in_uk, reality_check_cache,
                     next_review_date, interval_days, ease_factor, repetition_count
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
             for (const card of cards) {
@@ -319,6 +343,9 @@ app.post('/api/phrases/import', (req, res) => {
                     card.example_en,
                     card.example_ja,
                     card.difficulty,
+                    card.used_in_us !== undefined ? card.used_in_us : 1,
+                    card.used_in_uk !== undefined ? card.used_in_uk : 1,
+                    card.reality_check_cache || null,
                     card.next_review_date || new Date().toISOString().split('T')[0],
                     card.interval_days !== undefined ? card.interval_days : 0,
                     card.ease_factor !== undefined ? card.ease_factor : 2.5,

@@ -22,6 +22,7 @@ const initializeDb = () => {
       difficulty TEXT NOT NULL CHECK(difficulty IN ('Beginner', 'Intermediate', 'Advanced')),
       used_in_us INTEGER DEFAULT 1,
       used_in_uk INTEGER DEFAULT 1,
+      reality_check_cache TEXT,
       next_review_date DATE NOT NULL,
       interval_days INTEGER DEFAULT 0,
       ease_factor DECIMAL(5, 2) DEFAULT 2.50,
@@ -62,6 +63,14 @@ const initializeDb = () => {
   try {
     db.exec(`ALTER TABLE phrases ADD COLUMN used_in_uk INTEGER DEFAULT 1`);
     console.log('Successfully added used_in_uk column to phrases table.');
+  } catch {
+    // Column already exists, safe to ignore
+  }
+
+  // Ensure reality_check_cache column exists
+  try {
+    db.exec(`ALTER TABLE phrases ADD COLUMN reality_check_cache TEXT`);
+    console.log('Successfully added reality_check_cache column to phrases table.');
   } catch {
     // Column already exists, safe to ignore
   }
@@ -147,8 +156,8 @@ const initializeDb = () => {
 
   const checkPhrase = db.prepare('SELECT id FROM phrases WHERE phrase = ?');
   const insertPhrase = db.prepare(`
-    INSERT INTO phrases (phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, used_in_us, used_in_uk, next_review_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO phrases (phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, used_in_us, used_in_uk, next_review_date, reality_check_cache)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   let addedCount = 0;
@@ -165,7 +174,8 @@ const initializeDb = () => {
         seed.difficulty,
         seed.used_in_us !== undefined ? seed.used_in_us : 1,
         seed.used_in_uk !== undefined ? seed.used_in_uk : 1,
-        todayStr
+        todayStr,
+        null
       );
       addedCount++;
     }
