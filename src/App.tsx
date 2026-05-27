@@ -1934,12 +1934,12 @@ Respond strictly in valid JSON format with the following keys:
             </button>
           </div>
         </h1>
-        <nav className="nav-tabs" style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <nav className="nav-tabs" style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '0.5rem' }}>
           <button data-testid="tab-dashboard" className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>{t('tab_dashboard')}</button>
           <button data-testid="tab-study" className={activeTab === 'study' ? 'active' : ''} onClick={() => setActiveTab('study')}>{t('tab_study')} <span style={{ background: 'var(--primary)', color: '#fff', borderRadius: '10px', padding: '0.1rem 0.4rem', fontSize: '0.75rem', marginLeft: '0.3rem' }}>{dueQueue.length}</span></button>
           <button data-testid="tab-manager" className={activeTab === 'manager' ? 'active' : ''} onClick={() => setActiveTab('manager')}>{t('tab_manager')}</button>
           <button data-testid="tab-sandbox" className={activeTab === 'sandbox' ? 'active' : ''} onClick={() => setActiveTab('sandbox')}>{t('tab_sandbox')}</button>
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className="header-backup-section" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <input
               type="email"
               data-testid="input-backup-email"
@@ -4649,7 +4649,7 @@ Respond strictly in valid JSON format with the following keys:
             </div>
 
             {/* Modal Body */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
+            <div className="modal-body-grid">
               {/* Left Column: Edit Form */}
               <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
@@ -4770,7 +4770,7 @@ Respond strictly in valid JSON format with the following keys:
               </form>
 
               {/* Right Column: AI Refinement Assistant */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', borderLeft: '1px solid rgba(255,255,255,0.08)', paddingLeft: '1.5rem' }}>
+              <div className="modal-ai-column">
                 <div>
                   <h4 style={{ margin: 0, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '1rem' }}>
                     🤖 {t('btn_ai_polish') || '✨ Local AI Polish'}
