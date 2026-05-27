@@ -78,7 +78,7 @@ export default function DashboardCharts({ t, chartsData }: Props) {
         </div>
       </div>
 
-      <div className="charts-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+      <div className="charts-row">
         
         {/* 2. Review Forecast (BarChart) */}
         <div className="chart-card glass-card" style={{ padding: '1.5rem' }}>
