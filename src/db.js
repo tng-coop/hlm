@@ -23,6 +23,9 @@ const initializeDb = () => {
       used_in_us INTEGER DEFAULT 1,
       used_in_uk INTEGER DEFAULT 1,
       reality_check_cache TEXT,
+      nuance TEXT,
+      origin TEXT,
+      tips TEXT,
       next_review_date DATE NOT NULL,
       interval_days INTEGER DEFAULT 0,
       ease_factor DECIMAL(5, 2) DEFAULT 2.50,
@@ -71,6 +74,30 @@ const initializeDb = () => {
   try {
     db.exec(`ALTER TABLE phrases ADD COLUMN reality_check_cache TEXT`);
     console.log('Successfully added reality_check_cache column to phrases table.');
+  } catch {
+    // Column already exists, safe to ignore
+  }
+
+  // Ensure nuance column exists
+  try {
+    db.exec(`ALTER TABLE phrases ADD COLUMN nuance TEXT`);
+    console.log('Successfully added nuance column to phrases table.');
+  } catch {
+    // Column already exists, safe to ignore
+  }
+
+  // Ensure origin column exists
+  try {
+    db.exec(`ALTER TABLE phrases ADD COLUMN origin TEXT`);
+    console.log('Successfully added origin column to phrases table.');
+  } catch {
+    // Column already exists, safe to ignore
+  }
+
+  // Ensure tips column exists
+  try {
+    db.exec(`ALTER TABLE phrases ADD COLUMN tips TEXT`);
+    console.log('Successfully added tips column to phrases table.');
   } catch {
     // Column already exists, safe to ignore
   }

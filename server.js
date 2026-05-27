@@ -53,7 +53,7 @@ app.get('/api/phrases/:id', (req, res) => {
 
 // Add a new custom phrase
 app.post('/api/phrases', (req, res) => {
-    let { phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, used_in_us, used_in_uk } = req.body;
+    let { phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, used_in_us, used_in_uk, nuance, origin, tips } = req.body;
 
     if (!phrase || !meaning_en || !meaning_ja || !category || !example_en || !example_ja || !difficulty) {
         return res.status(400).json({ error: 'All fields are required to create a phrase card' });
@@ -71,11 +71,11 @@ app.post('/api/phrases', (req, res) => {
 
     try {
         const insert = activeDb.prepare(`
-            INSERT INTO phrases (phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, used_in_us, used_in_uk, next_review_date, reality_check_cache)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO phrases (phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, used_in_us, used_in_uk, next_review_date, reality_check_cache, nuance, origin, tips)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         const todayStr = new Date().toISOString().split('T')[0];
-        const info = insert.run(phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, usVal, ukVal, todayStr, null);
+        const info = insert.run(phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, usVal, ukVal, todayStr, null, nuance || null, origin || null, tips || null);
         
         res.status(201).json({
             id: info.lastInsertRowid,
@@ -91,7 +91,10 @@ app.post('/api/phrases', (req, res) => {
             next_review_date: todayStr,
             interval_days: 0,
             ease_factor: 2.5,
-            repetition_count: 0
+            repetition_count: 0,
+            nuance: nuance || null,
+            origin: origin || null,
+            tips: tips || null
         });
     } catch (err) {
         if (err.message.includes('UNIQUE constraint failed')) {
@@ -104,7 +107,7 @@ app.post('/api/phrases', (req, res) => {
 // Update/Edit an existing phrase card
 app.put('/api/phrases/:id', (req, res) => {
     const phraseId = req.params.id;
-    let { phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, used_in_us, used_in_uk } = req.body;
+    let { phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, used_in_us, used_in_uk, nuance, origin, tips } = req.body;
 
     if (!phrase || !meaning_en || !meaning_ja || !category || !example_en || !example_ja || !difficulty) {
         return res.status(400).json({ error: 'All fields are required to update a phrase card' });
@@ -129,10 +132,10 @@ app.put('/api/phrases/:id', (req, res) => {
         // Update database record and clear reality_check_cache
         const update = activeDb.prepare(`
             UPDATE phrases
-            SET phrase = ?, meaning_en = ?, meaning_ja = ?, category = ?, example_en = ?, example_ja = ?, difficulty = ?, used_in_us = ?, used_in_uk = ?, reality_check_cache = NULL
+            SET phrase = ?, meaning_en = ?, meaning_ja = ?, category = ?, example_en = ?, example_ja = ?, difficulty = ?, used_in_us = ?, used_in_uk = ?, reality_check_cache = NULL, nuance = ?, origin = ?, tips = ?
             WHERE id = ?
         `);
-        update.run(phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, usVal, ukVal, phraseId);
+        update.run(phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, usVal, ukVal, nuance || null, origin || null, tips || null, phraseId);
 
         res.json({
             id: Number(phraseId),
@@ -145,7 +148,10 @@ app.put('/api/phrases/:id', (req, res) => {
             difficulty,
             used_in_us: usVal,
             used_in_uk: ukVal,
-            reality_check_cache: null
+            reality_check_cache: null,
+            nuance: nuance || null,
+            origin: origin || null,
+            tips: tips || null
         });
     } catch (err) {
         if (err.message.includes('UNIQUE constraint failed')) {
@@ -360,8 +366,9 @@ app.post('/api/phrases/import', (req, res) => {
                     id, phrase, meaning_en, meaning_ja, category, 
                     example_en, example_ja, difficulty, 
                     used_in_us, used_in_uk, reality_check_cache,
-                    next_review_date, interval_days, ease_factor, repetition_count
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    next_review_date, interval_days, ease_factor, repetition_count,
+                    nuance, origin, tips
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
             for (const card of cards) {
@@ -380,7 +387,10 @@ app.post('/api/phrases/import', (req, res) => {
                     card.next_review_date || new Date().toISOString().split('T')[0],
                     card.interval_days !== undefined ? card.interval_days : 0,
                     card.ease_factor !== undefined ? card.ease_factor : 2.5,
-                    card.repetition_count !== undefined ? card.repetition_count : 0
+                    card.repetition_count !== undefined ? card.repetition_count : 0,
+                    card.nuance || null,
+                    card.origin || null,
+                    card.tips || null
                 );
             }
         });

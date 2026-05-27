@@ -160,7 +160,10 @@ Respond strictly in valid JSON format with the following keys:
   "meaning_en": "A clear, concise, and professional English definition/meaning suitable for language learners.",
   "meaning_ja": "A natural, accurate, and easy-to-understand Japanese translation/meaning.",
   "example_en": "An extremely natural, modern, and contextually correct English example sentence using this phrase.",
-  "example_ja": "A natural and accurate Japanese translation of that English example sentence."
+  "example_ja": "A natural and accurate Japanese translation of that English example sentence.",
+  "nuance": "Detailed context and usage nuances, including tone, register, and situational guidance.",
+  "origin": "Historical etymology, cultural origin story, or how the phrase came to be.",
+  "tips": "A practical study tip or collocation advice for language learners."
 }`;
 
     // A. Chrome Built-in window.ai / window.LanguageModel (Gemini Nano)
@@ -453,7 +456,10 @@ const getOfflineGeneratedCard = (phrase: string): Partial<Phrase> => {
             meaning_en: 'To face a difficult, inevitable situation with courage and resolve.',
             meaning_ja: '困難な状況や避けられない事態に勇気を持って立ち向かう、腹を括る。',
             example_en: 'I decided to bite the bullet and tell my boss the truth.',
-            example_ja: '私は腹を括って上司に真実を話すことにした。'
+            example_ja: '私は腹を括って上司に真実を話すことにした。',
+            nuance: 'Highly emotional and resolute tone. Used when facing an inevitable, difficult task with absolute courage and determination.',
+            origin: 'Originally derived from the military custom of wounded soldiers biting on a lead bullet to cope with pain during battlefield surgery before anesthetics existed.',
+            tips: 'Use it when you are about to do something you have been dreading. E.g., "I decided to bite the bullet and take the exam."'
         };
     } else if (lower.includes('leg') || lower.includes('break')) {
         return {
@@ -465,7 +471,10 @@ const getOfflineGeneratedCard = (phrase: string): Partial<Phrase> => {
             meaning_en: 'A superstitious way of wishing good luck, especially to performers before a show.',
             meaning_ja: '（特に本番前の役者などに対して）幸運を祈る、頑張れ。',
             example_en: 'You are going on stage next? Break a leg!',
-            example_ja: '次ステージに上がるの？頑張ってね！'
+            example_ja: '次ステージに上がるの？頑張ってね！',
+            nuance: 'Warm, theatrical, and colloquial. Used to wish performers, speakers, or anyone about to undertake a major challenge good luck.',
+            origin: 'Stemming from old theater traditions where "breaking the leg (line)" meant crossing the stage curtain boundary to get paid. Saying "good luck" was considered bad luck.',
+            tips: 'Never say it literally to someone who actually broke their leg! E.g., "You are going on stage next? Break a leg!"'
         };
     } else if (lower.includes('beans') || lower.includes('spill')) {
         return {
@@ -477,7 +486,10 @@ const getOfflineGeneratedCard = (phrase: string): Partial<Phrase> => {
             meaning_en: 'To accidentally or prematurely reveal a secret.',
             meaning_ja: '秘密をうっかり漏らす、ばらす。',
             example_en: 'Don\'t spill the beans about the surprise party!',
-            example_ja: 'サプライズパーティーについて秘密を漏らさないでね！'
+            example_ja: 'サプライズパーティーについて秘密を漏らさないでね！',
+            nuance: 'Casual and playful tone. Used when someone accidentally reveals a surprise or leaks a well-kept secret.',
+            origin: 'Dates back to ancient Greece, where colored beans were used as votes to elect leaders. Spilling the jars prematurely exposed the secret results.',
+            tips: 'Perfect for secret party plans, gossip, or movie spoilers. E.g., "Who spilled the beans about the surprise party?"'
         };
     } else if (lower.includes('steam') || lower.includes('blow')) {
         return {
@@ -489,7 +501,10 @@ const getOfflineGeneratedCard = (phrase: string): Partial<Phrase> => {
             meaning_en: 'To release strong emotions or energy by doing some active physical activity.',
             meaning_ja: '強い感情を発散する、うっぷんを晴らす。',
             example_en: 'I went for a run to blow off steam.',
-            example_ja: '感情を発散するために走りに行った。'
+            example_ja: '感情を発散するために走りに行った。',
+            nuance: 'Informal and physical tone. Used when someone expresses a need to release stress, anger, or built-up energy.',
+            origin: 'Stemming from the steam engine era where steam boilers had release valves to bleed off excess pressure and prevent explosions.',
+            tips: 'Best used in active, physical contexts like exercise, walking, or writing. E.g., "I went for a run to blow off steam."'
         };
     }
 
@@ -504,7 +519,10 @@ const getOfflineGeneratedCard = (phrase: string): Partial<Phrase> => {
         meaning_en: `To act or behave in a natural manner associated with "${phrase}".`,
         meaning_ja: `「${phrase}」に関連する、日常会話で非常によく使われる自然な表現。`,
         example_en: `Let's work together to practice using "${phrase.toLowerCase()}" in our writing.`,
-        example_ja: `ライティングで「${phrase.toLowerCase()}」を使えるように一緒に練習しましょう。`
+        example_ja: `ライティングで「${phrase.toLowerCase()}」を使えるように一緒に練習しましょう。`,
+        nuance: `Natural usage tone associated with "${phrase}". Suitable for casual and everyday communication.`,
+        origin: `A product of standard colloquial English development context, representing popular conversational flow.`,
+        tips: `Practice using "${phrase.toLowerCase()}" in contextually natural written and spoken sentences.`
     };
 };
 

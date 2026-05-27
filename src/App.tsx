@@ -612,18 +612,24 @@ function App() {
   const [isAddFormExpanded, setIsAddFormExpanded] = useState(false);
 
   // Blog / Discussion State per card
-  const [blogExplanations, setBlogExplanations] = useState<{ [id: number]: AIExplanationResult }>({});
   const [loadingBlogs, setLoadingBlogs] = useState<{ [id: number]: boolean }>({});
   const [blogChats, setBlogChats] = useState<{ [id: number]: { role: 'user' | 'assistant'; content: string }[] }>({});
   const [blogQueries, setBlogQueries] = useState<{ [id: number]: string }>({});
   const [sendingQueries, setSendingQueries] = useState<{ [id: number]: boolean }>({});
 
-  // Load Blog Details dynamically
+  // Load Blog Details dynamically and save permanently to database
   const handleLoadBlog = async (phraseId: number, phraseText: string) => {
     setLoadingBlogs(prev => ({ ...prev, [phraseId]: true }));
     try {
       const result = await aiExplainNuances(phraseText);
-      setBlogExplanations(prev => ({ ...prev, [phraseId]: result }));
+      // Save permanently to database
+      await apiUpdatePhrase(phraseId, {
+        nuance: result.nuance,
+        origin: result.origin,
+        tips: result.tips
+      });
+      // Refresh local React list data
+      await refreshData();
       if (!blogChats[phraseId]) {
         setBlogChats(prev => ({
           ...prev,
@@ -2924,7 +2930,7 @@ Respond strictly in valid JSON format with the following keys:
 
                                   {/* Interactive Blog Discussion Panel */}
                                   <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '1rem' }}>
-                                    {!blogExplanations[phrase.id] ? (
+                                    {(!phrase.nuance || !phrase.origin) ? (
                                       <button
                                         type="button"
                                         className="btn-secondary"
@@ -2945,7 +2951,7 @@ Respond strictly in valid JSON format with the following keys:
                                         }}
                                         onClick={() => handleLoadBlog(phrase.id, phrase.phrase)}
                                       >
-                                        {loadingBlogs[phrase.id] ? '⏳ Opening Blog Post...' : '📖 Load Detailed Blog Post & Q&A'}
+                                        {loadingBlogs[phrase.id] ? '⏳ Generating Editorial...' : '📖 Generate Deep-Dive Blog Post & Q&A'}
                                       </button>
                                     ) : (
                                       <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
@@ -2963,15 +2969,15 @@ Respond strictly in valid JSON format with the following keys:
                                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', lineHeight: '1.5' }}>
                                             <div>
                                               <span style={{ fontWeight: 'bold', color: '#38bdf8', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Historical Origin</span>
-                                              <p style={{ margin: 0, paddingLeft: '0.5rem', borderLeft: '2px solid #38bdf8' }}>{blogExplanations[phrase.id].origin}</p>
+                                              <p style={{ margin: 0, paddingLeft: '0.5rem', borderLeft: '2px solid #38bdf8' }}>{phrase.origin}</p>
                                             </div>
                                             <div>
                                               <span style={{ fontWeight: 'bold', color: '#38bdf8', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Semantic Nuance & Usage Tone</span>
-                                              <p style={{ margin: 0, paddingLeft: '0.5rem', borderLeft: '2px solid #38bdf8' }}>{blogExplanations[phrase.id].nuance}</p>
+                                              <p style={{ margin: 0, paddingLeft: '0.5rem', borderLeft: '2px solid #38bdf8' }}>{phrase.nuance}</p>
                                             </div>
                                             <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '6px', padding: '0.6rem 0.8rem' }}>
                                               <span style={{ fontWeight: 'bold', color: '#10b981', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>💡 Language Coach Tip</span>
-                                              <p style={{ margin: 0, fontStyle: 'italic' }}>{blogExplanations[phrase.id].tips}</p>
+                                              <p style={{ margin: 0, fontStyle: 'italic' }}>{phrase.tips}</p>
                                             </div>
                                           </div>
                                         </div>

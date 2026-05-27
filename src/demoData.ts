@@ -149,7 +149,10 @@ export const demoAddPhrase = async (phraseData: Partial<Phrase>): Promise<Phrase
         next_review_date: todayStr,
         interval_days: 0,
         ease_factor: 2.5,
-        repetition_count: 0
+        repetition_count: 0,
+        nuance: phraseData.nuance || null,
+        origin: phraseData.origin || null,
+        tips: phraseData.tips || null
     };
 
     db.phrases.push(newPhrase);
