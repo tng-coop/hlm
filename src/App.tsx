@@ -788,6 +788,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
 
   // Import/Export States
   const [isImportExpanded, setIsImportExpanded] = useState(false);
+  const [isLlmGuideExpanded, setIsLlmGuideExpanded] = useState(false);
   const [importJson, setImportJson] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
@@ -4221,6 +4222,122 @@ Respond strictly in valid JSON format with the following keys:
                 )}
               </div>
             )}
+
+            {/* Collapsible Local LLM Configuration Guide */}
+            <div className="glass-card" style={{ padding: '1.2rem' }}>
+              <div 
+                onClick={() => setIsLlmGuideExpanded(!isLlmGuideExpanded)} 
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+              >
+                <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#8b5cf6', fontSize: '1.1rem', fontWeight: 'bold' }}>
+                  💡 {lang === 'ja' ? 'ローカルLLM設定ガイド' : 'Local LLM Setup Guide'}
+                </h4>
+                <button 
+                  type="button"
+                  className="btn-secondary"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
+                >
+                  {isLlmGuideExpanded ? '▲ ' + t('btn_collapse') : '▼ ' + t('btn_expand')}
+                </button>
+              </div>
+
+              {isLlmGuideExpanded && (
+                <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1.5rem', fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-primary)' }}>
+                  
+                  {/* Chrome Guide */}
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <h4 style={{ color: '#f59e0b', margin: '0 0 0.5rem 0', fontSize: '1rem' }}>🇺🇸 Google Chrome (Gemini Nano)</h4>
+                    {lang === 'ja' ? (
+                      <ol style={{ margin: 0, paddingLeft: '1.2rem' }}>
+                        <li><strong>バージョン要件:</strong> Chrome 127以降（Canary/Dev推奨、またはPrompt API体験機能付きの安定版）を使用してください。</li>
+                        <li><strong>フラグ設定の有効化:</strong> 新しいタブで <code>chrome://flags</code> を開きます。</li>
+                        <li>以下2つの項目を検索し、設定を <strong>Enabled</strong> に変更します：
+                          <ul style={{ margin: '0.2rem 0', paddingLeft: '1.2rem' }}>
+                            <li><code>#prompt-api-for-gemini-nano</code> → <strong>Enabled</strong></li>
+                            <li><code>#optimization-guide-on-device-model</code> → <strong>Enabled BypassPerfRequirement</strong>（性能チェックをパスして常時有効化）</li>
+                          </ul>
+                        </li>
+                        <li><strong>ブラウザ再起動:</strong> 画面右下の「Relaunch」をクリックしてブラウザを再起動します。</li>
+                        <li><strong>モデルのダウンロード:</strong> <code>chrome://components</code> にアクセスし、<strong>Optimization Guide On Device Model</strong> を見つけて「Check for update」をクリックし、モデル（約1.5GB）のダウンロードを開始します。完了するとステータスが「Up-to-date」になります。</li>
+                      </ol>
+                    ) : (
+                      <ol style={{ margin: 0, paddingLeft: '1.2rem' }}>
+                        <li><strong>Version Requirement:</strong> Make sure you are using Chrome 127+ (Dev/Canary channels are highly recommended, or stable versions with active Prompt API trials).</li>
+                        <li><strong>Open Flags:</strong> Navigate to <code>chrome://flags</code> in a new tab.</li>
+                        <li>Enable the following two experimental flag configurations:
+                          <ul style={{ margin: '0.2rem 0', paddingLeft: '1.2rem' }}>
+                            <li><code>#prompt-api-for-gemini-nano</code> → set to <strong>Enabled</strong></li>
+                            <li><code>#optimization-guide-on-device-model</code> → set to <strong>Enabled BypassPerfRequirement</strong></li>
+                          </ul>
+                        </li>
+                        <li><strong>Relaunch Chrome:</strong> Click the "Relaunch" button at the bottom of the screen.</li>
+                        <li><strong>Download Gemini Nano Model:</strong> Go to <code>chrome://components</code>, find <strong>Optimization Guide On Device Model</strong>, and click <strong>Check for update</strong> to download the local weights file (~1.5GB). It is successfully installed when the status shows "Up-to-date".</li>
+                      </ol>
+                    )}
+                  </div>
+
+                  {/* Edge Guide */}
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <h4 style={{ color: '#38bdf8', margin: '0 0 0.5rem 0', fontSize: '1rem' }}>🇺🇸 Microsoft Edge (Phi-mini)</h4>
+                    {lang === 'ja' ? (
+                      <ol style={{ margin: 0, paddingLeft: '1.2rem' }}>
+                        <li><strong>バージョン要件:</strong> Edge 138以降（DevまたはCanaryチャンネル推奨）を使用してください。</li>
+                        <li><strong>フラグ設定の有効化:</strong> 新しいタブで <code>edge://flags</code> を開きます。</li>
+                        <li>以下項目を検索し、設定を有効化します：
+                          <ul style={{ margin: '0.2rem 0', paddingLeft: '1.2rem' }}>
+                            <li><code>Prompt API for Phi-3/Phi-4 mini</code> → <strong>Enabled</strong></li>
+                          </ul>
+                        </li>
+                        <li><strong>ブラウザ再起動:</strong> Edgeを再起動します。最初のリクエスト時に自動的にモデルのダウンロードがバックグラウンドで行われます。</li>
+                      </ol>
+                    ) : (
+                      <ol style={{ margin: 0, paddingLeft: '1.2rem' }}>
+                        <li><strong>Version Requirement:</strong> Make sure you are using Microsoft Edge 138+ (Dev or Canary channels are recommended).</li>
+                        <li><strong>Open Flags:</strong> Navigate to <code>edge://flags</code> in a new tab.</li>
+                        <li>Enable the following Phi-mini Prompt API capability flag:
+                          <ul style={{ margin: '0.2rem 0', paddingLeft: '1.2rem' }}>
+                            <li><code>Prompt API for Phi-3/Phi-4 mini</code> → set to <strong>Enabled</strong></li>
+                          </ul>
+                        </li>
+                        <li><strong>Restart Edge:</strong> Relaunch Microsoft Edge. The browser will automatically download the local Phi-mini model in the background when the application first issues a <code>LanguageModel.create()</code> request.</li>
+                      </ol>
+                    )}
+                  </div>
+
+                  {/* Ollama Fallback Guide */}
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <h4 style={{ color: '#a855f7', margin: '0 0 0.5rem 0', fontSize: '1rem' }}>🐋 Ollama Local Fallback (Recommended for Firefox/Safari/Linux)</h4>
+                    {lang === 'ja' ? (
+                      <p style={{ margin: 0 }}>
+                        ブラウザがネイティブPrompt APIをサポートしていない場合、HLMは自動的にローカルの <strong>Ollama サーバー</strong> (ポート 11434) の存在を検知します。<br />
+                        Ollamaを公式サイトからダウンロード後、バックグラウンドで起動し、ターミナルで以下のコマンドを実行してください：<br />
+                        <code style={{ display: 'block', background: 'rgba(0,0,0,0.4)', padding: '0.5rem', borderRadius: '4px', marginTop: '0.5rem', fontFamily: 'monospace' }}>ollama run gemma:2b</code>
+                        Ollamaが起動すると、HLMの sandbox または card generator 画面で自動的に「Ollama Local Server」として検出され、オフラインでローカル推論を行えるようになります。
+                      </p>
+                    ) : (
+                      <p style={{ margin: 0 }}>
+                        If your current browser does not natively support the Prompt API (such as Firefox, Safari, or Chrome on Linux/iOS), HLM has an automatic fallback to detect **Ollama** running locally on your computer (port 11434).<br />
+                        Download Ollama from the official site, launch the server, and run the following command in your terminal:<br />
+                        <code style={{ display: 'block', background: 'rgba(0,0,0,0.4)', padding: '0.5rem', borderRadius: '4px', marginTop: '0.5rem', fontFamily: 'monospace' }}>ollama run gemma:2b</code>
+                        Once started, HLM will instantly detect the Ollama instance as the active local engine, bypassing all browser engine limitations!
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Verification Code Check */}
+                  <div style={{ background: 'rgba(16, 185, 129, 0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+                    <strong>🔍 {lang === 'ja' ? '動作確認チェック' : 'Source Code Verification'}:</strong><br />
+                    {lang === 'ja' ? (
+                      <span>本アプリのコード (<code>src/api.ts</code>) は、ブラウザ内の <code>window.ai.languageModel</code>、<code>window.ai.assistant</code>、または <code>window.LanguageModel</code> (EdgeのスタンドアロンPhiモデル) の存在を完全に自動検出してセッションを生成します。上記の設定を有効にするだけで、すぐに動作します！</span>
+                    ) : (
+                      <span>Our HLM client code (<code>src/api.ts</code>) is pre-configured to automatically check for <code>window.ai.languageModel</code>, <code>window.ai.assistant</code>, or the standalone <code>window.LanguageModel</code> (Microsoft Edge Phi). Simply enable the flags, and the application will instantly connect!</span>
+                    )}
+                  </div>
+
+                </div>
+              )}
+            </div>
+
           </div>
         )}
 
