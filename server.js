@@ -371,9 +371,10 @@ app.post('/api/phrases/import', (req, res) => {
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
+            let nextId = 1;
             for (const card of cards) {
                 insert.run(
-                    card.id || null,
+                    nextId++,
                     card.phrase,
                     card.meaning_en,
                     card.meaning_ja,

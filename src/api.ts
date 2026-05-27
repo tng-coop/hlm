@@ -137,9 +137,10 @@ export const apiGetChartsData = () => {
 
 export const apiImportPhrases = async (phrases: Phrase[]): Promise<{ success: boolean; count: number }> => {
     if (isDemoMode) {
-        const nextId = phrases.reduce((max, p) => Math.max(max, p.id || 0), 0) + 1;
-        localStorage.setItem('hlm_demo_data', JSON.stringify({ phrases, nextId }));
-        return { success: true, count: phrases.length };
+        const reindexed = phrases.map((p, idx) => ({ ...p, id: idx + 1 }));
+        const nextId = reindexed.length + 1;
+        localStorage.setItem('hlm_demo_data', JSON.stringify({ phrases: reindexed, nextId }));
+        return { success: true, count: reindexed.length };
     }
     const res = await fetch('/api/phrases/import', {
         method: 'POST',
