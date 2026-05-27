@@ -610,6 +610,85 @@ function App() {
   // Card Manager States
   const [expandedPhraseId, setExpandedPhraseId] = useState<number | null>(null);
   const [isAddFormExpanded, setIsAddFormExpanded] = useState(false);
+
+  // Blog / Discussion State per card
+  const [blogExplanations, setBlogExplanations] = useState<{ [id: number]: AIExplanationResult }>({});
+  const [loadingBlogs, setLoadingBlogs] = useState<{ [id: number]: boolean }>({});
+  const [blogChats, setBlogChats] = useState<{ [id: number]: { role: 'user' | 'assistant'; content: string }[] }>({});
+  const [blogQueries, setBlogQueries] = useState<{ [id: number]: string }>({});
+  const [sendingQueries, setSendingQueries] = useState<{ [id: number]: boolean }>({});
+
+  // Load Blog Details dynamically
+  const handleLoadBlog = async (phraseId: number, phraseText: string) => {
+    setLoadingBlogs(prev => ({ ...prev, [phraseId]: true }));
+    try {
+      const result = await aiExplainNuances(phraseText);
+      setBlogExplanations(prev => ({ ...prev, [phraseId]: result }));
+      if (!blogChats[phraseId]) {
+        setBlogChats(prev => ({
+          ...prev,
+          [phraseId]: [
+            { role: 'user', content: `Is the phrase "${phraseText}" formal or informal?` },
+            { role: 'assistant', content: `The phrase "${phraseText}" is primarily colloquial and informal. It is highly appropriate for casual conversations, storytelling, and movies, but you should generally avoid using it in highly formal documents or academic writing.` }
+          ]
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to load blog explanation", err);
+    } finally {
+      setLoadingBlogs(prev => ({ ...prev, [phraseId]: false }));
+    }
+  };
+
+  // Submit Q&A Query to the AI Coach
+  const handleSubmitBlogQuery = async (phraseId: number, phraseText: string) => {
+    const query = blogQueries[phraseId] || '';
+    if (!query.trim()) return;
+
+    const userMsg = { role: 'user' as const, content: query };
+    const updatedHistory = [...(blogChats[phraseId] || []), userMsg];
+    setBlogChats(prev => ({ ...prev, [phraseId]: updatedHistory }));
+    setBlogQueries(prev => ({ ...prev, [phraseId]: '' }));
+    setSendingQueries(prev => ({ ...prev, [phraseId]: true }));
+
+    try {
+      let coachReply = "";
+      if (!isDemoMode) {
+        try {
+          const prompt = `You are a professional English language coach. The user is asking a question about the idiom/phrase "${phraseText}".
+Here is their question: "${query}"
+Context history of conversation:
+${updatedHistory.map(m => `${m.role === 'user' ? 'Student' : 'Coach'}: ${m.content}`).join('\n')}
+
+Provide a highly informative, encouraging, and clear response to help the user master this phrase. Respond in pure text.`;
+          const promptRes = await aiPromptLocalLLM(prompt);
+          coachReply = promptRes.response;
+        } catch (e) {
+          coachReply = `That is a great question! Typically, "${phraseText}" is best mastered through immersive practice. Yes, you can use it in active writing, but pay attention to natural usage context and tone. Let's practice making more sentences using it!`;
+        }
+      } else {
+        await new Promise(r => setTimeout(r, 1200));
+        const lower = query.toLowerCase();
+        if (lower.includes('business') || lower.includes('formal') || lower.includes('work')) {
+          coachReply = `Excellent question! In professional settings, "${phraseText}" is usually considered a bit too casual. If you are speaking with close colleagues, it is perfectly fine, but for formal client presentations or business emails, it is safer to use clear, direct alternatives like "disclose information prematurely" or "handle the difficult challenge directly".`;
+        } else if (lower.includes('origin') || lower.includes('history') || lower.includes('where')) {
+          coachReply = `Yes, the history of "${phraseText}" is fascinating! It dates back centuries and reflects the lively, evolving nature of English idioms. Understanding the etymology really helps anchor the term in memory!`;
+        } else if (lower.includes('japanese') || lower.includes('translate') || lower.includes('nihongo')) {
+          coachReply = `Great observation! While the literal translation works, the actual contextual nuance matches best with daily colloquial expressions in Japanese. Focus on practicing sentences in dialogue to get a natural feel!`;
+        } else {
+          coachReply = `That is a superb question about "${phraseText}"! The key is to practice using it in your active vocabulary. When speaking or writing, pay attention to the emotional tone of the listener and make sure the setting is natural. Keep practicing your interactive sentences!`;
+        }
+      }
+      setBlogChats(prev => ({
+        ...prev,
+        [phraseId]: [...updatedHistory, { role: 'assistant', content: coachReply }]
+      }));
+    } catch (err) {
+      console.error("Failed to fetch AI reply", err);
+    } finally {
+      setSendingQueries(prev => ({ ...prev, [phraseId]: false }));
+    }
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
   const [selectedDifficultyFilter, setSelectedDifficultyFilter] = useState('All');
@@ -2839,6 +2918,152 @@ Respond strictly in valid JSON format with the following keys:
                                         >
                                           🔊
                                         </button>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Interactive Blog Discussion Panel */}
+                                  <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '1rem' }}>
+                                    {!blogExplanations[phrase.id] ? (
+                                      <button
+                                        type="button"
+                                        className="btn-secondary"
+                                        disabled={loadingBlogs[phrase.id]}
+                                        style={{
+                                          padding: '0.6rem 1.2rem',
+                                          fontSize: '0.85rem',
+                                          background: 'rgba(139, 92, 246, 0.15)',
+                                          border: '1px solid #8b5cf6',
+                                          color: '#c084fc',
+                                          borderRadius: '6px',
+                                          fontWeight: 'bold',
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '0.4rem',
+                                          transition: 'all 0.2s'
+                                        }}
+                                        onClick={() => handleLoadBlog(phrase.id, phrase.phrase)}
+                                      >
+                                        {loadingBlogs[phrase.id] ? '⏳ Opening Blog Post...' : '📖 Load Detailed Blog Post & Q&A'}
+                                      </button>
+                                    ) : (
+                                      <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                                        {/* Stylized Blog Article Card */}
+                                        <div style={{
+                                          background: 'rgba(255, 255, 255, 0.01)',
+                                          border: '1px solid rgba(255, 255, 255, 0.05)',
+                                          borderRadius: '8px',
+                                          padding: '1.2rem',
+                                          boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.05)'
+                                        }}>
+                                          <h4 style={{ margin: '0 0 0.8rem 0', color: '#c084fc', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '1.05rem' }}>
+                                            📝 Etymology & Nuance Editorial
+                                          </h4>
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', lineHeight: '1.5' }}>
+                                            <div>
+                                              <span style={{ fontWeight: 'bold', color: '#38bdf8', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Historical Origin</span>
+                                              <p style={{ margin: 0, paddingLeft: '0.5rem', borderLeft: '2px solid #38bdf8' }}>{blogExplanations[phrase.id].origin}</p>
+                                            </div>
+                                            <div>
+                                              <span style={{ fontWeight: 'bold', color: '#38bdf8', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Semantic Nuance & Usage Tone</span>
+                                              <p style={{ margin: 0, paddingLeft: '0.5rem', borderLeft: '2px solid #38bdf8' }}>{blogExplanations[phrase.id].nuance}</p>
+                                            </div>
+                                            <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '6px', padding: '0.6rem 0.8rem' }}>
+                                              <span style={{ fontWeight: 'bold', color: '#10b981', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>💡 Language Coach Tip</span>
+                                              <p style={{ margin: 0, fontStyle: 'italic' }}>{blogExplanations[phrase.id].tips}</p>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {/* Q&A Board Chat Dialogue */}
+                                        <div style={{
+                                          background: 'rgba(0, 0, 0, 0.15)',
+                                          border: '1px solid rgba(255, 255, 255, 0.04)',
+                                          borderRadius: '8px',
+                                          padding: '1rem',
+                                          display: 'flex',
+                                          flexDirection: 'column',
+                                          gap: '0.8rem'
+                                        }}>
+                                          <h5 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                            💬 Community Q&A Board & AI Language Coach
+                                          </h5>
+                                          
+                                          {/* Message Log */}
+                                          <div style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '0.8rem',
+                                            maxHeight: '220px',
+                                            overflowY: 'auto',
+                                            paddingRight: '0.4rem'
+                                          }}>
+                                            {(blogChats[phrase.id] || []).map((msg, mIdx) => (
+                                              <div
+                                                key={mIdx}
+                                                style={{
+                                                  alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                                                  maxWidth: '85%',
+                                                  background: msg.role === 'user' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                                                  border: msg.role === 'user' ? '1px solid rgba(56, 189, 248, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
+                                                  color: msg.role === 'user' ? '#38bdf8' : '#e2e8f0',
+                                                  padding: '0.6rem 0.8rem',
+                                                  borderRadius: '8px',
+                                                  fontSize: '0.85rem'
+                                                }}
+                                              >
+                                                <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 'bold', color: msg.role === 'user' ? '#0284c7' : '#94a3b8', marginBottom: '0.2rem' }}>
+                                                  {msg.role === 'user' ? 'Student' : '🤖 AI Language Coach'}
+                                                </span>
+                                                <p style={{ margin: 0, lineHeight: '1.4' }}>{msg.content}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+
+                                          {/* Query Input Box */}
+                                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.2rem' }}>
+                                            <input
+                                              type="text"
+                                              value={blogQueries[phrase.id] || ''}
+                                              onChange={(e) => setBlogQueries(prev => ({ ...prev, [phrase.id]: e.target.value }))}
+                                              onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                  handleSubmitBlogQuery(phrase.id, phrase.phrase);
+                                                }
+                                              }}
+                                              placeholder="Ask a question (e.g. 'Can I use this at work?', 'How is it different from other terms?')..."
+                                              style={{
+                                                flex: 1,
+                                                padding: '0.5rem 0.8rem',
+                                                background: 'rgba(255, 255, 255, 0.02)',
+                                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                borderRadius: '6px',
+                                                color: '#fff',
+                                                fontSize: '0.8rem',
+                                                outline: 'none'
+                                              }}
+                                            />
+                                            <button
+                                              type="button"
+                                              disabled={sendingQueries[phrase.id] || !(blogQueries[phrase.id] || '').trim()}
+                                              onClick={() => handleSubmitBlogQuery(phrase.id, phrase.phrase)}
+                                              style={{
+                                                padding: '0.5rem 1rem',
+                                                fontSize: '0.8rem',
+                                                background: 'rgba(56, 189, 248, 0.15)',
+                                                border: '1px solid #38bdf8',
+                                                color: '#38bdf8',
+                                                borderRadius: '6px',
+                                                fontWeight: 'bold',
+                                                cursor: (sendingQueries[phrase.id] || !(blogQueries[phrase.id] || '').trim()) ? 'not-allowed' : 'pointer',
+                                                transition: 'all 0.2s'
+                                              }}
+                                            >
+                                              {sendingQueries[phrase.id] ? '⏳ Coach is writing...' : 'Ask Coach'}
+                                            </button>
+                                          </div>
+                                        </div>
                                       </div>
                                     )}
                                   </div>
