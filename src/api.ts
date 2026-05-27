@@ -314,35 +314,45 @@ const getLanguageModelManager = () => {
 export const aiExplainNuances = async (phrase: string): Promise<AIExplanationResult> => {
     const promptText = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips".`;
 
+    console.log(`[aiExplainNuances] Starting etymology generation for: "${phrase}"`);
+
     // A. Chrome Built-in window.ai / window.LanguageModel (Gemini Nano)
     try {
         const modelManager = getLanguageModelManager();
         if (modelManager) {
+            console.log(`[aiExplainNuances] Detected Chrome built-in window.ai. Attempting model session creation (15s timeout)...`);
             const session = await withTimeout<any>(
                 modelManager.create({ outputLanguage: 'en' }),
                 15000,
                 'window.ai session creation timed out'
             );
+            console.log(`[aiExplainNuances] Session created successfully. Prompting Gemini Nano (25s timeout)...`);
             const rawResponse = await withTimeout<string>(
                 session.prompt(promptText),
                 25000,
                 'window.ai prompt response timed out'
             );
+            console.log(`[aiExplainNuances] Gemini Nano responded successfully! Parsing output...`);
             if (session && typeof session.destroy === 'function') {
                 session.destroy();
             } else if (session && typeof session.close === 'function') {
                 session.close();
             }
             const cleanJson = rawResponse.substring(rawResponse.indexOf('{'), rawResponse.lastIndexOf('}') + 1);
-            return JSON.parse(cleanJson);
+            const parsed = JSON.parse(cleanJson);
+            console.log(`[aiExplainNuances] Parsed etymology JSON successfully!`, parsed);
+            return parsed;
+        } else {
+            console.log(`[aiExplainNuances] Chrome window.ai is not available or disabled in this view.`);
         }
     } catch (err) {
-        console.warn('Chrome window.ai explanation failed, falling back...', err);
+        console.warn('[aiExplainNuances] Chrome window.ai explanation failed or timed out, falling back...', err);
     }
 
     // B. Ollama Local Fallback
     const hasOllama = await checkOllama();
     if (hasOllama) {
+        console.log(`[aiExplainNuances] Ollama local service detected. Querying gemma:2b model (3s timeout)...`);
         try {
             const res = await fetch('http://localhost:11434/api/generate', {
                 method: 'POST',
@@ -356,15 +366,23 @@ export const aiExplainNuances = async (phrase: string): Promise<AIExplanationRes
                 })
             });
             const data = await res.json();
-            return JSON.parse(data.response);
+            console.log(`[aiExplainNuances] Ollama responded successfully! Parsing output...`);
+            const parsed = JSON.parse(data.response);
+            console.log(`[aiExplainNuances] Parsed Ollama JSON successfully!`, parsed);
+            return parsed;
         } catch (err) {
-            console.warn('Ollama local explanation failed, falling back...', err);
+            console.warn('[aiExplainNuances] Ollama local explanation failed or timed out, falling back...', err);
         }
+    } else {
+        console.log(`[aiExplainNuances] Ollama is offline or not running.`);
     }
 
     // C. Premium Offline Contextual Mock Simulator
+    console.log(`[aiExplainNuances] Falling back to high-fidelity Offline Contextual Simulator...`);
     await new Promise(r => setTimeout(r, 600)); // natural reading pause
-    return getOfflineExplanation(phrase);
+    const offlineResult = getOfflineExplanation(phrase);
+    console.log(`[aiExplainNuances] Offline Simulator generated etymology mock details:`, offlineResult);
+    return offlineResult;
 };
 
 // 3. Main Local AI Sentence Checker Client

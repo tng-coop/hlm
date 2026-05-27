@@ -565,14 +565,20 @@ function App() {
 
   // Load Blog Details dynamically and save permanently to database
   const handleLoadBlog = async (phraseId: number, phraseText: string) => {
+    console.log(`[handleLoadBlog] User clicked "Generate Deep-Dive Blog Post & Q&A" for phrase: "${phraseText}" (ID: ${phraseId})`);
     setLoadingBlogs(prev => ({ ...prev, [phraseId]: true }));
     setBlogErrors(prev => ({ ...prev, [phraseId]: null }));
     try {
+      console.log(`[handleLoadBlog] Dispatching aiExplainNuances to generate etymology...`);
       const result = await aiExplainNuances(phraseText);
+      console.log(`[handleLoadBlog] Etymology generation completed. Result nuance exists:`, result.nuance ? "YES" : "NO");
+      
       const existingCard = phrases.find(p => p.id === phraseId);
       if (!existingCard) {
         throw new Error('Phrase card not found in local deck');
       }
+      
+      console.log(`[handleLoadBlog] Card details found in state. Initiating apiUpdatePhrase payload sync...`);
       // Save permanently to database
       await apiUpdatePhrase(phraseId, {
         ...existingCard,
@@ -580,8 +586,10 @@ function App() {
         origin: result.origin,
         tips: result.tips
       });
+      console.log(`[handleLoadBlog] apiUpdatePhrase completed successfully. Refreshing database data...`);
       // Refresh local React list data
       await refreshData();
+      console.log(`[handleLoadBlog] Database data refreshed. Setting Q&A blog chat logs...`);
       if (!blogChats[phraseId]) {
         setBlogChats(prev => ({
           ...prev,
@@ -591,8 +599,9 @@ function App() {
           ]
         }));
       }
+      console.log(`[handleLoadBlog] Finished processing handleLoadBlog successfully!`);
     } catch (err: any) {
-      console.error("Failed to load blog explanation", err);
+      console.error("[handleLoadBlog] Generation failed with error:", err);
       setBlogErrors(prev => ({ ...prev, [phraseId]: err.message || 'Failed to generate deep-dive content. Please check your connection or local AI settings.' }));
     } finally {
       setLoadingBlogs(prev => ({ ...prev, [phraseId]: false }));
