@@ -412,6 +412,32 @@ function App() {
     playSentence(0, sents);
   };
 
+  const speakComprehensiveCard = (phrase: Phrase) => {
+    const parts: string[] = [];
+    parts.push(`Phrase: ${phrase.phrase}`);
+    parts.push(`Category: ${phrase.category}`);
+    parts.push(`English Meaning: ${phrase.meaning_en}`);
+    if (lang !== 'en' && phrase.meaning_ja) {
+      parts.push(`Japanese Meaning: ${phrase.meaning_ja}`);
+    }
+    parts.push(`Example Sentence: ${phrase.example_en}`);
+    if (lang !== 'en' && phrase.example_ja) {
+      parts.push(`Japanese Example: ${phrase.example_ja}`);
+    }
+    if (phrase.nuance) {
+      parts.push(`Semantic Nuance: ${phrase.nuance}`);
+    }
+    if (phrase.origin) {
+      parts.push(`Historical Origin: ${phrase.origin}`);
+    }
+    if (phrase.tips) {
+      parts.push(`Language Coach Tip: ${phrase.tips}`);
+    }
+    
+    const fullText = parts.join('\n\n');
+    startAudioReader(fullText, `Comprehensive Card Read: ${phrase.phrase}`);
+  };
+
   const handleAudioPlay = () => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     
@@ -562,6 +588,51 @@ function App() {
   const [blogChats, setBlogChats] = useState<{ [id: number]: { role: 'user' | 'assistant'; content: string }[] }>({});
   const [blogQueries, setBlogQueries] = useState<{ [id: number]: string }>({});
   const [sendingQueries, setSendingQueries] = useState<{ [id: number]: boolean }>({});
+  const [copiedBlogPrompt, setCopiedBlogPrompt] = useState<number | null>(null);
+
+  const handlePasteCommercialBlog = async (phraseId: number, rawText: string) => {
+    if (!rawText.trim()) return;
+    try {
+      const cleanJson = rawText.substring(rawText.indexOf('{'), rawText.lastIndexOf('}') + 1);
+      if (!cleanJson) throw new Error('No valid JSON block found in paste');
+      const parsed = JSON.parse(cleanJson);
+      if (!parsed.nuance || !parsed.origin) {
+        throw new Error('JSON response must contain "nuance" and "origin" keys.');
+      }
+      
+      const existingCard = phrases.find(p => p.id === phraseId);
+      if (!existingCard) {
+        throw new Error('Phrase card not found in local deck');
+      }
+      
+      setLoadingBlogs(prev => ({ ...prev, [phraseId]: true }));
+      setBlogErrors(prev => ({ ...prev, [phraseId]: null }));
+      
+      await apiUpdatePhrase(phraseId, {
+        ...existingCard,
+        nuance: parsed.nuance,
+        origin: parsed.origin,
+        tips: parsed.tips || ''
+      });
+      
+      await refreshData();
+      
+      if (!blogChats[phraseId]) {
+        setBlogChats(prev => ({
+          ...prev,
+          [phraseId]: [
+            { role: 'user', content: `Is the phrase "${existingCard.phrase}" formal or informal?` },
+            { role: 'assistant', content: `The phrase "${existingCard.phrase}" is primarily colloquial and informal. It is highly appropriate for casual conversations, storytelling, and movies, but you should generally avoid using it in highly formal documents or academic writing.` }
+          ]
+        }));
+      }
+    } catch (err: any) {
+      console.error('[handlePasteCommercialBlog] Failed to parse and sync commercial blog:', err);
+      setBlogErrors(prev => ({ ...prev, [phraseId]: err.message || 'Failed to parse commercial AI response. Please ensure it is valid JSON.' }));
+    } finally {
+      setLoadingBlogs(prev => ({ ...prev, [phraseId]: false }));
+    }
+  };
 
   // Load Blog Details dynamically and save permanently to database
   const handleLoadBlog = async (phraseId: number, phraseText: string) => {
@@ -2076,6 +2147,36 @@ Respond strictly in valid JSON format with the following keys:
                           </button>
                         </h3>
                         
+                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.2rem' }}>
+                          <button
+                            className="btn-speak-comprehensive"
+                            title="Speak entire card content comprehensively"
+                            style={{
+                              background: 'rgba(56, 189, 248, 0.15)',
+                              border: '1px solid #38bdf8',
+                              color: '#38bdf8',
+                              borderRadius: '20px',
+                              padding: '0.3rem 0.9rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              fontSize: '0.78rem',
+                              fontWeight: 'bold',
+                              gap: '0.3rem',
+                              transition: 'all 0.2s'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              speakComprehensiveCard(activeCard);
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.15)'}
+                          >
+                            🗣️ Speak Full Card
+                          </button>
+                        </div>
+                        
                         <div style={{ margin: '1rem 0', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                           <p style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#06b6d4' }}>{activeCard.meaning_en}</p>
                           {lang !== 'en' && <p style={{ fontSize: '1.1rem', color: '#f8fafc', fontWeight: 500 }}>{activeCard.meaning_ja}</p>}
@@ -3569,6 +3670,33 @@ Respond strictly in valid JSON format with the following keys:
                             <tr style={{ background: 'rgba(255,255,255,0.015)' }}>
                               <td colSpan={6} style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.95rem' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', borderBottom: '1px dashed rgba(255,255,255,0.06)', paddingBottom: '0.5rem' }}>
+                                    <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#c084fc' }}>📋 Card Details</span>
+                                    <button
+                                      className="btn-speak-comprehensive-mgr"
+                                      title="Speak entire card content comprehensively"
+                                      style={{
+                                        background: 'rgba(56, 189, 248, 0.15)',
+                                        border: '1px solid #38bdf8',
+                                        color: '#38bdf8',
+                                        borderRadius: '20px',
+                                        padding: '0.3rem 0.9rem',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 'bold',
+                                        gap: '0.3rem',
+                                        transition: 'all 0.2s'
+                                      }}
+                                      onClick={() => speakComprehensiveCard(phrase)}
+                                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)'}
+                                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.15)'}
+                                    >
+                                      🗣️ Speak Full Card
+                                    </button>
+                                  </div>
                                   <p><strong>{t('lbl_meaning_en')}:</strong> <span style={{ color: '#06b6d4' }}>{phrase.meaning_en}</span></p>
                                   <p>
                                     <strong>{t('lbl_regional_usage')}:</strong>{' '}
@@ -3643,29 +3771,81 @@ Respond strictly in valid JSON format with the following keys:
                                   {/* Interactive Blog Discussion Panel */}
                                   <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '1rem' }}>
                                     {(!phrase.nuance || !phrase.origin) ? (
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
-                                        <button
-                                          type="button"
-                                          className="btn-secondary"
-                                          disabled={loadingBlogs[phrase.id]}
-                                          style={{
-                                            padding: '0.6rem 1.2rem',
-                                            fontSize: '0.85rem',
-                                            background: 'rgba(139, 92, 246, 0.15)',
-                                            border: '1px solid #8b5cf6',
-                                            color: '#c084fc',
-                                            borderRadius: '6px',
-                                            fontWeight: 'bold',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.4rem',
-                                            transition: 'all 0.2s'
-                                          }}
-                                          onClick={() => handleLoadBlog(phrase.id, phrase.phrase)}
-                                        >
-                                          {loadingBlogs[phrase.id] ? '⏳ Generating Editorial...' : '📖 Generate Deep-Dive Blog Post & Q&A'}
-                                        </button>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', alignItems: 'flex-start', width: '100%' }}>
+                                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                          <button
+                                            type="button"
+                                            className="btn-secondary"
+                                            disabled={loadingBlogs[phrase.id]}
+                                            style={{
+                                              padding: '0.6rem 1.2rem',
+                                              fontSize: '0.85rem',
+                                              background: 'rgba(139, 92, 246, 0.15)',
+                                              border: '1px solid #8b5cf6',
+                                              color: '#c084fc',
+                                              borderRadius: '6px',
+                                              fontWeight: 'bold',
+                                              cursor: 'pointer',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '0.4rem',
+                                              transition: 'all 0.2s'
+                                            }}
+                                            onClick={() => handleLoadBlog(phrase.id, phrase.phrase)}
+                                          >
+                                            {loadingBlogs[phrase.id] ? '⏳ Generating Editorial...' : '📖 Generate with Local AI'}
+                                          </button>
+                                          
+                                          <button
+                                            type="button"
+                                            style={{
+                                              padding: '0.6rem 1.2rem',
+                                              fontSize: '0.85rem',
+                                              background: 'rgba(255, 255, 255, 0.05)',
+                                              border: '1px solid rgba(255, 255, 255, 0.15)',
+                                              color: '#fff',
+                                              borderRadius: '6px',
+                                              fontWeight: 'bold',
+                                              cursor: 'pointer',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '0.4rem',
+                                              transition: 'all 0.2s'
+                                            }}
+                                            onClick={() => {
+                                              const prompt = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase.phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips".`;
+                                              navigator.clipboard.writeText(prompt);
+                                              setCopiedBlogPrompt(phrase.id);
+                                              setTimeout(() => setCopiedBlogPrompt(null), 2000);
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                                          >
+                                            📋 {copiedBlogPrompt === phrase.id ? 'Copied!' : 'Copy Prompt for Commercial LLM'}
+                                          </button>
+                                        </div>
+
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%', maxWidth: '600px' }}>
+                                          <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>💡 Commercial AI Fallback Paste Area (Optional)</label>
+                                          <textarea
+                                            rows={2}
+                                            placeholder='Paste JSON response containing "nuance", "origin", "tips" from ChatGPT, Gemini Web, etc. here...'
+                                            style={{
+                                              padding: '0.5rem',
+                                              background: 'rgba(0, 0, 0, 0.25)',
+                                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                                              borderRadius: '6px',
+                                              color: '#fff',
+                                              fontSize: '0.8rem',
+                                              fontFamily: 'monospace',
+                                              resize: 'none',
+                                              outline: 'none',
+                                              width: '100%'
+                                            }}
+                                            onChange={(e) => handlePasteCommercialBlog(phrase.id, e.target.value)}
+                                          />
+                                        </div>
+
                                         {blogErrors[phrase.id] && (
                                           <div style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 'bold', marginTop: '0.3rem' }}>
                                             ⚠️ {blogErrors[phrase.id]}
