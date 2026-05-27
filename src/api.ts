@@ -205,6 +205,7 @@ Respond strictly in valid JSON format with the following keys:
             const res = await fetch('http://localhost:11434/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(3000),
                 body: JSON.stringify({
                     model: 'gemma:2b',
                     prompt: promptText,
@@ -346,6 +347,7 @@ export const aiExplainNuances = async (phrase: string): Promise<AIExplanationRes
             const res = await fetch('http://localhost:11434/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(3000),
                 body: JSON.stringify({
                     model: 'gemma:2b',
                     prompt: promptText,
@@ -407,6 +409,7 @@ Check for grammar, natural flow, and correct contextual usage. Respond strictly 
             const res = await fetch('http://localhost:11434/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(3000),
                 body: JSON.stringify({
                     model: 'gemma:2b',
                     prompt: promptText,
@@ -616,6 +619,7 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
             const res = await fetch('http://localhost:11434/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(3000),
                 body: JSON.stringify({
                     model: 'gemma:2b',
                     prompt: promptText,
@@ -773,6 +777,7 @@ CRITICAL RULE: The "phrase" key must ONLY contain the clean vocabulary word, phr
             const res = await fetch('http://localhost:11434/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(3000),
                 body: JSON.stringify({
                     model: 'gemma:2b',
                     prompt: promptText,
