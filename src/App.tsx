@@ -832,7 +832,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
 
   const handleRequestSyncCode = async () => {
     if (!syncEmail || !syncEmail.includes('@')) {
-      setSyncError('Please enter a valid email address.');
+      setSyncError(t('sync_error_valid_email'));
       setSyncSuccess(null);
       return;
     }
@@ -847,13 +847,13 @@ Provide a highly informative, encouraging, and clear response to help the user m
         setSyncStep('code_requested');
         localStorage.setItem('hlm_sync_email', syncEmail);
         localStorage.setItem('hlm_sync_code_requested', 'true');
-        setSyncSuccess(response.message || 'Verification sync code successfully emailed! Please check your inbox.');
+        setSyncSuccess(lang === 'ja' ? t('sync_msg_code_emailed') : (response.message || t('sync_msg_code_emailed')));
       } else {
-        setSyncError('Failed to request sync code. Please verify server SMTP configuration.');
+        setSyncError(t('sync_error_request_failed'));
       }
     } catch (err: any) {
       console.error('Request sync code failed', err);
-      setSyncError(err.message || 'Failed to connect to the sync server.');
+      setSyncError(err.message || t('sync_error_connect_failed'));
     } finally {
       setIsSyncing(false);
     }
@@ -861,7 +861,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
 
   const handleVerifySyncCode = async () => {
     if (!syncVerificationCode.trim()) {
-      setSyncError('Please paste the sync code from your email.');
+      setSyncError(t('sync_error_enter_code'));
       setSyncSuccess(null);
       return;
     }
@@ -879,14 +879,14 @@ Provide a highly informative, encouraging, and clear response to help the user m
         setSyncKey(response.sync_key);
         setSyncEmail(response.email);
         setSyncStep('idle');
-        setSyncSuccess('Handshake verified successfully! Syncing your study deck now...');
+        setSyncSuccess(t('sync_msg_verified'));
         await performSync(response.sync_key);
       } else {
-        setSyncError('Verification failed. Invalid or expired sync code.');
+        setSyncError(t('sync_error_invalid_code'));
       }
     } catch (err: any) {
       console.error('Verification failed', err);
-      setSyncError(err.message || 'Failed to verify sync code.');
+      setSyncError(err.message || t('sync_error_verify_failed'));
     } finally {
       setIsSyncing(false);
     }
@@ -937,15 +937,15 @@ Provide a highly informative, encouraging, and clear response to help the user m
         
         console.log(`[CloudSync] Importing merged deck into local database...`);
         await apiImportPhrases(pullResult.phrases);
-        setSyncSuccess(`Synchronization successful! Merged ${pullResult.phrases.length} cards.`);
+        setSyncSuccess(t('sync_msg_success').replace('{count}', String(pullResult.phrases.length)));
         await refreshData();
         console.log(`[CloudSync] Sync complete. Local database successfully updated and refreshed!`);
       } else {
-        setSyncError('Failed to pull synchronized data from the server.');
+        setSyncError(t('sync_error_pull_failed'));
       }
     } catch (err: any) {
       console.error('Synchronization failed', err);
-      setSyncError(err.message || 'Synchronization failed.');
+      setSyncError(err.message || t('sync_error_failed'));
     } finally {
       setIsSyncing(false);
     }
@@ -953,7 +953,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
 
   const handleSyncNow = async () => {
     if (!syncKey) {
-      setSyncError('Device is not linked to any account.');
+      setSyncError(t('sync_error_not_linked'));
       return;
     }
     await performSync(syncKey);
@@ -967,7 +967,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
     setSyncEmail('');
     setSyncVerificationCode('');
     setSyncStep('idle');
-    setSyncSuccess('Successfully unlinked device from sync account.');
+    setSyncSuccess(t('sync_msg_unlinked'));
     setSyncError(null);
   };
 
@@ -2506,9 +2506,9 @@ Respond strictly in valid JSON format with the following keys:
 
             {/* Cloud Synchronization Panel */}
             <div className="glass-card" style={{ padding: '1.2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem', marginBottom: '1rem' }}>
                 <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f59e0b' }}>
-                  ☁️ Cloud Synchronization (Yugawara)
+                  ☁️ {t('sync_title')}
                 </h3>
                 {syncKey && (
                   <span style={{ 
@@ -2529,7 +2529,7 @@ Respond strictly in valid JSON format with the following keys:
                 {!syncKey ? (
                   <>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-                      Synchronize your vocabulary deck, study progress, and learning history seamlessly across all your devices using our database-free, secure email handshake system.
+                      {t('sync_description')}
                     </p>
 
                     {syncStep === 'idle' ? (
@@ -2537,7 +2537,7 @@ Respond strictly in valid JSON format with the following keys:
                         <input
                           type="email"
                           data-testid="sync-email-input"
-                          placeholder="your.email@example.com"
+                          placeholder={t('sync_placeholder_email')}
                           value={syncEmail}
                           onChange={(e) => setSyncEmail(e.target.value)}
                           style={{
@@ -2574,19 +2574,19 @@ Respond strictly in valid JSON format with the following keys:
                           onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)'}
                           onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)'}
                         >
-                          {isSyncing ? 'Sending...' : '✉️ Get Sync Code'}
+                          {isSyncing ? t('sync_status_sending') : '✉️ ' + t('sync_btn_get_code')}
                         </button>
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                         <p style={{ fontSize: '0.8rem', color: '#38bdf8', margin: 0, fontWeight: 'bold' }}>
-                          🔑 Enter the code sent to {syncEmail}:
+                          {t('sync_enter_code').replace('{email}', syncEmail)}
                         </p>
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                           <input
                             type="text"
                             data-testid="sync-code-input"
-                            placeholder="Paste magic sync code from email..."
+                            placeholder={t('sync_placeholder_code_paste')}
                             value={syncVerificationCode}
                             onChange={(e) => setSyncVerificationCode(e.target.value)}
                             style={{
@@ -2621,7 +2621,7 @@ Respond strictly in valid JSON format with the following keys:
                             onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)'}
                             onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.15)'}
                           >
-                            {isSyncing ? 'Verifying...' : '🔗 Verify & Sync'}
+                            {isSyncing ? t('sync_status_verifying') : '🔗 ' + t('sync_btn_verify_sync')}
                           </button>
                         </div>
                         <button
@@ -2638,17 +2638,17 @@ Respond strictly in valid JSON format with the following keys:
                             textDecoration: 'underline'
                           }}
                         >
-                          ← Use a different email address
+                          {t('sync_different_email')}
                         </button>
                       </div>
                     )}
                   </>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                      <div>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Linked Sync Account</span>
-                        <strong style={{ fontSize: '0.9rem', color: '#fff' }}>{syncEmail}</strong>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem', background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                      <div style={{ minWidth: '150px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>{t('sync_lbl_linked_account')}</span>
+                        <strong style={{ fontSize: '0.9rem', color: '#fff', wordBreak: 'break-all' }}>{syncEmail}</strong>
                       </div>
                       <button
                         data-testid="btn-unlink-sync"
@@ -2667,7 +2667,7 @@ Respond strictly in valid JSON format with the following keys:
                         onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)'}
                         onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
                       >
-                        🔌 Unlink Device
+                        🔌 {t('sync_btn_unlink')}
                       </button>
                     </div>
 
@@ -2694,7 +2694,7 @@ Respond strictly in valid JSON format with the following keys:
                         onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.3)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.2)'; }}
                       >
-                        🔄 {isSyncing ? 'Syncing...' : 'Sync study progress now'}
+                        🔄 {isSyncing ? t('sync_status_syncing') : t('sync_btn_sync_now')}
                       </button>
                     </div>
                   </div>
