@@ -176,8 +176,16 @@ Respond strictly in valid JSON format with the following keys:
     try {
         const modelManager = getLanguageModelManager();
         if (modelManager) {
-            const session = await modelManager.create({ outputLanguage: 'en' });
-            const rawResponse = await session.prompt(promptText);
+            const session = await withTimeout<any>(
+                modelManager.create({ outputLanguage: 'en' }),
+                2500,
+                'window.ai session creation timed out'
+            );
+            const rawResponse = await withTimeout<string>(
+                session.prompt(promptText),
+                3500,
+                'window.ai prompt response timed out'
+            );
             if (session && typeof session.destroy === 'function') {
                 session.destroy();
             } else if (session && typeof session.close === 'function') {
@@ -270,6 +278,21 @@ const checkOllama = async (): Promise<boolean> => {
     }
 };
 
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, errorMsg: string): Promise<T> => {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(errorMsg)), timeoutMs);
+        promise
+            .then(res => {
+                clearTimeout(timer);
+                resolve(res);
+            })
+            .catch(err => {
+                clearTimeout(timer);
+                reject(err);
+            });
+    });
+};
+
 const getLanguageModelManager = () => {
     if (isDemoMode) return null;
     if (typeof window !== 'undefined') {
@@ -294,8 +317,16 @@ export const aiExplainNuances = async (phrase: string): Promise<AIExplanationRes
     try {
         const modelManager = getLanguageModelManager();
         if (modelManager) {
-            const session = await modelManager.create({ outputLanguage: 'en' });
-            const rawResponse = await session.prompt(promptText);
+            const session = await withTimeout<any>(
+                modelManager.create({ outputLanguage: 'en' }),
+                2500,
+                'window.ai session creation timed out'
+            );
+            const rawResponse = await withTimeout<string>(
+                session.prompt(promptText),
+                3500,
+                'window.ai prompt response timed out'
+            );
             if (session && typeof session.destroy === 'function') {
                 session.destroy();
             } else if (session && typeof session.close === 'function') {
@@ -347,8 +378,16 @@ Check for grammar, natural flow, and correct contextual usage. Respond strictly 
     try {
         const modelManager = getLanguageModelManager();
         if (modelManager) {
-            const session = await modelManager.create({ outputLanguage: 'en' });
-            const rawResponse = await session.prompt(promptText);
+            const session = await withTimeout<any>(
+                modelManager.create({ outputLanguage: 'en' }),
+                2500,
+                'window.ai session creation timed out'
+            );
+            const rawResponse = await withTimeout<string>(
+                session.prompt(promptText),
+                3500,
+                'window.ai prompt response timed out'
+            );
             if (session && typeof session.destroy === 'function') {
                 session.destroy();
             } else if (session && typeof session.close === 'function') {
@@ -549,8 +588,16 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
     try {
         const modelManager = getLanguageModelManager();
         if (modelManager) {
-            const session = await modelManager.create({ outputLanguage: 'en' });
-            const rawResponse = await session.prompt(promptText);
+            const session = await withTimeout<any>(
+                modelManager.create({ outputLanguage: 'en' }),
+                2500,
+                'window.ai session creation timed out'
+            );
+            const rawResponse = await withTimeout<string>(
+                session.prompt(promptText),
+                3500,
+                'window.ai prompt response timed out'
+            );
             if (session && typeof session.destroy === 'function') {
                 session.destroy();
             } else if (session && typeof session.close === 'function') {
@@ -697,8 +744,16 @@ CRITICAL RULE: The "phrase" key must ONLY contain the clean vocabulary word, phr
     try {
         const modelManager = getLanguageModelManager();
         if (modelManager) {
-            const session = await modelManager.create({ outputLanguage: 'en' });
-            const rawResponse = await session.prompt(promptText);
+            const session = await withTimeout<any>(
+                modelManager.create({ outputLanguage: 'en' }),
+                2500,
+                'window.ai session creation timed out'
+            );
+            const rawResponse = await withTimeout<string>(
+                session.prompt(promptText),
+                3500,
+                'window.ai prompt response timed out'
+            );
             if (session && typeof session.destroy === 'function') {
                 session.destroy();
             } else if (session && typeof session.close === 'function') {
