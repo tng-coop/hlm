@@ -101,6 +101,60 @@ app.post('/api/phrases', (req, res) => {
     }
 });
 
+// Update/Edit an existing phrase card
+app.put('/api/phrases/:id', (req, res) => {
+    const phraseId = req.params.id;
+    let { phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, used_in_us, used_in_uk } = req.body;
+
+    if (!phrase || !meaning_en || !meaning_ja || !category || !example_en || !example_ja || !difficulty) {
+        return res.status(400).json({ error: 'All fields are required to update a phrase card' });
+    }
+
+    if (used_in_us === undefined) used_in_us = 1;
+    if (used_in_uk === undefined) used_in_uk = 1;
+
+    const usVal = used_in_us ? 1 : 0;
+    const ukVal = used_in_uk ? 1 : 0;
+
+    if (usVal === 0 && ukVal === 0) {
+        return res.status(400).json({ error: 'At least one regional usage (US or UK) must be selected' });
+    }
+
+    try {
+        const card = activeDb.prepare('SELECT * FROM phrases WHERE id = ?').get(phraseId);
+        if (!card) {
+            return res.status(404).json({ error: 'Phrase card not found' });
+        }
+
+        // Update database record and clear reality_check_cache
+        const update = activeDb.prepare(`
+            UPDATE phrases
+            SET phrase = ?, meaning_en = ?, meaning_ja = ?, category = ?, example_en = ?, example_ja = ?, difficulty = ?, used_in_us = ?, used_in_uk = ?, reality_check_cache = NULL
+            WHERE id = ?
+        `);
+        update.run(phrase, meaning_en, meaning_ja, category, example_en, example_ja, difficulty, usVal, ukVal, phraseId);
+
+        res.json({
+            id: Number(phraseId),
+            phrase,
+            meaning_en,
+            meaning_ja,
+            category,
+            example_en,
+            example_ja,
+            difficulty,
+            used_in_us: usVal,
+            used_in_uk: ukVal,
+            reality_check_cache: null
+        });
+    } catch (err) {
+        if (err.message.includes('UNIQUE constraint failed')) {
+            return res.status(409).json({ error: 'This phrase already exists in your deck' });
+        }
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Review / Grade a phrase card (SuperMemo-2 Spaced Repetition Algorithm)
 app.put('/api/phrases/:id/review', (req, res) => {
     const phraseId = req.params.id;
@@ -282,29 +336,6 @@ app.put('/api/phrases/:id/regions', (req, res) => {
         }
 
         res.json({ success: true, id: Number(phraseId), used_in_us: usVal, used_in_uk: ukVal });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Update Reality Check cache for a phrase
-app.put('/api/phrases/:id/reality-check', (req, res) => {
-    const phraseId = req.params.id;
-    const { reality_check_cache } = req.body;
-
-    try {
-        const update = activeDb.prepare(`
-            UPDATE phrases
-            SET reality_check_cache = ?
-            WHERE id = ?
-        `);
-        const info = update.run(reality_check_cache || null, phraseId);
-        
-        if (info.changes === 0) {
-            return res.status(404).json({ error: 'Phrase card not found' });
-        }
-
-        res.json({ success: true, id: Number(phraseId), reality_check_cache });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

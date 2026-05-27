@@ -79,17 +79,17 @@ test.describe('HLM Study Deck E2E Suite', () => {
     // Expand Add Card Form
     await page.getByTestId('add-card-header').click();
 
-    // 1. Create a custom new idiom card (using "Blow off steam" to avoid seed duplication collisions)
-    await page.locator('input[placeholder="E.g., Spill the beans"]').fill('Blow off steam');
-    await page.locator('select').first().selectOption('Idiom');
-    await page.locator('select').nth(1).selectOption('Intermediate');
-    await page.locator('input[placeholder="E.g., Reveal a secret prematurely."]').fill('Release strong emotions or energy.');
-    await page.locator('input[placeholder="E.g., 秘密をうっかり漏らす。"]').fill('強い感情を発散する。');
-    await page.locator('input[placeholder="Don\'t spill the beans!"]').fill('I went for a run to blow off steam.');
-    await page.locator('input[placeholder="秘密を漏らさないで！"]').fill('感情を発散するために走りに行った。');
+    // 1. Create a custom new idiom card (using "Blow off steam" to trigger local AI generation)
+    await page.locator('input[placeholder="E.g., Blow off steam"]').fill('Blow off steam');
 
-    // Submit card form
-    await page.getByRole('button', { name: i18n.btn_add_card }).click();
+    // Click Generate with Local AI button
+    await page.getByRole('button', { name: 'Generate with Local AI' }).click();
+
+    // Verify preview card displays the generated meaning and examples
+    await expect(page.locator('text=To release strong emotions or energy by doing some active physical activity.')).toBeVisible();
+
+    // Click Save Flashcard to Deck to commit the card
+    await page.getByRole('button', { name: 'Save Flashcard to Deck' }).click();
     await expect(page.locator(`text=${i18n.msg_create_success}`)).toBeVisible();
 
     // 2. Filter card list
@@ -100,7 +100,38 @@ test.describe('HLM Study Deck E2E Suite', () => {
 
     // 3. Expand card details
     await filteredRow.click();
-    await expect(page.locator('text=Release strong emotions or energy.')).toBeVisible();
+    await expect(page.locator('text=To release strong emotions or energy by doing some active physical activity.')).toBeVisible();
+
+    // 3.5. Edit card using manual form and AI refinement
+    const editBtn = page.locator('.btn-edit-card').first();
+    await expect(editBtn).toBeVisible();
+    await editBtn.click();
+
+    // Verify modal overlay is visible
+    await expect(page.locator(`text=${i18n.lbl_edit_vocab_card}`)).toBeVisible();
+
+    // Perform manual modification
+    const meaningInput = page.locator('.form-group').filter({ hasText: i18n.lbl_meaning_en }).locator('input');
+    await expect(meaningInput).toBeVisible();
+    await meaningInput.fill('To release strong emotions or energy by doing some active physical activity. (Modified)');
+
+    // Trigger AI Refine Polish
+    const polishBtn = page.getByRole('button', { name: i18n.btn_ai_polish });
+    await expect(polishBtn).toBeVisible();
+    await polishBtn.click();
+
+    // Wait for suggestion panel and apply AI corrections
+    const applyBtn = page.getByRole('button', { name: i18n.btn_apply_suggestion });
+    await expect(applyBtn).toBeVisible();
+    await applyBtn.click();
+
+    // Save manual & AI corrections
+    const saveBtn = page.getByRole('button', { name: i18n.btn_save });
+    await expect(saveBtn).toBeVisible();
+    await saveBtn.click();
+
+    // Verify modal closed & card is updated
+    await expect(page.locator(`text=${i18n.lbl_edit_vocab_card}`)).not.toBeVisible();
 
     // 4. Click delete to stage, then click inline confirm to delete
     await page.getByRole('button', { name: i18n.btn_delete }).click();
@@ -180,81 +211,6 @@ test.describe('HLM Study Deck E2E Suite', () => {
     await expect(tableRow.locator('td').nth(4)).toHaveText('0');
     // 2. The green "I know this already" button should now be visible in the expanded details since it's no longer mastered
     await expect(page.locator('.btn-know-already-mgr-exp')).toBeVisible();
-  });
-
-  test('Reality Check Authenticity Challenge (Local AI & Copy Prompt)', async ({ page, i18n }) => {
-    // 1. Go to Study tab
-    await page.getByTestId('tab-study').click();
-    const frontCard = page.locator('.study-card-front');
-    await expect(frontCard).toBeVisible();
-
-    // 2. Flip card to reveal back and Reality Check section
-    await frontCard.click();
-    const realityCheckSection = page.locator('.reality-check-box');
-    await expect(realityCheckSection).toBeVisible();
-    await expect(realityCheckSection.locator('h4')).toContainText(i18n.lbl_reality_check);
-
-    // 3. Trigger Local AI Check
-    await realityCheckSection.locator('.btn-reality-check-local').click();
-
-    // Verify response is displayed in bubble
-    const resultBubble = realityCheckSection.locator('.reality-check-result');
-    await expect(resultBubble).toBeVisible();
-    await expect(resultBubble).toContainText('Local AI Analysis:');
-
-    // 4. Trigger Copy Prompt
-    // Mock navigator.clipboard.writeText so it doesn't fail or try to access OS clipboard in headless mode
-    await page.evaluate(() => {
-      Object.defineProperty(navigator, 'clipboard', {
-        value: {
-          writeText: async () => {}
-        },
-        writable: true
-      });
-    });
-
-    const copyBtn = realityCheckSection.locator('.btn-reality-check-copy');
-    await copyBtn.click();
-    await expect(copyBtn).toContainText(i18n.lbl_copied);
-  });
-
-  test('Card Manager Expanded Reality Check (Local AI & Copy Prompt)', async ({ page, i18n }) => {
-    // 1. Go to Card Manager tab
-    await page.getByTestId('tab-manager').click();
-
-    // 2. Search for card "Bite the bullet"
-    await page.locator('input[placeholder*="Search"]').fill('Bite the bullet');
-    const tableRow = page.locator('table tbody tr').first();
-    await expect(tableRow).toBeVisible();
-    await expect(tableRow).toContainText('Bite the bullet');
-
-    // 3. Expand the card
-    await tableRow.click();
-    const managerRealityCheckBox = page.locator('.manager-reality-check-box');
-    await expect(managerRealityCheckBox).toBeVisible();
-    await expect(managerRealityCheckBox.locator('h5')).toContainText(i18n.lbl_reality_check);
-
-    // 4. Click Local AI Check inside the expanded Card Manager view
-    await managerRealityCheckBox.locator('.btn-reality-check-mgr-local').click();
-
-    // Verify response is displayed in the manager analysis bubble
-    const managerResultBubble = managerRealityCheckBox.locator('.manager-reality-check-result');
-    await expect(managerResultBubble).toBeVisible();
-    await expect(managerResultBubble).toContainText('Local AI Analysis:');
-
-    // 5. Trigger manager Copy Prompt
-    await page.evaluate(() => {
-      Object.defineProperty(navigator, 'clipboard', {
-        value: {
-          writeText: async () => {}
-        },
-        writable: true
-      });
-    });
-
-    const managerCopyBtn = managerRealityCheckBox.locator('.btn-reality-check-mgr-copy');
-    await managerCopyBtn.click();
-    await expect(managerCopyBtn).toContainText(i18n.lbl_copied);
   });
 
   test('Backup Email Caching and mailto Target Generation', async ({ page }) => {

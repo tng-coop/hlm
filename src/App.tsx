@@ -22,8 +22,9 @@ import {
   apiRestorePhrase,
   apiDeletePhrasePermanently,
   apiGetArchivedPhrases,
-  apiUpdateRegions,
-  apiUpdateRealityCheck,
+  aiGenerateCardDetails,
+  apiUpdatePhrase,
+  aiRefineCard,
   type AIReviewResult,
   type AIExplanationResult
 } from './api';
@@ -142,17 +143,6 @@ const parseMarkdown = (text: string): React.ReactNode => {
   );
 };
 
-const getRealityCheckCache = (phrase: Phrase, lang: string): string | null => {
-  if (!phrase || !phrase.reality_check_cache) return null;
-  try {
-    const cache = JSON.parse(phrase.reality_check_cache);
-    return cache[lang] || null;
-  } catch (err) {
-    console.error('Failed to parse reality check cache', err);
-    return null;
-  }
-};
-
 function App() {
   const [lang, setLang] = useState(() => {
     const saved = localStorage.getItem('hlm_lang');
@@ -165,26 +155,6 @@ function App() {
     return 'en';
   });
 
-  const saveRealityCheckCache = (phrase: Phrase, result: string, lang: string) => {
-    let cache: Record<string, string> = {};
-    if (phrase.reality_check_cache) {
-      try {
-        cache = JSON.parse(phrase.reality_check_cache);
-      } catch (err) {
-        console.error('Failed to parse existing reality check cache', err);
-      }
-    }
-    cache[lang] = result;
-    const jsonStr = JSON.stringify(cache);
-
-    return apiUpdateRealityCheck(phrase.id, jsonStr)
-      .then(() => {
-        setPhrases(prev => prev.map(p => p.id === phrase.id ? { ...p, reality_check_cache: jsonStr } : p));
-      })
-      .catch(err => {
-        console.error('Failed to save reality check cache to database', err);
-      });
-  };
   const t = (key: string) => (dicts as any)[lang]?.[key] || key;
 
   // Premium speech synthesis voices state
@@ -666,23 +636,31 @@ function App() {
   const [detectedEngine, setDetectedEngine] = useState('Detecting...');
   const [isSendingPrompt, setIsSendingPrompt] = useState(false);
 
-  // Reality Check States
-  const [realityCheckResult, setRealityCheckResult] = useState('');
-  const [isCheckingAuthenticity, setIsCheckingAuthenticity] = useState(false);
-  const [copiedPrompt, setCopiedPrompt] = useState(false);
+  // AI card generation states for revamped single-input form
+  const [isGeneratingCard, setIsGeneratingCard] = useState(false);
+  const [commercialPaste, setCommercialPaste] = useState('');
+  const [generatedPreview, setGeneratedPreview] = useState<Partial<Phrase> | null>(null);
+  const [copiedCreatePrompt, setCopiedCreatePrompt] = useState(false);
 
-  // Card Manager Reality Check States
-  const [checkingManagerIds, setCheckingManagerIds] = useState<Record<number, boolean>>({});
-  const [managerResults, setManagerResults] = useState<Record<number, string>>({});
-  const [copiedManagerIds, setCopiedManagerIds] = useState<Record<number, boolean>>({});
-
-  // Card Manager Bulk Reality Check States
-  const [isBulkVerifying, setIsBulkVerifying] = useState(false);
-  const [bulkProgress, setBulkProgress] = useState(0);
-  const [bulkCurrentCardName, setBulkCurrentCardName] = useState('');
-  const [forceBulkRefresh, setForceBulkRefresh] = useState(false);
-  const [bulkTargetLang, setBulkTargetLang] = useState<'active' | 'both'>('both');
-  const bulkCancelRef = useRef(false);
+  // Card Editing States
+  const [editingCard, setEditingCard] = useState<Phrase | null>(null);
+  const [editForm, setEditForm] = useState<Omit<Phrase, 'id' | 'next_review_date' | 'interval_days' | 'ease_factor' | 'repetition_count'>>({
+    phrase: '',
+    meaning_en: '',
+    meaning_ja: '',
+    category: 'Idiom',
+    example_en: '',
+    example_ja: '',
+    difficulty: 'Intermediate',
+    used_in_us: 1,
+    used_in_uk: 1
+  });
+  const [isRefining, setIsRefining] = useState(false);
+  const [refinementSuggestion, setRefinementSuggestion] = useState<Partial<Phrase> | null>(null);
+  const [refinementInstructions, setRefinementInstructions] = useState('');
+  const [refineError, setRefineError] = useState<string | null>(null);
+  const [editSuccess, setEditSuccess] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
 
   // Card Manager AI Card Generator States
   const [isGeneratorExpanded, setIsGeneratorExpanded] = useState(false);
@@ -748,48 +726,7 @@ function App() {
   const refreshData = async () => {
     try {
       const allPhrases = await apiGetPhrases();
-      
-      // Auto-heal any cards that have cached reality checks but are missing regional info
-      let didHeal = false;
-      for (const phrase of allPhrases) {
-        if (!phrase.used_in_us && !phrase.used_in_uk) {
-          const cachedText = getRealityCheckCache(phrase, 'en') || getRealityCheckCache(phrase, 'ja');
-          if (cachedText) {
-            const lowercase = cachedText.toLowerCase();
-            const hasUS = lowercase.includes('us') || 
-                          lowercase.includes('american') || 
-                          lowercase.includes('america') || 
-                          lowercase.includes('usa') || 
-                          lowercase.includes('🇺🇸') || 
-                          lowercase.includes('米国');
-                          
-            const hasUK = lowercase.includes('uk') || 
-                          lowercase.includes('british') || 
-                          lowercase.includes('britain') || 
-                          lowercase.includes('🇬🇧') || 
-                          lowercase.includes('英国');
-
-            let updatedUs = hasUS ? 1 : 0;
-            let updatedUk = hasUK ? 1 : 0;
-            
-            if (!updatedUs && !updatedUk) {
-              updatedUs = 1;
-              updatedUk = 1;
-            }
-
-            try {
-              await apiUpdateRegions(phrase.id, updatedUs, updatedUk);
-              phrase.used_in_us = updatedUs;
-              phrase.used_in_uk = updatedUk;
-              didHeal = true;
-            } catch (err) {
-              console.error(`Auto-heal regional info failed for card ${phrase.phrase}`, err);
-            }
-          }
-        }
-      }
-
-      setPhrases(didHeal ? [...allPhrases] : allPhrases);
+      setPhrases(allPhrases);
       const latestStats = await apiGetStats();
       setStats(latestStats);
       const latestCharts = apiGetChartsData();
@@ -833,9 +770,6 @@ function App() {
       setUserSentence('');
       setAiReview(null);
       setAiExplanation(null);
-      setIsCheckingAuthenticity(false);
-      setCopiedPrompt(false);
-      setRealityCheckResult('');
       lastActiveCardIdRef.current = null;
       return;
     }
@@ -846,22 +780,12 @@ function App() {
       setUserSentence('');
       setAiReview(null);
       setAiExplanation(null);
-      setIsCheckingAuthenticity(false);
-      setCopiedPrompt(false);
 
       triggerExplanation(activeCard.phrase);
-      const cached = getRealityCheckCache(activeCard, lang);
-      setRealityCheckResult(cached || '');
 
       lastActiveCardIdRef.current = activeCard.id;
-    } else {
-      // If it's the SAME card (e.g. metadata/cache was updated in-place), just reload the cache if not already set or changed
-      const cached = getRealityCheckCache(activeCard, lang);
-      if (cached && !realityCheckResult) {
-        setRealityCheckResult(cached);
-      }
     }
-  }, [activeCard, lang, realityCheckResult]);
+  }, [activeCard]);
 
   // AI Sentence practice submission
   const checkSentence = async () => {
@@ -886,363 +810,6 @@ function App() {
     } catch (err) {
       console.error('AI explanation failed', err);
     }
-  };
-
-  // Helper to automatically update missing US/UK regions from AI reality check response
-  const autoUpdateRegionsIfMissing = async (phraseId: number, responseText: string) => {
-    const phrase = phrases.find(p => p.id === phraseId);
-    if (!phrase) return;
-
-    if (!phrase.used_in_us && !phrase.used_in_uk) {
-      const lowercase = responseText.toLowerCase();
-      const hasUS = lowercase.includes('us') || 
-                    lowercase.includes('american') || 
-                    lowercase.includes('america') || 
-                    lowercase.includes('usa') || 
-                    lowercase.includes('🇺🇸') || 
-                    lowercase.includes('米国');
-                    
-      const hasUK = lowercase.includes('uk') || 
-                    lowercase.includes('british') || 
-                    lowercase.includes('britain') || 
-                    lowercase.includes('🇬🇧') || 
-                    lowercase.includes('英国');
-
-      let updatedUs = hasUS ? 1 : 0;
-      let updatedUk = hasUK ? 1 : 0;
-      
-      if (!updatedUs && !updatedUk) {
-        updatedUs = 1;
-        updatedUk = 1;
-      }
-
-      try {
-        await apiUpdateRegions(phraseId, updatedUs, updatedUk);
-        phrase.used_in_us = updatedUs;
-        phrase.used_in_uk = updatedUk;
-        refreshData();
-      } catch (err) {
-        console.error(`Failed to automatically update missing regions for card ${phraseId}`, err);
-      }
-    }
-  };
-
-  // Local AI Reality Check trigger (forces fresh query on click and updates cache)
-  const triggerLocalAIRealityCheck = async () => {
-    if (!activeCard) return;
-    setIsCheckingAuthenticity(true);
-    setRealityCheckResult('');
-    try {
-
-      const promptText = lang === 'ja'
-        ? `この語学学習カードの信頼性、正確性、および自然な使用法について分析してください。
-表現/イディオム: "${activeCard.phrase}"
-カテゴリ: "${activeCard.category}"
-難易度: "${activeCard.difficulty}"
-意味 (英語): "${activeCard.meaning_en}"
-意味 (日本語): "${activeCard.meaning_ja}"
-例文 (英語): "${activeCard.example_en}"
-例文 (日本語): "${activeCard.example_ja}"
-
-以下の項目について、日本語で詳細に評価・回答してください：
-1. **検証結果 (Authenticity Verdict)**: 表現の正確性と信頼性の判定（例：「本物 (AUTHENTIC)」、「疑問あり (QUESTIONABLE)」、または「誤り (INCORRECT)」など）と、その理由を日本語で簡潔に説明してください。
-2. **語源と由来 (Etymology & Origin)**: この表現がどのように使われるようになったのか、語源や歴史的背景を日本語で分かりやすく説明してください。
-3. **主な文脈と地域的な使用法 (Primary Context & Regional Usage)**: 主にどこで、誰によって使われているか（例：アメリカ英語とイギリス英語の違い、口語と文語などの使用場面、対象読者など）を、日本語で教育的かつ専門的に解説してください。
-【重要】解説・説明の文章はすべて日本語で執筆してください。ただし、検証対象の英語表現（例: "Break a leg" や "Bite the bullet"）や、専門用語、検証結果タグ（例: "AUTHENTIC", "QUESTIONABLE", "INCORRECT" など）は、日本語カタカナ表記にせず、半角英数字のネイティブな英語表記のまま、必ず <span lang="en">英単語/英語フレーズ</span> というHTMLタグで囲んで出力してください。`
-        : `Analyze this language learning card for authenticity, correctness, and natural usage:
-Idiom/Phrase: "${activeCard.phrase}"
-Category: "${activeCard.category}"
-Difficulty: "${activeCard.difficulty}"
-Meaning (EN): "${activeCard.meaning_en}"
-Example (EN): "${activeCard.example_en}"
-
-Please evaluate the following:
-1. **Authenticity Verdict**: Provide a clear accuracy/authenticity verdict (e.g., AUTHENTIC, QUESTIONABLE, or INCORRECT) with brief reasoning.
-2. **Etymology & Origin**: How did this phrase come to be in use? Give a brief literal history.
-3. **Primary Context & Regional Usage**: Where and by whom is it primarily used? (e.g., US vs. UK, colloquial vs. formal registers, target demographics). Keep it concise, educational, and professional.
-
-CRITICAL: You MUST write your entire analysis, explanations, and verdicts strictly in English. Do not write in Japanese.`;
-
-      const result = await aiPromptLocalLLM(promptText);
-      setRealityCheckResult(result.response);
-      await saveRealityCheckCache(activeCard, result.response, lang);
-      await autoUpdateRegionsIfMissing(activeCard.id, result.response);
-    } catch (err) {
-      console.error('Reality check local AI execution failed', err);
-      setRealityCheckResult('Error: Failed to fetch reality check response from local AI.');
-    } finally {
-      setIsCheckingAuthenticity(false);
-    }
-  };
-
-  // Copy Prompt to clipboard
-  const copyCommercialLLMPrompt = () => {
-    if (!activeCard) return;
-    const promptText = `Verify this English idiom/phrase flashcard for authenticity, naturalness, and accuracy.
-
-Please perform the following demanding evaluations:
-1. **Authenticity Verdict**: Provide a definitive verdict: [AUTHENTIC], [NATURAL BUT CONTEXT-DEPENDENT], or [HALLUCINATED/INCORRECT] with detailed reasoning.
-2. **Etymology & Origin**: Explain the historical etymology of the phrase. How did it transition from a literal action to its current figurative meaning?
-3. **Primary Usage & Context**: Specify where it is primarily used. Is it more common in American English, British English, Australian English, etc.? Is it considered formal, colloquial, or slang? Which demographics or professional situations use it most?
-4. **Reputable Real-World Citations**: Search the web and find 2-3 recent, real-world examples of this phrase in use from reputable publications or websites (such as The New York Times, BBC, The Guardian, Economist, Merriam-Webster, or Oxford Collocations). Include the exact quote and cite the source URL.
-5. **Example Evaluation**: Analyze the provided example sentence. Does it align with the grammatical structures and stylistic nuances found in your reputable citations? If not, suggest a more authentic alternative.
-
-Flashcard Data:
-\`\`\`json
-{
-  "phrase": "${activeCard.phrase}",
-  "category": "${activeCard.category}",
-  "difficulty": "${activeCard.difficulty}",
-  "meaning_en": "${activeCard.meaning_en}",
-  "example_en": "${activeCard.example_en}"
-}
-\`\`\`
-`;
-    navigator.clipboard.writeText(promptText)
-      .then(() => {
-        setCopiedPrompt(true);
-        setTimeout(() => setCopiedPrompt(false), 2000);
-      })
-      .catch((err) => {
-        console.error('Failed to copy prompt', err);
-      });
-  };
-
-  // Card Manager Reality Check dynamic trigger (forces fresh query on click and updates cache)
-  const triggerManagerRealityCheck = async (phrase: Phrase) => {
-    setCheckingManagerIds(prev => ({ ...prev, [phrase.id]: true }));
-    setManagerResults(prev => ({ ...prev, [phrase.id]: '' }));
-    try {
-
-      const promptText = lang === 'ja'
-        ? `この語学学習カードの信頼性、正確性、および自然な使用法について分析してください。
-表現/イディオム: "${phrase.phrase}"
-カテゴリ: "${phrase.category}"
-難易度: "${phrase.difficulty}"
-意味 (英語): "${phrase.meaning_en}"
-意味 (日本語): "${phrase.meaning_ja}"
-例文 (英語): "${phrase.example_en}"
-例文 (日本語): "${phrase.example_ja}"
-
-以下の項目について、日本語で詳細に回答してください：
-1. **検証結果 (Authenticity Verdict)**: 表現の正確性と信頼性の判定（例：「本物 (AUTHENTIC)」、「疑問あり (QUESTIONABLE)」、または「誤り (INCORRECT)」など）と、その理由を日本語で簡潔に説明してください。
-2. **語源と由来 (Etymology & Origin)**: この表現がどのように使われるようになったのか、語源や歴史的背景を日本語で分かりやすく説明してください。
-3. **主な文脈と地域的な使用法 (Primary Context & Regional Usage)**: 主にどこで、誰によって使われているか（例：アメリカ英語とイギリス英語の違い、口語と文語などの使用場面、対象読者など）を、日本語で教育的かつ専門的に解説してください。
-【重要】解説・説明の文章はすべて日本語で執筆してください。ただし、検証対象の英語表現（例: "Break a leg" や "Bite the bullet"）や、専門用語、検証結果タグ（例: "AUTHENTIC", "QUESTIONABLE", "INCORRECT" など）は、日本語カタカナ表記にせず、半角英数字のネイティブな英語表記のまま、必ず <span lang="en">英単語/英語フレーズ</span> というHTMLタグで囲んで出力してください。`
-        : `Analyze this language learning card for authenticity, correctness, and natural usage:
-Idiom/Phrase: "${phrase.phrase}"
-Category: "${phrase.category}"
-Difficulty: "${phrase.difficulty}"
-Meaning (EN): "${phrase.meaning_en}"
-Example (EN): "${phrase.example_en}"
-
-Please evaluate the following:
-1. **Authenticity Verdict**: Provide a clear accuracy/authenticity verdict (e.g., AUTHENTIC, QUESTIONABLE, or INCORRECT) with brief reasoning.
-2. **Etymology & Origin**: How did this phrase come to be in use? Give a brief literal history.
-3. **Primary Context & Regional Usage**: Where and by whom is it primarily used? (e.g., US vs. UK, colloquial vs. formal registers, target demographics). Keep it concise, educational, and professional.
-
-CRITICAL: You MUST write your entire analysis, explanations, and verdicts strictly in English. Do not write in Japanese.`;
-
-      const result = await aiPromptLocalLLM(promptText);
-      setManagerResults(prev => ({ ...prev, [phrase.id]: result.response }));
-      await saveRealityCheckCache(phrase, result.response, lang);
-      await autoUpdateRegionsIfMissing(phrase.id, result.response);
-    } catch (err) {
-      console.error('Reality check local AI execution failed', err);
-      setManagerResults(prev => ({ ...prev, [phrase.id]: 'Error: Failed to fetch reality check response from local AI.' }));
-    } finally {
-      setCheckingManagerIds(prev => ({ ...prev, [phrase.id]: false }));
-    }
-  };
-
-  // Card Manager Copy Prompt trigger
-  const copyManagerLLMPrompt = (phrase: Phrase) => {
-    const promptText = `Verify this English idiom/phrase flashcard for authenticity, naturalness, and accuracy.
-
-Please perform the following demanding evaluations:
-1. **Authenticity Verdict**: Provide a definitive verdict: [AUTHENTIC], [NATURAL BUT CONTEXT-DEPENDENT], or [HALLUCINATED/INCORRECT] with detailed reasoning.
-2. **Etymology & Origin**: Explain the historical etymology of the phrase. How did it transition from a literal action to its current figurative meaning?
-3. **Primary Usage & Context**: Specify where it is primarily used. Is it more common in American English, British English, Australian English, etc.? Is it considered formal, colloquial, or slang? Which demographics or professional situations use it most?
-4. **Reputable Real-World Citations**: Search the web and find 2-3 recent, real-world examples of this phrase in use from reputable publications or websites (such as The New York Times, BBC, The Guardian, Economist, Merriam-Webster, or Oxford Collocations). Include the exact quote and cite the source URL.
-5. **Example Evaluation**: Analyze the provided example sentence. Does it align with the grammatical structures and stylistic nuances found in your reputable citations? If not, suggest a more authentic alternative.
-
-Flashcard Data:
-\`\`\`json
-{
-  "phrase": "${phrase.phrase}",
-  "category": "${phrase.category}",
-  "difficulty": "${phrase.difficulty}",
-  "meaning_en": "${phrase.meaning_en}",
-  "example_en": "${phrase.example_en}"
-}
-\`\`\`
-`;
-    navigator.clipboard.writeText(promptText)
-      .then(() => {
-        setCopiedManagerIds(prev => ({ ...prev, [phrase.id]: true }));
-        setTimeout(() => setCopiedManagerIds(prev => ({ ...prev, [phrase.id]: false })), 2000);
-      })
-      .catch((err) => {
-        console.error('Failed to copy prompt', err);
-      });
-  };
-
-  // Card Manager Bulk Reality Check sequential execution
-  const cancelBulkVerification = () => {
-    bulkCancelRef.current = true;
-  };
-
-  const triggerBulkVerification = async () => {
-    if (phrases.length === 0) return;
-    setIsBulkVerifying(true);
-    setBulkProgress(0);
-    bulkCancelRef.current = false;
-    
-    let processed = 0;
-    
-    for (const phrase of phrases) {
-      if (bulkCancelRef.current) {
-        break;
-      }
-      
-      const shouldDoEn = bulkTargetLang === 'both' || lang === 'en';
-      const shouldDoJa = bulkTargetLang === 'both' || lang === 'ja';
-      
-      const cachedEn = getRealityCheckCache(phrase, 'en');
-      const cachedJa = getRealityCheckCache(phrase, 'ja');
-      
-      const isEnCached = !shouldDoEn || (cachedEn && !forceBulkRefresh);
-      const isJaCached = !shouldDoJa || (cachedJa && !forceBulkRefresh);
-      
-      if (isEnCached && isJaCached) {
-        setBulkCurrentCardName(`Skipping: "${phrase.phrase}" (Already verified)`);
-        await new Promise(resolve => setTimeout(resolve, 80));
-      } else {
-        setBulkCurrentCardName(phrase.phrase);
-      }
-      
-      let generatedAny = false;
-      
-      // 1. Process EN if needed
-      if (shouldDoEn && (!cachedEn || forceBulkRefresh)) {
-        try {
-          const promptTextEn = `Analyze this language learning card for authenticity, correctness, and natural usage:
-Idiom/Phrase: "${phrase.phrase}"
-Category: "${phrase.category}"
-Difficulty: "${phrase.difficulty}"
-Meaning (EN): "${phrase.meaning_en}"
-Example (EN): "${phrase.example_en}"
-
-Please evaluate the following:
-1. **Authenticity Verdict**: Provide a clear accuracy/authenticity verdict (e.g., AUTHENTIC, QUESTIONABLE, or INCORRECT) with brief reasoning.
-2. **Etymology & Origin**: How did this phrase come to be in use? Give a brief literal history.
-3. **Primary Context & Regional Usage**: Where and by whom is it primarily used? (e.g., US vs. UK, colloquial vs. formal registers, target demographics). Keep it concise, educational, and professional.
-
-CRITICAL: You MUST write your entire analysis, explanations, and verdicts strictly in English. Do not write in Japanese.`;
-          
-          const result = await aiPromptLocalLLM(promptTextEn);
-          await saveRealityCheckCache(phrase, result.response, 'en');
-          if (lang === 'en') {
-            setManagerResults(prev => ({ ...prev, [phrase.id]: result.response }));
-          }
-          generatedAny = true;
-        } catch (err) {
-          console.error(`Bulk verification (EN) failed for card: ${phrase.phrase}`, err);
-          if (lang === 'en') {
-            setManagerResults(prev => ({ ...prev, [phrase.id]: 'Error: Failed to fetch reality check response from local AI.' }));
-          }
-        }
-      } else if (shouldDoEn && cachedEn && lang === 'en') {
-        setManagerResults(prev => ({ ...prev, [phrase.id]: cachedEn }));
-      }
-      
-      if (bulkCancelRef.current) {
-        break;
-      }
-      
-      // 2. Process JA if needed
-      if (shouldDoJa && (!cachedJa || forceBulkRefresh)) {
-        if (generatedAny) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-        try {
-          const promptTextJa = `この語学学習カードの信頼性、正確性、および自然な使用法について分析してください。
-表現/イディオム: "${phrase.phrase}"
-カテゴリ: "${phrase.category}"
-難易度: "${phrase.difficulty}"
-意味 (英語): "${phrase.meaning_en}"
-意味 (日本語): "${phrase.meaning_ja}"
-例文 (英語): "${phrase.example_en}"
-例文 (日本語): "${phrase.example_ja}"
-
-以下の項目について、日本語で詳細に回答してください：
-1. **検証結果 (Authenticity Verdict)**: 表現の正確性と信頼性の判定（例：「本物 (AUTHENTIC)」、「疑問あり (QUESTIONABLE)」、または「誤り (INCORRECT)」など）と、その理由を日本語で簡潔に説明してください。
-2. **語源と由来 (Etymology & Origin)**: この表現がどのように使われるようになったのか、語源や歴史的背景を日本語で分かりやすく説明してください。
-3. **主な文脈と地域的な使用法 (Primary Context & Regional Usage)**: 主にどこで、誰によって使われているか（例：アメリカ英語とイギリス英語の違い、口語と文語などの使用場面、対象読者など）を、日本語で教育的かつ専門的に解説してください。
-【重要】解説・説明の文章はすべて日本語で執筆してください。ただし、検証対象の英語表現（例: "Break a leg" や "Bite the bullet"）や、専門用語、検証結果タグ（例: "AUTHENTIC", "QUESTIONABLE", "INCORRECT" など）は、日本語カタカナ表記にせず、半角英数字のネイティブな英語表記のまま、必ず <span lang="en">英単語/英語フレーズ</span> というHTMLタグで囲んで出力してください。`;
-          
-          const result = await aiPromptLocalLLM(promptTextJa);
-          await saveRealityCheckCache(phrase, result.response, 'ja');
-          if (lang === 'ja') {
-            setManagerResults(prev => ({ ...prev, [phrase.id]: result.response }));
-          }
-          generatedAny = true;
-        } catch (err) {
-          console.error(`Bulk verification (JA) failed for card: ${phrase.phrase}`, err);
-          if (lang === 'ja') {
-            setManagerResults(prev => ({ ...prev, [phrase.id]: 'Error: Failed to fetch reality check response from local AI.' }));
-          }
-        }
-      } else if (shouldDoJa && cachedJa && lang === 'ja') {
-        setManagerResults(prev => ({ ...prev, [phrase.id]: cachedJa }));
-      }
-      
-      // Automatic UK/US check update if missing
-      if (!phrase.used_in_us && !phrase.used_in_uk) {
-        const textToParse = getRealityCheckCache(phrase, 'en') || getRealityCheckCache(phrase, 'ja');
-        if (textToParse) {
-          const lowercase = textToParse.toLowerCase();
-          const hasUS = lowercase.includes('us') || 
-                        lowercase.includes('american') || 
-                        lowercase.includes('america') || 
-                        lowercase.includes('usa') || 
-                        lowercase.includes('🇺🇸') || 
-                        lowercase.includes('米国');
-                        
-          const hasUK = lowercase.includes('uk') || 
-                        lowercase.includes('british') || 
-                        lowercase.includes('britain') || 
-                        lowercase.includes('🇬🇧') || 
-                        lowercase.includes('英国');
-
-          let updatedUs = hasUS ? 1 : 0;
-          let updatedUk = hasUK ? 1 : 0;
-          
-          if (!updatedUs && !updatedUk) {
-            updatedUs = 1;
-            updatedUk = 1;
-          }
-
-          try {
-            await apiUpdateRegions(phrase.id, updatedUs, updatedUk);
-            phrase.used_in_us = updatedUs;
-            phrase.used_in_uk = updatedUk;
-          } catch (err) {
-            console.error(`Failed to automatically update missing regions for: ${phrase.phrase}`, err);
-          }
-        }
-      }
-      
-      processed++;
-      setBulkProgress(processed);
-      
-      if (generatedAny) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-    }
-    
-    setIsBulkVerifying(false);
-    setBulkCurrentCardName('');
   };
 
   // Card Manager AI Card Generator logical handlers
@@ -1558,25 +1125,87 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
     }
   };
 
-  // Custom phrase creation
-  const handleAddCard = async (e: React.FormEvent) => {
+  // AI card generation logic for revamped single-input form
+  const handleGenerateWithLocalAI = async () => {
+    if (!newCard.phrase || !newCard.phrase.trim()) {
+      setFormError(t('msg_fill_phrase') || 'Please fill in the Phrase / Idiom / Word field first.');
+      return;
+    }
+    setFormError(null);
+    setFormSuccess(null);
+    setIsGeneratingCard(true);
+    setGeneratedPreview(null);
+    try {
+      const generated = await aiGenerateCardDetails(newCard.phrase);
+      setGeneratedPreview(generated);
+    } catch (err: any) {
+      console.error('Local AI generation failed', err);
+      setFormError(err.message || 'Failed to generate card details with local AI.');
+    } finally {
+      setIsGeneratingCard(false);
+    }
+  };
+
+  const handleCopyCreatePrompt = () => {
+    if (!newCard.phrase || !newCard.phrase.trim()) {
+      setFormError(t('msg_fill_phrase') || 'Please fill in the Phrase / Idiom / Word field first.');
+      return;
+    }
+    const promptText = `You are a professional language teacher and curriculum developer. Generate high-fidelity flashcard details for the English vocabulary word, idiom, or phrase: "${newCard.phrase}".
+Respond strictly in valid JSON format with the following keys:
+{
+  "phrase": "${newCard.phrase}",
+  "category": "One of: Idiom, Slang, Phrasal Verb, Colloquial",
+  "difficulty": "One of: Beginner, Intermediate, Advanced",
+  "used_in_us": 1,
+  "used_in_uk": 1,
+  "meaning_en": "A clear, concise, and professional English definition/meaning suitable for language learners.",
+  "meaning_ja": "A natural, accurate, and easy-to-understand Japanese translation/meaning.",
+  "example_en": "An extremely natural, modern, and contextually correct English example sentence using this phrase.",
+  "example_ja": "A natural and accurate Japanese translation of that English example sentence."
+}`;
+    navigator.clipboard.writeText(promptText)
+      .then(() => {
+        setCopiedCreatePrompt(true);
+        setTimeout(() => setCopiedCreatePrompt(false), 2000);
+      })
+      .catch((err) => {
+        console.error('Failed to copy prompt', err);
+      });
+  };
+
+  const handlePasteCommercialAI = (value: string) => {
+    setCommercialPaste(value);
+    if (!value || !value.trim()) {
+      setGeneratedPreview(null);
+      return;
+    }
+    try {
+      const cleanJson = value.substring(value.indexOf('{'), value.lastIndexOf('}') + 1);
+      const parsed = JSON.parse(cleanJson);
+      if (parsed.phrase && parsed.meaning_en) {
+        setGeneratedPreview(parsed);
+        setFormError(null);
+      }
+    } catch (err) {
+      console.warn('Failed to parse pasted JSON', err);
+    }
+  };
+
+  const handleSavePreviewCard = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!generatedPreview) return;
     setFormError(null);
     setFormSuccess(null);
 
-    const { phrase, meaning_en, meaning_ja, example_en, example_ja, used_in_us, used_in_uk } = newCard;
+    const { phrase, meaning_en, meaning_ja, example_en, example_ja } = generatedPreview;
     if (!phrase || !meaning_en || !meaning_ja || !example_en || !example_ja) {
       setFormError(t('msg_fill_fields'));
       return;
     }
 
-    if (!used_in_us && !used_in_uk) {
-      setFormError(t('msg_select_region'));
-      return;
-    }
-
     try {
-      await apiAddPhrase(newCard as Omit<Phrase, 'id'>);
+      await apiAddPhrase(generatedPreview as Omit<Phrase, 'id'>);
       setFormSuccess(t('msg_create_success'));
       setNewCard({
         phrase: '',
@@ -1589,10 +1218,97 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
         used_in_us: 1,
         used_in_uk: 1
       });
+      setGeneratedPreview(null);
+      setCommercialPaste('');
       refreshData();
     } catch (err: any) {
       setFormError(err.message || 'Failed to create card.');
     }
+  };
+
+  // Start card editing
+  const handleStartEdit = (phrase: Phrase) => {
+    setEditingCard(phrase);
+    setEditForm({
+      phrase: phrase.phrase,
+      meaning_en: phrase.meaning_en,
+      meaning_ja: phrase.meaning_ja,
+      category: phrase.category,
+      example_en: phrase.example_en,
+      example_ja: phrase.example_ja,
+      difficulty: phrase.difficulty,
+      used_in_us: phrase.used_in_us || 1,
+      used_in_uk: phrase.used_in_uk || 1
+    });
+    setRefinementSuggestion(null);
+    setRefinementInstructions('');
+    setRefineError(null);
+    setEditSuccess(null);
+    setEditError(null);
+  };
+
+  // Submit manual changes
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCard) return;
+    setEditError(null);
+    setEditSuccess(null);
+
+    const { phrase, meaning_en, meaning_ja, example_en, example_ja, used_in_us, used_in_uk } = editForm;
+    if (!phrase || !meaning_en || !meaning_ja || !example_en || !example_ja) {
+      setEditError(t('msg_fill_fields'));
+      return;
+    }
+
+    if (!used_in_us && !used_in_uk) {
+      setEditError(t('msg_select_region'));
+      return;
+    }
+
+    try {
+      await apiUpdatePhrase(editingCard.id, editForm);
+      setEditSuccess(t('msg_edit_success'));
+      refreshData();
+      // Keep it open briefly to show success, then close
+      setTimeout(() => {
+        setEditingCard(null);
+      }, 1000);
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to update card.');
+    }
+  };
+
+  // Trigger Local AI Refine Suggestion
+  const handleAIRefine = async () => {
+    if (!editingCard) return;
+    setIsRefining(true);
+    setRefineError(null);
+    setRefinementSuggestion(null);
+    try {
+      const suggestion = await aiRefineCard(
+        editForm.phrase,
+        editForm.meaning_en,
+        editForm.meaning_ja,
+        editForm.example_en,
+        editForm.example_ja,
+        refinementInstructions
+      );
+      setRefinementSuggestion(suggestion);
+    } catch (err: any) {
+      setRefineError(err.message || 'AI refinement failed.');
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
+  // Apply specific AI suggestion
+  const handleApplyCorrection = () => {
+    if (!refinementSuggestion) return;
+    setEditForm(prev => ({
+      ...prev,
+      ...refinementSuggestion
+    }));
+    setRefinementSuggestion(null);
   };
 
   // Card deletion (soft delete with Undo)
@@ -2187,92 +1903,6 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
                       </div>
                     )}
 
-                    {/* Reality Check Box */}
-                    <div className="glass-card reality-check-box" style={{ padding: '1.5rem', borderLeft: '4px solid #f59e0b' }}>
-                      <h4 style={{ color: '#f59e0b', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        ⚖️ {t('lbl_reality_check')}
-                      </h4>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.2rem' }}>
-                        {t('desc_reality_check')}
-                      </p>
-                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                        <button
-                          className="btn-secondary btn-reality-check-local"
-                          style={{ 
-                            background: 'rgba(245, 158, 11, 0.15)', 
-                            border: '1px solid #f59e0b', 
-                            color: '#f59e0b', 
-                            padding: '0.5rem 1.2rem', 
-                            borderRadius: '6px', 
-                            cursor: 'pointer', 
-                            fontWeight: 'bold',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.4rem',
-                            fontSize: '0.85rem',
-                            transition: 'all 0.2s'
-                          }}
-                          onClick={triggerLocalAIRealityCheck}
-                          disabled={isCheckingAuthenticity}
-                        >
-                          🤖 {isCheckingAuthenticity ? <span className="spinner" style={{ borderLeftColor: '#f59e0b' }} /> : t('btn_local_ai_check')}
-                        </button>
-                        <button
-                          className="btn-secondary btn-reality-check-copy"
-                          style={{ 
-                            background: 'rgba(255, 255, 255, 0.05)', 
-                            border: '1px solid var(--border)', 
-                            color: '#fff', 
-                            padding: '0.5rem 1.2rem', 
-                            borderRadius: '6px', 
-                            cursor: 'pointer', 
-                            fontWeight: 'bold',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.4rem',
-                            fontSize: '0.85rem',
-                            transition: 'all 0.2s'
-                          }}
-                          onClick={copyCommercialLLMPrompt}
-                        >
-                          📋 {copiedPrompt ? t('lbl_copied') : t('btn_copy_prompt')}
-                        </button>
-                      </div>
-
-                      {realityCheckResult && (
-                        <div className="ai-bubble fade-in reality-check-result" style={{ marginTop: '1.2rem', background: 'rgba(245, 158, 11, 0.03)', padding: '1rem', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.15)' }}>
-                          <div style={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span>🤖 Local AI Analysis:</span>
-                            <button
-                              className="btn-speak-analysis"
-                              title="Speak AI analysis"
-                              style={{
-                                background: 'rgba(255,255,255,0.06)',
-                                border: 'none',
-                                color: '#fff',
-                                borderRadius: '50%',
-                                width: '28px',
-                                height: '28px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                fontSize: '0.8rem'
-                              }}
-                              onClick={() => startAudioReader(realityCheckResult, t('lbl_reality_check') + ": " + activeCard.phrase)}
-                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-                              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
-                            >
-                              🔊
-                            </button>
-                          </div>
-                          <div style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
-                            {parseMarkdown(realityCheckResult)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
                     {/* C. SRS SM-2 GRADING PROMPT */}
                     <div className="glass-card" style={{ padding: '1.5rem', textAlign: 'center', borderTop: '2px solid var(--primary)' }}>
                       <h4 style={{ marginBottom: '0.8rem' }}>🎯 {t('lbl_grading_prompt')}</h4>
@@ -2678,122 +2308,204 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
               </div>
 
               {isAddFormExpanded && (
-                <form onSubmit={handleAddCard} className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1.5rem' }}>
-                  <div className="form-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
-                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <label>{t('lbl_phrase')}</label>
-                      <input
-                        type="text"
-                        placeholder="E.g., Spill the beans"
-                        value={newCard.phrase}
-                        onChange={(e) => setNewCard({ ...newCard, phrase: e.target.value })}
-                        style={{ padding: '0.8rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff' }}
-                      />
+                <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1.5rem' }}>
+                  {/* Single text input */}
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <label style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#fff' }}>{t('lbl_phrase')} / Idiom / Word</label>
+                    <input
+                      type="text"
+                      placeholder="E.g., Blow off steam"
+                      value={newCard.phrase}
+                      onChange={(e) => setNewCard({ ...newCard, phrase: e.target.value })}
+                      style={{ padding: '0.8rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff', fontSize: '1rem' }}
+                    />
+                  </div>
+
+                  {/* AI Actions Row */}
+                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                    <button
+                      type="button"
+                      disabled={isGeneratingCard}
+                      onClick={handleGenerateWithLocalAI}
+                      style={{
+                        padding: '0.6rem 1.2rem',
+                        fontSize: '0.85rem',
+                        background: 'rgba(245, 158, 11, 0.12)',
+                        border: '1px solid #f59e0b',
+                        color: '#f59e0b',
+                        borderRadius: '6px',
+                        fontWeight: 'bold',
+                        cursor: isGeneratingCard ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.4rem',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => { if (!isGeneratingCard) e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)' }}
+                      onMouseLeave={(e) => { if (!isGeneratingCard) e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)' }}
+                    >
+                      {isGeneratingCard ? '⏳ Generating...' : '🤖 Generate with Local AI'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCopyCreatePrompt}
+                      style={{
+                        padding: '0.6rem 1.2rem',
+                        fontSize: '0.85rem',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid var(--border)',
+                        color: '#fff',
+                        borderRadius: '6px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.4rem',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                    >
+                      📋 {copiedCreatePrompt ? t('lbl_copied') : 'Copy Prompt for Commercial LLM'}
+                    </button>
+                  </div>
+
+                  {/* Commercial AI Fallback Paste Area */}
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
+                    <label style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--text-muted)' }}>💡 Commercial AI Fallback Paste Area (Optional)</label>
+                    <textarea
+                      rows={3}
+                      value={commercialPaste}
+                      onChange={(e) => handlePasteCommercialAI(e.target.value)}
+                      placeholder="Paste the JSON response from your commercial LLM (e.g. ChatGPT, Gemini Web) here, and the preview below will automatically parse and populate..."
+                      style={{
+                        padding: '0.8rem',
+                        background: 'rgba(0, 0, 0, 0.2)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '8px',
+                        color: '#fff',
+                        fontSize: '0.85rem',
+                        fontFamily: 'monospace',
+                        resize: 'none',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+
+                  {formError && <p style={{ color: '#ef4444', fontWeight: 'bold', margin: '0.5rem 0 0 0' }}>⚠️ {formError}</p>}
+                  {formSuccess && <p style={{ color: '#10b981', fontWeight: 'bold', margin: '0.5rem 0 0 0' }}>✓ {formSuccess}</p>}
+
+                  {/* Loading overlay for AI generation */}
+                  {isGeneratingCard && (
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '2px dashed rgba(245, 158, 11, 0.3)',
+                      borderRadius: '8px',
+                      padding: '2rem',
+                      textAlign: 'center',
+                      color: '#f59e0b',
+                      fontSize: '0.9rem',
+                      fontWeight: 'bold',
+                      animation: 'pulse 1.5s infinite alternate'
+                    }}>
+                      ⚡ Local LLM is analyzing and drafting card details for "{newCard.phrase || 'your phrase'}"...
                     </div>
-                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <label>{t('lbl_category')}</label>
-                      <select
-                        value={newCard.category}
-                        onChange={(e) => setNewCard({ ...newCard, category: e.target.value })}
-                        style={{ padding: '0.8rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff' }}
-                      >
-                        <option value="Idiom">Idiom</option>
-                        <option value="Slang">Slang</option>
-                        <option value="Phrasal Verb">Phrasal Verb</option>
-                        <option value="Colloquial">Colloquial</option>
-                      </select>
-                    </div>
-                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <label>{t('lbl_difficulty')}</label>
-                      <select
-                        value={newCard.difficulty}
-                        onChange={(e) => setNewCard({ ...newCard, difficulty: e.target.value })}
-                        style={{ padding: '0.8rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff' }}
-                      >
-                        <option value="Beginner">Beginner</option>
-                        <option value="Intermediate">Intermediate</option>
-                        <option value="Advanced">Advanced</option>
-                      </select>
-                    </div>
-                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', justifyContent: 'center' }}>
-                      <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{t('lbl_regional_usage')}</label>
-                      <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', height: '100%', minHeight: '40px' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.85rem', color: '#fff', userSelect: 'none' }}>
-                          <input
-                            type="checkbox"
-                            checked={newCard.used_in_us === 1}
-                            onChange={(e) => setNewCard({ ...newCard, used_in_us: e.target.checked ? 1 : 0 })}
-                            style={{ cursor: 'pointer', width: '16px', height: '16px' }}
-                          />
-                          🇺🇸 US
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.85rem', color: '#fff', userSelect: 'none' }}>
-                          <input
-                            type="checkbox"
-                            checked={newCard.used_in_uk === 1}
-                            onChange={(e) => setNewCard({ ...newCard, used_in_uk: e.target.checked ? 1 : 0 })}
-                            style={{ cursor: 'pointer', width: '16px', height: '16px' }}
-                          />
-                          🇬🇧 UK
-                        </label>
+                  )}
+
+                  {/* Live Preview Card */}
+                  {generatedPreview && (
+                    <div className="fade-in" style={{
+                      background: 'rgba(16, 185, 129, 0.03)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      borderRadius: '10px',
+                      padding: '1.5rem',
+                      marginTop: '0.5rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '1rem',
+                      boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(16, 185, 129, 0.15)', paddingBottom: '0.6rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          ✨ Live Preview Card
+                        </span>
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>
+                            {generatedPreview.category}
+                          </span>
+                          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>
+                            {generatedPreview.difficulty}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <label>{t('lbl_meaning_en')}</label>
-                      <input
-                        type="text"
-                        placeholder="E.g., Reveal a secret prematurely."
-                        value={newCard.meaning_en}
-                        onChange={(e) => setNewCard({ ...newCard, meaning_en: e.target.value })}
-                        style={{ padding: '0.8rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff' }}
-                      />
-                    </div>
-                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <label>{t('lbl_meaning_ja')}</label>
-                      <input
-                        type="text"
-                        placeholder="E.g., 秘密をうっかり漏らす。"
-                        value={newCard.meaning_ja}
-                        onChange={(e) => setNewCard({ ...newCard, meaning_ja: e.target.value })}
-                        style={{ padding: '0.8rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff' }}
-                      />
-                    </div>
-                  </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.4rem', color: '#fff' }}>{generatedPreview.phrase}</h3>
+                        
+                        <div>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', fontWeight: 'bold' }}>MEANING (EN)</span>
+                          <span style={{ color: '#06b6d4', fontSize: '0.95rem' }}>{generatedPreview.meaning_en}</span>
+                        </div>
 
-                  <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <label>{t('lbl_example_en')}</label>
-                      <input
-                        type="text"
-                        placeholder="Don't spill the beans!"
-                        value={newCard.example_en}
-                        onChange={(e) => setNewCard({ ...newCard, example_en: e.target.value })}
-                        style={{ padding: '0.8rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff' }}
-                      />
-                    </div>
-                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <label>{t('lbl_example_ja')}</label>
-                      <input
-                        type="text"
-                        placeholder="秘密を漏らさないで！"
-                        value={newCard.example_ja}
-                        onChange={(e) => setNewCard({ ...newCard, example_ja: e.target.value })}
-                        style={{ padding: '0.8rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff' }}
-                      />
-                    </div>
-                  </div>
+                        {generatedPreview.meaning_ja && (
+                          <div>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', fontWeight: 'bold' }}>MEANING (JA)</span>
+                            <span style={{ color: '#fff', fontSize: '0.95rem' }}>{generatedPreview.meaning_ja}</span>
+                          </div>
+                        )}
 
-                  {formError && <p style={{ color: '#ef4444', fontWeight: 'bold' }}>⚠️ {formError}</p>}
-                  {formSuccess && <p style={{ color: '#10b981', fontWeight: 'bold' }}>✓ {formSuccess}</p>}
+                        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '0.8rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)', marginTop: '0.2rem' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Example Sentence</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            <p style={{ fontStyle: 'italic', fontSize: '0.9rem', color: '#fff', margin: 0 }}>"{generatedPreview.example_en}"</p>
+                            {generatedPreview.example_ja && (
+                              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, borderTop: '1px dashed rgba(255,255,255,0.05)', paddingTop: '0.4rem' }}>{generatedPreview.example_ja}</p>
+                            )}
+                          </div>
+                        </div>
 
-                  <button type="submit" className="btn-primary" style={{ padding: '0.8rem' }}>{t('btn_add_card')}</button>
-                </form>
+                        <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', alignItems: 'center' }}>
+                          <span>Region Availability:</span>
+                          <span style={{ display: 'inline-flex', gap: '0.4rem' }}>
+                            {generatedPreview.used_in_us === 1 && <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>🇺🇸 US</span>}
+                            {generatedPreview.used_in_uk === 1 && <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>🇬🇧 UK</span>}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleSavePreviewCard}
+                        style={{
+                          padding: '0.8rem',
+                          background: '#10b981',
+                          border: 'none',
+                          color: '#fff',
+                          borderRadius: '8px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          fontSize: '0.9rem',
+                          transition: 'all 0.2s',
+                          boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                          marginTop: '0.5rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.4rem'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#059669'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = '#10b981'}
+                      >
+                        💾 Save Flashcard to Deck
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-
             {/* B. Filter and card grid list */}
             <div className="glass-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '1.5rem' }}>
@@ -2839,114 +2551,6 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
                     <span>🗑️ Trash Bin / Archived</span>
                   </label>
                 </div>
-              </div>
-
-              {/* Bulk Action Panel */}
-              <div className="glass-card bulk-action-panel" style={{ padding: '1rem', background: 'rgba(245, 158, 11, 0.02)', border: '1px solid rgba(245, 158, 11, 0.15)', borderRadius: '8px', margin: '0 0 1.5rem 0', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                  <div>
-                    <h4 style={{ color: '#f59e0b', margin: '0 0 0.2rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.95rem' }}>
-                      ⚡ {t('lbl_bulk_ai_verification')}
-                    </h4>
-                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      {t('desc_bulk_ai_verification')}
-                    </p>
-                  </div>
-                  
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                      <span>Target:</span>
-                      <select
-                        value={bulkTargetLang}
-                        onChange={(e) => setBulkTargetLang(e.target.value as 'active' | 'both')}
-                        disabled={isBulkVerifying}
-                        style={{
-                          background: 'rgba(0,0,0,0.3)',
-                          border: '1px solid rgba(255,255,255,0.2)',
-                          color: '#fff',
-                          padding: '0.2rem 0.5rem',
-                          borderRadius: '4px',
-                          fontSize: '0.75rem',
-                          cursor: 'pointer',
-                          outline: 'none',
-                          fontWeight: 'bold',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <option value="both" style={{ background: '#1e293b', color: '#fff' }}>Both EN & JP</option>
-                        <option value="active" style={{ background: '#1e293b', color: '#fff' }}>{lang === 'ja' ? 'Japanese Only (JP)' : 'English Only (EN)'}</option>
-                      </select>
-                    </div>
-
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer', userSelect: 'none' }}>
-                      <input
-                        type="checkbox"
-                        checked={forceBulkRefresh}
-                        onChange={(e) => setForceBulkRefresh(e.target.checked)}
-                        disabled={isBulkVerifying}
-                        style={{ cursor: 'pointer' }}
-                      />
-                      <span>{t('lbl_force_reverify')}</span>
-                    </label>
-
-                    {isBulkVerifying && (
-                      <button
-                        className="btn-secondary"
-                        onClick={cancelBulkVerification}
-                        style={{
-                          background: 'rgba(239, 68, 68, 0.15)',
-                          border: '1px solid #ef4444',
-                          color: '#ef4444',
-                          padding: '0.4rem 1rem',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontWeight: 'bold',
-                          fontSize: '0.8rem'
-                        }}
-                      >
-                        ✕ {t('btn_cancel_bulk')}
-                      </button>
-                    )}
-                    
-                    <button
-                      className="btn-secondary btn-bulk-ai-check"
-                      onClick={triggerBulkVerification}
-                      disabled={isBulkVerifying || phrases.length === 0}
-                      style={{
-                        background: 'rgba(245, 158, 11, 0.15)',
-                        border: '1px solid #f59e0b',
-                        color: '#f59e0b',
-                        padding: '0.4rem 1rem',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontWeight: 'bold',
-                        fontSize: '0.8rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.3rem'
-                      }}
-                    >
-                      🤖 {isBulkVerifying ? 'Running...' : t('btn_run_bulk_verification')}
-                    </button>
-                  </div>
-                </div>
-
-                {isBulkVerifying && (
-                  <div className="fade-in" style={{ marginTop: '0.2rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#fff', marginBottom: '0.2rem' }}>
-                      <span>Progress: {bulkProgress} / {phrases.length} cards</span>
-                      <span>{Math.round((bulkProgress / phrases.length) * 100)}%</span>
-                    </div>
-                    <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
-                      <div style={{ width: `${(bulkProgress / phrases.length) * 100}%`, height: '100%', background: '#f59e0b', borderRadius: '3px', transition: 'width 0.3s ease' }} />
-                    </div>
-                    {bulkCurrentCardName && (
-                      <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.7rem', fontStyle: 'italic', color: '#f59e0b' }}>
-                        Processing: "{bulkCurrentCardName}"...
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Phrases Table */}
@@ -3033,16 +2637,37 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
                                         </button>
                                       </div>
                                     ) : (
-                                      <button 
-                                        className="btn-secondary" 
-                                        style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', background: '#cc0000', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setPendingDeleteId(phrase.id);
-                                        }}
-                                      >
-                                        🗑️ Delete
-                                      </button>
+                                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                        <button 
+                                          className="btn-secondary btn-edit-card" 
+                                          style={{ 
+                                            padding: '0.3rem 0.8rem', 
+                                            fontSize: '0.8rem', 
+                                            background: 'rgba(245, 158, 11, 0.15)', 
+                                            color: '#f59e0b', 
+                                            border: '1px solid #f59e0b', 
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontWeight: 'bold'
+                                          }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStartEdit(phrase);
+                                          }}
+                                        >
+                                          ✏️ {t('btn_edit')}
+                                        </button>
+                                        <button 
+                                          className="btn-secondary" 
+                                          style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', background: '#cc0000', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setPendingDeleteId(phrase.id);
+                                          }}
+                                        >
+                                          {t('btn_delete')}
+                                        </button>
+                                      </div>
                                     )}
                                   </>
                                 ) : (
@@ -3106,16 +2731,37 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
                                         </button>
                                       </div>
                                     ) : (
-                                      <button 
-                                        className="btn-secondary" 
-                                        style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', background: '#cc0000', color: '#fff', border: 'none', borderRadius: '4px' }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setPendingDeleteId(phrase.id);
-                                        }}
-                                      >
-                                        {t('btn_delete')}
-                                      </button>
+                                       <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                         <button 
+                                           className="btn-secondary btn-edit-card" 
+                                           style={{ 
+                                             padding: '0.3rem 0.8rem', 
+                                             fontSize: '0.8rem', 
+                                             background: 'rgba(245, 158, 11, 0.15)', 
+                                             color: '#f59e0b', 
+                                             border: '1px solid #f59e0b', 
+                                             borderRadius: '4px',
+                                             cursor: 'pointer',
+                                             fontWeight: 'bold'
+                                           }}
+                                           onClick={(e) => {
+                                             e.stopPropagation();
+                                             handleStartEdit(phrase);
+                                           }}
+                                         >
+                                           ✏️ {t('btn_edit')}
+                                         </button>
+                                         <button 
+                                           className="btn-secondary" 
+                                           style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', background: '#cc0000', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                           onClick={(e) => {
+                                             e.stopPropagation();
+                                             setPendingDeleteId(phrase.id);
+                                           }}
+                                         >
+                                           {t('btn_delete')}
+                                         </button>
+                                       </div>
                                     )}
                                   </>
                                 )}
@@ -3195,94 +2841,6 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
                                         </button>
                                       </div>
                                     )}
-                                  </div>
-
-                                  {/* Manager Card Reality Check */}
-                                  <div className="glass-card manager-reality-check-box" style={{ padding: '1rem', borderLeft: '3px solid #f59e0b', background: 'rgba(245, 158, 11, 0.02)', margin: '0.5rem 0', borderRadius: '6px' }}>
-                                    <h5 style={{ color: '#f59e0b', margin: '0 0 0.4rem 0', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                      ⚖️ {t('lbl_reality_check')}
-                                    </h5>
-                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 0.8rem 0' }}>
-                                      {t('desc_reality_check')}
-                                    </p>
-                                    <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
-                                      <button
-                                        className="btn-secondary btn-reality-check-mgr-local"
-                                        style={{ 
-                                          background: 'rgba(245, 158, 11, 0.12)', 
-                                          border: '1px solid #f59e0b', 
-                                          color: '#f59e0b', 
-                                          padding: '0.35rem 0.8rem', 
-                                          borderRadius: '4px', 
-                                          cursor: 'pointer', 
-                                          fontWeight: 'bold',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: '0.3rem',
-                                          fontSize: '0.8rem'
-                                        }}
-                                        onClick={() => triggerManagerRealityCheck(phrase)}
-                                        disabled={!!checkingManagerIds[phrase.id]}
-                                      >
-                                        🤖 {checkingManagerIds[phrase.id] ? <span className="spinner" style={{ borderLeftColor: '#f59e0b', width: '10px', height: '10px' }} /> : t('btn_local_ai_check')}
-                                      </button>
-                                      <button
-                                        className="btn-secondary btn-reality-check-mgr-copy"
-                                        style={{ 
-                                          background: 'rgba(255, 255, 255, 0.03)', 
-                                          border: '1px solid var(--border)', 
-                                          color: '#fff', 
-                                          padding: '0.35rem 0.8rem', 
-                                          borderRadius: '4px', 
-                                          cursor: 'pointer', 
-                                          fontWeight: 'bold',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: '0.3rem',
-                                          fontSize: '0.8rem'
-                                        }}
-                                        onClick={() => copyManagerLLMPrompt(phrase)}
-                                      >
-                                        📋 {copiedManagerIds[phrase.id] ? t('lbl_copied') : t('btn_copy_prompt')}
-                                      </button>
-                                    </div>
-
-                                    {(() => {
-                                      const displayedResult = managerResults[phrase.id] || getRealityCheckCache(phrase, lang);
-                                      if (!displayedResult) return null;
-                                      return (
-                                        <div className="ai-bubble fade-in manager-reality-check-result" style={{ marginTop: '0.8rem', background: 'rgba(245, 158, 11, 0.02)', padding: '0.8rem', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.15)' }}>
-                                          <div style={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.3rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                            <span>🤖 Local AI Analysis:</span>
-                                            <button
-                                              className="btn-speak-mgr-analysis"
-                                              title="Speak AI analysis"
-                                              style={{
-                                                background: 'rgba(255, 255, 255, 0.06)',
-                                                border: 'none',
-                                                color: '#fff',
-                                                borderRadius: '50%',
-                                                width: '24px',
-                                                height: '24px',
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                cursor: 'pointer',
-                                                fontSize: '0.75rem'
-                                              }}
-                                              onClick={() => startAudioReader(displayedResult, t('lbl_reality_check') + ": " + phrase.phrase)}
-                                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
-                                              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'}
-                                            >
-                                              🔊
-                                            </button>
-                                          </div>
-                                          <div style={{ fontSize: '0.85rem', color: '#f8fafc' }}>
-                                            {parseMarkdown(displayedResult)}
-                                          </div>
-                                        </div>
-                                      );
-                                    })()}
                                   </div>
 
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '0.5rem', borderTop: '1px solid var(--border)', paddingTop: '0.8rem' }}>
@@ -3844,6 +3402,340 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ✏️ Premium Card Editing Overlay Modal */}
+      {editingCard && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(5, 7, 12, 0.85)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '1.5rem'
+          }}
+          onClick={() => setEditingCard(null)}
+        >
+          <div 
+            style={{
+              width: '100%',
+              maxWidth: '950px',
+              maxHeight: '90vh',
+              background: 'rgba(15, 23, 42, 0.95)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 30px rgba(245, 158, 11, 0.1)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div 
+              style={{
+                padding: '1.2rem 1.5rem',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'rgba(255, 255, 255, 0.02)'
+              }}
+            >
+              <h3 style={{ margin: 0, color: '#fff', fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                ✏️ {t('lbl_edit_vocab_card') || 'Edit Vocabulary Card'}
+              </h3>
+              <button 
+                onClick={() => setEditingCard(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  padding: 0,
+                  lineHeight: 1
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
+              {/* Left Column: Edit Form */}
+              <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_phrase')}</label>
+                    <input
+                      type="text"
+                      value={editForm.phrase}
+                      onChange={(e) => setEditForm({ ...editForm, phrase: e.target.value })}
+                      style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_category')}</label>
+                    <select
+                      value={editForm.category}
+                      onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                      style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', fontSize: '0.85rem' }}
+                    >
+                      <option value="Idiom">Idiom</option>
+                      <option value="Slang">Slang</option>
+                      <option value="Phrasal Verb">Phrasal Verb</option>
+                      <option value="Colloquial">Colloquial</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_difficulty')}</label>
+                    <select
+                      value={editForm.difficulty}
+                      onChange={(e) => setEditForm({ ...editForm, difficulty: e.target.value })}
+                      style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', fontSize: '0.85rem' }}
+                    >
+                      <option value="Beginner">Beginner</option>
+                      <option value="Intermediate">Intermediate</option>
+                      <option value="Advanced">Advanced</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', justifyContent: 'center' }}>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_regional_usage')}</label>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer', fontSize: '0.8rem', color: '#fff' }}>
+                        <input
+                          type="checkbox"
+                          checked={editForm.used_in_us === 1}
+                          onChange={(e) => setEditForm({ ...editForm, used_in_us: e.target.checked ? 1 : 0 })}
+                        />
+                        🇺🇸 US
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer', fontSize: '0.8rem', color: '#fff' }}>
+                        <input
+                          type="checkbox"
+                          checked={editForm.used_in_uk === 1}
+                          onChange={(e) => setEditForm({ ...editForm, used_in_uk: e.target.checked ? 1 : 0 })}
+                        />
+                        🇬🇧 UK
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_meaning_en')}</label>
+                    <input
+                      type="text"
+                      value={editForm.meaning_en}
+                      onChange={(e) => setEditForm({ ...editForm, meaning_en: e.target.value })}
+                      style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_meaning_ja')}</label>
+                    <input
+                      type="text"
+                      value={editForm.meaning_ja}
+                      onChange={(e) => setEditForm({ ...editForm, meaning_ja: e.target.value })}
+                      style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_example_en')}</label>
+                    <input
+                      type="text"
+                      value={editForm.example_en}
+                      onChange={(e) => setEditForm({ ...editForm, example_en: e.target.value })}
+                      style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('lbl_example_ja')}</label>
+                    <input
+                      type="text"
+                      value={editForm.example_ja}
+                      onChange={(e) => setEditForm({ ...editForm, example_ja: e.target.value })}
+                      style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                </div>
+
+                {editError && <p style={{ color: '#ef4444', fontWeight: 'bold', margin: '0.5rem 0' }}>⚠️ {editError}</p>}
+                {editSuccess && <p style={{ color: '#10b981', fontWeight: 'bold', margin: '0.5rem 0' }}>✓ {editSuccess}</p>}
+
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                  <button type="submit" className="btn-primary" style={{ padding: '0.6rem 1.5rem', fontSize: '0.85rem' }}>
+                    {t('btn_save')}
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setEditingCard(null)} style={{ padding: '0.6rem 1.5rem', fontSize: '0.85rem' }}>
+                    {t('btn_cancel')}
+                  </button>
+                </div>
+              </form>
+
+              {/* Right Column: AI Refinement Assistant */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', borderLeft: '1px solid rgba(255,255,255,0.08)', paddingLeft: '1.5rem' }}>
+                <div>
+                  <h4 style={{ margin: 0, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '1rem' }}>
+                    🤖 {t('btn_ai_polish') || '✨ Local AI Polish'}
+                  </h4>
+                  <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Analyze spelling, grammar, and naturalness using local AI.
+                  </p>
+                </div>
+
+                {/* Instructions Input */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <textarea
+                    rows={2}
+                    value={refinementInstructions}
+                    onChange={(e) => setRefinementInstructions(e.target.value)}
+                    placeholder={t('ph_refinement_instructions')}
+                    style={{
+                      padding: '0.6rem',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '6px',
+                      color: '#fff',
+                      fontSize: '0.8rem',
+                      fontFamily: 'inherit',
+                      resize: 'none',
+                      outline: 'none'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={isRefining}
+                    onClick={handleAIRefine}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      fontSize: '0.8rem',
+                      background: 'rgba(245, 158, 11, 0.12)',
+                      border: '1px solid #f59e0b',
+                      color: '#f59e0b',
+                      borderRadius: '6px',
+                      fontWeight: 'bold',
+                      cursor: isRefining ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => { if (!isRefining) e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)'; }}
+                    onMouseLeave={(e) => { if (!isRefining) e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)'; }}
+                  >
+                    {isRefining ? '⏳ ' + t('msg_refine_loading') : t('btn_ai_polish')}
+                  </button>
+                </div>
+
+                {refineError && (
+                  <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.6rem', borderRadius: '6px', fontSize: '0.8rem' }}>
+                    ⚠️ {refineError}
+                  </div>
+                )}
+
+                {/* Diff Viewer panel */}
+                {refinementSuggestion ? (
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.8rem',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      padding: '1rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.06)'
+                    }}
+                  >
+                    <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#10b981' }}>💡 {t('msg_refine_success')}</span>
+
+                    <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.85rem' }}>
+                      {refinementSuggestion.phrase && refinementSuggestion.phrase !== editForm.phrase && (
+                        <div>
+                          <div style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '0.75rem' }}>{t('lbl_phrase')}</div>
+                          <div style={{ textDecoration: 'line-through', color: '#ef4444' }}>{editForm.phrase}</div>
+                          <div style={{ color: '#10b981', fontWeight: 'bold' }}>{refinementSuggestion.phrase}</div>
+                        </div>
+                      )}
+
+                      {refinementSuggestion.meaning_en && refinementSuggestion.meaning_en !== editForm.meaning_en && (
+                        <div>
+                          <div style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '0.75rem' }}>{t('lbl_meaning_en')}</div>
+                          <div style={{ textDecoration: 'line-through', color: '#ef4444' }}>{editForm.meaning_en}</div>
+                          <div style={{ color: '#10b981' }}>{refinementSuggestion.meaning_en}</div>
+                        </div>
+                      )}
+
+                      {refinementSuggestion.meaning_ja && refinementSuggestion.meaning_ja !== editForm.meaning_ja && (
+                        <div>
+                          <div style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '0.75rem' }}>{t('lbl_meaning_ja')}</div>
+                          <div style={{ textDecoration: 'line-through', color: '#ef4444' }}>{editForm.meaning_ja}</div>
+                          <div style={{ color: '#10b981' }}>{refinementSuggestion.meaning_ja}</div>
+                        </div>
+                      )}
+
+                      {refinementSuggestion.example_en && refinementSuggestion.example_en !== editForm.example_en && (
+                        <div>
+                          <div style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '0.75rem' }}>{t('lbl_example_en')}</div>
+                          <div style={{ textDecoration: 'line-through', color: '#ef4444' }}>{editForm.example_en}</div>
+                          <div style={{ color: '#10b981', fontStyle: 'italic' }}>"{refinementSuggestion.example_en}"</div>
+                        </div>
+                      )}
+
+                      {refinementSuggestion.example_ja && refinementSuggestion.example_ja !== editForm.example_ja && (
+                        <div>
+                          <div style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '0.75rem' }}>{t('lbl_example_ja')}</div>
+                          <div style={{ textDecoration: 'line-through', color: '#ef4444' }}>{editForm.example_ja}</div>
+                          <div style={{ color: '#10b981' }}>{refinementSuggestion.example_ja}</div>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleApplyCorrection}
+                      style={{
+                        padding: '0.6rem',
+                        background: '#10b981',
+                        border: 'none',
+                        color: '#fff',
+                        borderRadius: '6px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#059669'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = '#10b981'; }}
+                    >
+                      🤝 {t('btn_apply_suggestion')}
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ flex: 1, border: '2px dashed rgba(255,255,255,0.06)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '2rem', textAlign: 'center' }}>
+                    Click "Local AI Polish" above to run an optimization check on your current card configurations.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

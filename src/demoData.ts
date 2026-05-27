@@ -102,7 +102,6 @@ export const initDemoData = () => {
             difficulty: seed.difficulty,
             used_in_us: 1,
             used_in_uk: 1,
-            reality_check_cache: undefined,
             next_review_date: nextReviewDateStr,
             interval_days: seed.interval_days,
             ease_factor: seed.ease_factor,
@@ -147,7 +146,6 @@ export const demoAddPhrase = async (phraseData: Partial<Phrase>): Promise<Phrase
         difficulty: phraseData.difficulty || 'Intermediate',
         used_in_us: phraseData.used_in_us !== undefined ? phraseData.used_in_us : 1,
         used_in_uk: phraseData.used_in_uk !== undefined ? phraseData.used_in_uk : 1,
-        reality_check_cache: phraseData.reality_check_cache || undefined,
         next_review_date: todayStr,
         interval_days: 0,
         ease_factor: 2.5,
@@ -314,23 +312,21 @@ export const demoGetChartsData = () => {
     return { masteryHistory, reviewForecast, categoryStats };
 };
 
-export const demoUpdateRegions = async (id: number, usedInUs: number, usedInUk: number): Promise<{ success: boolean; id: number; used_in_us: number; used_in_uk: number }> => {
+export const demoUpdatePhrase = async (id: number, phraseData: Partial<Phrase>): Promise<Phrase> => {
     await delay();
     const db = loadData();
-    const card = db.phrases.find((p: Phrase) => p.id === id);
-    if (!card) throw new Error('Phrase card not found');
-    card.used_in_us = usedInUs;
-    card.used_in_uk = usedInUk;
-    saveData(db);
-    return { success: true, id, used_in_us: usedInUs, used_in_uk: usedInUk };
-};
+    const cardIndex = db.phrases.findIndex((p: Phrase) => p.id === id);
+    if (cardIndex === -1) throw new Error('Phrase card not found');
 
-export const demoUpdateRealityCheck = async (id: number, text: string): Promise<{ success: boolean; id: number; reality_check_cache: string }> => {
-    await delay();
-    const db = loadData();
-    const card = db.phrases.find((p: Phrase) => p.id === id);
-    if (!card) throw new Error('Phrase card not found');
-    card.reality_check_cache = text;
+    if (phraseData.phrase && phraseData.phrase !== db.phrases[cardIndex].phrase) {
+        const dup = db.phrases.find((p: Phrase) => p.phrase.toLowerCase() === phraseData.phrase!.toLowerCase() && p.id !== id);
+        if (dup) throw new Error('This phrase already exists in your deck');
+    }
+
+    db.phrases[cardIndex] = {
+        ...db.phrases[cardIndex],
+        ...phraseData
+    };
     saveData(db);
-    return { success: true, id, reality_check_cache: text };
+    return db.phrases[cardIndex];
 };

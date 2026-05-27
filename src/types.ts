@@ -15,7 +15,6 @@ export interface Phrase {
   is_archived?: number; // 0 or 1
   used_in_us?: number; // 0 or 1
   used_in_uk?: number; // 0 or 1
-  reality_check_cache?: string;
 }
 
 /** @public */

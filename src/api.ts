@@ -11,8 +11,7 @@ import {
     demoRestorePhrase,
     demoDeletePhrasePermanently,
     demoGetArchivedPhrases,
-    demoUpdateRegions,
-    demoUpdateRealityCheck
+    demoUpdatePhrase
 } from './demoData';
 import type { Phrase, LearningStats } from './types';
 
@@ -143,22 +142,71 @@ export const apiImportPhrases = async (phrases: Phrase[]): Promise<{ success: bo
     return handleNativeResponse(res);
 };
 
-export const apiUpdateRegions = async (id: number, usedInUs: number, usedInUk: number): Promise<{ success: boolean; id: number; used_in_us: number; used_in_uk: number }> => {
-    if (isDemoMode) return demoUpdateRegions(id, usedInUs, usedInUk);
-    const res = await fetch(`/api/phrases/${id}/regions`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ used_in_us: usedInUs, used_in_uk: usedInUk })
-    });
-    return handleNativeResponse(res);
+export const aiGenerateCardDetails = async (phrase: string): Promise<Partial<Phrase>> => {
+    const promptText = `You are a professional language teacher and curriculum developer. Generate high-fidelity flashcard details for the English vocabulary word, idiom, or phrase: "${phrase}".
+Respond strictly in valid JSON format with the following keys:
+{
+  "phrase": "${phrase}",
+  "category": "One of: Idiom, Slang, Phrasal Verb, Colloquial",
+  "difficulty": "One of: Beginner, Intermediate, Advanced",
+  "used_in_us": 1 or 0 (1 if widely used in American English, 0 otherwise),
+  "used_in_uk": 1 or 0 (1 if widely used in British English, 0 otherwise),
+  "meaning_en": "A clear, concise, and professional English definition/meaning suitable for language learners.",
+  "meaning_ja": "A natural, accurate, and easy-to-understand Japanese translation/meaning.",
+  "example_en": "An extremely natural, modern, and contextually correct English example sentence using this phrase.",
+  "example_ja": "A natural and accurate Japanese translation of that English example sentence."
+}`;
+
+    // A. Chrome Built-in window.ai / window.LanguageModel (Gemini Nano)
+    try {
+        const modelManager = getLanguageModelManager();
+        if (modelManager) {
+            const session = await modelManager.create({ outputLanguage: 'en' });
+            const rawResponse = await session.prompt(promptText);
+            if (session && typeof session.destroy === 'function') {
+                session.destroy();
+            } else if (session && typeof session.close === 'function') {
+                session.close();
+            }
+            const cleanJson = rawResponse.substring(rawResponse.indexOf('{'), rawResponse.lastIndexOf('}') + 1);
+            return JSON.parse(cleanJson);
+        }
+    } catch (err) {
+        console.warn('Chrome window.ai card generation failed, falling back...', err);
+    }
+
+    // B. Ollama Local Fallback
+    const hasOllama = await checkOllama();
+    if (hasOllama) {
+        try {
+            const res = await fetch('http://localhost:11434/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'gemma:2b',
+                    prompt: promptText,
+                    format: 'json',
+                    stream: false
+                })
+            });
+            const data = await res.json();
+            return JSON.parse(data.response);
+        } catch (err) {
+            console.warn('Ollama card generation failed, falling back...', err);
+        }
+    }
+
+    // C. High-Fidelity Offline Mock Simulator
+    await new Promise(r => setTimeout(r, 600)); // natural reading pause
+    return getOfflineGeneratedCard(phrase);
 };
 
-export const apiUpdateRealityCheck = async (id: number, text: string): Promise<{ success: boolean; id: number; reality_check_cache: string }> => {
-    if (isDemoMode) return demoUpdateRealityCheck(id, text);
-    const res = await fetch(`/api/phrases/${id}/reality-check`, {
+export const apiUpdatePhrase = async (id: number, phraseData: Partial<Phrase>): Promise<Phrase> => {
+    if (isDemoMode) return demoUpdatePhrase(id, phraseData);
+    const res = await fetch(`/api/phrases/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reality_check_cache: text })
+        body: JSON.stringify(phraseData)
     });
     return handleNativeResponse(res);
 };
@@ -386,6 +434,74 @@ const getOfflineSentenceReview = (phrase: string, sentence: string): AIReviewRes
     };
 };
 
+const getOfflineGeneratedCard = (phrase: string): Partial<Phrase> => {
+    const lower = phrase.toLowerCase().trim();
+    
+    if (lower.includes('bullet') || lower.includes('bite')) {
+        return {
+            phrase: 'Bite the bullet',
+            category: 'Idiom',
+            difficulty: 'Intermediate',
+            used_in_us: 1,
+            used_in_uk: 1,
+            meaning_en: 'To face a difficult, inevitable situation with courage and resolve.',
+            meaning_ja: '困難な状況や避けられない事態に勇気を持って立ち向かう、腹を括る。',
+            example_en: 'I decided to bite the bullet and tell my boss the truth.',
+            example_ja: '私は腹を括って上司に真実を話すことにした。'
+        };
+    } else if (lower.includes('leg') || lower.includes('break')) {
+        return {
+            phrase: 'Break a leg',
+            category: 'Idiom',
+            difficulty: 'Beginner',
+            used_in_us: 1,
+            used_in_uk: 1,
+            meaning_en: 'A superstitious way of wishing good luck, especially to performers before a show.',
+            meaning_ja: '（特に本番前の役者などに対して）幸運を祈る、頑張れ。',
+            example_en: 'You are going on stage next? Break a leg!',
+            example_ja: '次ステージに上がるの？頑張ってね！'
+        };
+    } else if (lower.includes('beans') || lower.includes('spill')) {
+        return {
+            phrase: 'Spill the beans',
+            category: 'Idiom',
+            difficulty: 'Intermediate',
+            used_in_us: 1,
+            used_in_uk: 1,
+            meaning_en: 'To accidentally or prematurely reveal a secret.',
+            meaning_ja: '秘密をうっかり漏らす、ばらす。',
+            example_en: 'Don\'t spill the beans about the surprise party!',
+            example_ja: 'サプライズパーティーについて秘密を漏らさないでね！'
+        };
+    } else if (lower.includes('steam') || lower.includes('blow')) {
+        return {
+            phrase: 'Blow off steam',
+            category: 'Idiom',
+            difficulty: 'Intermediate',
+            used_in_us: 1,
+            used_in_uk: 1,
+            meaning_en: 'To release strong emotions or energy by doing some active physical activity.',
+            meaning_ja: '強い感情を発散する、うっぷんを晴らす。',
+            example_en: 'I went for a run to blow off steam.',
+            example_ja: '感情を発散するために走りに行った。'
+        };
+    }
+
+    // Default Fallback Template for any word/phrase
+    const capitalized = phrase.charAt(0).toUpperCase() + phrase.slice(1);
+    return {
+        phrase: capitalized,
+        category: 'Colloquial',
+        difficulty: 'Intermediate',
+        used_in_us: 1,
+        used_in_uk: 1,
+        meaning_en: `To act or behave in a natural manner associated with "${phrase}".`,
+        meaning_ja: `「${phrase}」に関連する、日常会話で非常によく使われる自然な表現。`,
+        example_en: `Let's work together to practice using "${phrase.toLowerCase()}" in our writing.`,
+        example_ja: `ライティングで「${phrase.toLowerCase()}」を使えるように一緒に練習しましょう。`
+    };
+};
+
 export const aiDetectLocalEngine = async (): Promise<string> => {
     const modelManager = getLanguageModelManager();
     if (modelManager) {
@@ -509,5 +625,104 @@ To enable real local LLM generation, you can either:
 
 Your prompt was: "${promptText}"`,
         engine: 'Offline Mock Simulator'
+    };
+};
+
+export const aiRefineCard = async (
+    phrase: string,
+    meaningEn: string,
+    meaningJa: string,
+    exampleEn: string,
+    exampleJa: string,
+    instructions?: string
+): Promise<Partial<Phrase>> => {
+    const promptText = `You are a professional ESL teacher and translation editor. Optimize and refine this vocabulary flashcard.
+Current Phrase: "${phrase}"
+Current English Meaning: "${meaningEn}"
+Current Japanese Meaning: "${meaningJa}"
+Current English Example: "${exampleEn}"
+Current Japanese Example: "${exampleJa}"
+${instructions ? `User Request: "${instructions}"` : `Review the fields for accuracy, native naturalness, grammar, and typos.`}
+
+Respond strictly in valid JSON format with the following keys. Only include a key if you suggest a change, otherwise omit it or keep the original:
+{
+  "phrase": "Optimized phrase or idiom (only if spelling correction needed)",
+  "meaning_en": "Optimized english translation/meaning",
+  "meaning_ja": "Optimized japanese translation/meaning",
+  "example_en": "Optimized english example sentence (extremely natural and modern)",
+  "example_ja": "Optimized japanese translation of the example sentence"
+}`;
+
+    // A. Chrome window.ai
+    try {
+        const modelManager = getLanguageModelManager();
+        if (modelManager) {
+            const session = await modelManager.create({ outputLanguage: 'en' });
+            const rawResponse = await session.prompt(promptText);
+            if (session && typeof session.destroy === 'function') {
+                session.destroy();
+            } else if (session && typeof session.close === 'function') {
+                session.close();
+            }
+            const cleanJson = rawResponse.substring(rawResponse.indexOf('{'), rawResponse.lastIndexOf('}') + 1);
+            return JSON.parse(cleanJson);
+        }
+    } catch (err) {
+        console.warn('Chrome window.ai refiner failed, falling back...', err);
+    }
+
+    // B. Ollama
+    const hasOllama = await checkOllama();
+    if (hasOllama) {
+        try {
+            const res = await fetch('http://localhost:11434/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'gemma:2b',
+                    prompt: promptText,
+                    format: 'json',
+                    stream: false
+                })
+            });
+            const data = await res.json();
+            return JSON.parse(data.response);
+        } catch (err) {
+            console.warn('Ollama refiner failed, falling back...', err);
+        }
+    }
+
+    // C. Offline Mock Simulator
+    await new Promise(r => setTimeout(r, 600)); // natural reading pause
+    
+    // Simulate smart refinement
+    const hasCustomReq = instructions && instructions.trim().length > 0;
+    const reqLower = hasCustomReq ? instructions!.toLowerCase() : '';
+    
+    if (reqLower.includes('casual') || reqLower.includes('slang') || reqLower.includes('informal')) {
+        return {
+            phrase: phrase,
+            meaning_en: meaningEn,
+            meaning_ja: meaningJa,
+            example_en: `Yo, ${phrase.toLowerCase()}! Let's just do it.`,
+            example_ja: `なぁ、腹を決めてやろうぜ！`
+        };
+    } else if (reqLower.includes('business') || reqLower.includes('formal') || reqLower.includes('professional')) {
+        return {
+            phrase: phrase,
+            meaning_en: `To adopt a stance of resolution in the face of an inevitable and challenging course of action.`,
+            meaning_ja: meaningJa,
+            example_en: `We had to bite the bullet and proceed with the restructuring plan.`,
+            example_ja: `私たちは苦渋の決断を下し、再構築計画を進める必要がありました。`
+        };
+    }
+
+    // Default corrections: capitalize or slight formatting to simulate refinement
+    return {
+        phrase: phrase.trim(),
+        meaning_en: meaningEn.charAt(0).toUpperCase() + meaningEn.slice(1),
+        meaning_ja: meaningJa,
+        example_en: exampleEn.endsWith('.') ? exampleEn : exampleEn + '.',
+        example_ja: exampleJa.endsWith('。') || exampleJa.endsWith('.') ? exampleJa : exampleJa + '。'
     };
 };
