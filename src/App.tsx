@@ -811,20 +811,17 @@ Provide a highly informative, encouraging, and clear response to help the user m
   const [isWebLLMInitializing, setIsWebLLMInitializing] = useState(false);
   const [webLLMInitProgress, setWebLLMInitProgress] = useState('');
   const [webLLMInitError, setWebLLMInitError] = useState<string | null>(null);
-  const [selectedWebGPUModel, setSelectedWebGPUModel] = useState(() => {
-    return localStorage.getItem('hlm_selected_webgpu_model') || 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
-  });
+  const selectedWebGPUModel = 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
   const [autoActivateWebGPU, setAutoActivateWebGPU] = useState(() => {
     return localStorage.getItem('hlm_auto_activate_webgpu') === 'true';
   });
 
-  const handleActivateWebGPU = async (targetModel?: string) => {
-    const modelToUse = targetModel || selectedWebGPUModel;
+  const handleActivateWebGPU = async () => {
     setIsWebLLMInitializing(true);
     setWebLLMInitProgress('Initializing browser WebGPU interface...');
     setWebLLMInitError(null);
     try {
-      const success = await apiInitializeWebLLM(modelToUse, (progress) => {
+      const success = await apiInitializeWebLLM(selectedWebGPUModel, (progress) => {
         setWebLLMInitProgress(progress);
       });
       if (success) {
@@ -843,8 +840,8 @@ Provide a highly informative, encouraging, and clear response to help the user m
 
   useEffect(() => {
     if (autoActivateWebGPU && !(window as any).webLLMEngine && !(window as any).webLLM) {
-      console.log(`[Auto-Activate] Found hlm_auto_activate_webgpu enabled on load. Auto-initializing...`);
-      handleActivateWebGPU(selectedWebGPUModel);
+      console.log(`[Auto-Activate] Found hlm_auto_activate_webgpu enabled on load. Auto-initializing Qwen2.5-0.5B-Instruct...`);
+      handleActivateWebGPU();
     }
   }, []);
 
@@ -4521,39 +4518,15 @@ Respond strictly in valid JSON format with the following keys:
                       🚀 On-Device WebGPU LLM Activator
                     </h5>
                     <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                      Select and download a 100% private LLM model to run directly inside Safari/Chrome using Apple Silicon GPU cores. Once loaded, all local AI features will become active offline!
+                      Download and run a 100% private, ultra-stable local LLM directly inside Safari/Chrome using Apple Silicon GPU cores. Once loaded, all local AI features will become active offline!
                     </p>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#c084fc' }}>Select On-Device LLM Model:</label>
-                    <select
-                      value={selectedWebGPUModel}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSelectedWebGPUModel(val);
-                        localStorage.setItem('hlm_selected_webgpu_model', val);
-                      }}
-                      disabled={isWebLLMInitializing}
-                      style={{
-                        padding: '0.5rem',
-                        background: 'rgba(0, 0, 0, 0.4)',
-                        border: '1px solid rgba(139, 92, 246, 0.3)',
-                        borderRadius: '6px',
-                        color: '#fff',
-                        fontSize: '0.8rem',
-                        cursor: isWebLLMInitializing ? 'not-allowed' : 'pointer',
-                        outline: 'none',
-                        fontFamily: 'inherit'
-                      }}
-                    >
-                      <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama-3.2-1B-Instruct (🌟 Recommended mobile sweet spot) [~600MB]</option>
-                      <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen2.5-0.5B-Instruct (Lightweight / Ultra Stable Mobile) [~350MB]</option>
-                      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5-1.5B-Instruct (High Resource - May crash older iPhones!) [~900MB]</option>
-                      <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama-3.2-3B-Instruct (Desktop Only - Will crash iOS Safari!) [~1.8GB]</option>
-                      <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Qwen2.5-3B-Instruct (Desktop Only - Will crash iOS Safari!) [~1.8GB]</option>
-                      <option value="Llama-3-8B-Instruct-q4f16_1-MLC">Llama-3-8B-Instruct (Desktop Only - Will crash iOS Safari!) [~4.5GB]</option>
-                    </select>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#c084fc' }}>Selected On-Device Model:</span>
+                    <span style={{ fontSize: '0.82rem', color: '#fff', fontWeight: '500' }}>
+                      Qwen2.5-0.5B-Instruct (🌟 Ultra-Stable Mobile Optimized) [~350MB]
+                    </span>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '-0.3rem' }}>
