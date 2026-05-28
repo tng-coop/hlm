@@ -767,21 +767,8 @@ ${updatedHistory.map(m => `${m.role === 'user' ? 'Student' : 'Coach'}: ${m.conte
 Provide a highly informative, encouraging, and clear response to help the user master this phrase. Respond in pure text.`;
         const promptRes = await aiPromptLocalLLM(prompt);
         coachReply = `${promptRes.response}\n\n*(Inference: ${promptRes.engine})*`;
-      } catch (e) {
-        // High-fidelity fallback simulated answers when local LLM is offline/not found
-        await new Promise(r => setTimeout(r, 600));
-        const lower = query.toLowerCase();
-        let baseReply = "";
-        if (lower.includes('business') || lower.includes('formal') || lower.includes('work')) {
-          baseReply = `Excellent question! In professional settings, "${phraseText}" is usually considered a bit too casual. If you are speaking with close colleagues, it is perfectly fine, but for formal client presentations or business emails, it is safer to use clear, direct alternatives like "disclose information prematurely" or "handle the difficult challenge directly".`;
-        } else if (lower.includes('origin') || lower.includes('history') || lower.includes('where')) {
-          baseReply = `Yes, the history of "${phraseText}" is fascinating! It dates back centuries and reflects the lively, evolving nature of English idioms. Understanding the etymology really helps anchor the term in memory!`;
-        } else if (lower.includes('japanese') || lower.includes('translate') || lower.includes('nihongo')) {
-          baseReply = `Great observation! While the literal translation works, the actual contextual nuance matches best with daily colloquial expressions in Japanese. Focus on practicing sentences in dialogue to get a natural feel!`;
-        } else {
-          baseReply = `That is a superb question about "${phraseText}"! The key is to practice using it in your active vocabulary. When speaking or writing, pay attention to the emotional tone of the listener and make sure the setting is natural. Keep practicing your interactive sentences!`;
-        }
-        coachReply = `${baseReply}\n\n*(Inference: Offline Mock Fallback)*`;
+      } catch (e: any) {
+        coachReply = `Error: Failed to communicate with local LLM engine. Local AI is offline. (${e.message || 'LLM not available'})`;
       }
       setBlogChats(prev => ({
         ...prev,
@@ -4318,6 +4305,7 @@ Respond strictly in valid JSON format with the following keys:
                                           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.2rem' }}>
                                             <input
                                               type="text"
+                                              disabled={isLLMUnavailable}
                                               value={blogQueries[phrase.id] || ''}
                                               onChange={(e) => setBlogQueries(prev => ({ ...prev, [phrase.id]: e.target.value }))}
                                               onKeyDown={(e) => {
@@ -4325,35 +4313,37 @@ Respond strictly in valid JSON format with the following keys:
                                                   handleSubmitBlogQuery(phrase.id, phrase.phrase);
                                                 }
                                               }}
-                                              placeholder="Ask a question (e.g. 'Can I use this at work?', 'How is it different from other terms?')..."
+                                              placeholder={isLLMUnavailable ? 'Local AI is offline. Q&A chat is currently unavailable.' : "Ask a question (e.g. 'Can I use this at work?', 'How is it different from other terms?')..."}
                                               style={{
                                                 flex: 1,
                                                 padding: '0.5rem 0.8rem',
                                                 background: 'rgba(255, 255, 255, 0.02)',
-                                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                border: isLLMUnavailable ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(255, 255, 255, 0.08)',
                                                 borderRadius: '6px',
-                                                color: '#fff',
+                                                color: isLLMUnavailable ? '#ef4444' : '#fff',
                                                 fontSize: '0.8rem',
-                                                outline: 'none'
+                                                outline: 'none',
+                                                opacity: isLLMUnavailable ? 0.6 : 1,
+                                                cursor: isLLMUnavailable ? 'not-allowed' : 'text'
                                               }}
                                             />
                                             <button
                                               type="button"
-                                              disabled={sendingQueries[phrase.id] || !(blogQueries[phrase.id] || '').trim()}
+                                              disabled={sendingQueries[phrase.id] || isLLMUnavailable || !(blogQueries[phrase.id] || '').trim()}
                                               onClick={() => handleSubmitBlogQuery(phrase.id, phrase.phrase)}
                                               style={{
                                                 padding: '0.5rem 1rem',
                                                 fontSize: '0.8rem',
-                                                background: 'rgba(56, 189, 248, 0.15)',
-                                                border: '1px solid #38bdf8',
-                                                color: '#38bdf8',
+                                                background: isLLMUnavailable ? 'rgba(239, 68, 68, 0.05)' : 'rgba(56, 189, 248, 0.15)',
+                                                border: isLLMUnavailable ? '1px solid #ef4444' : '1px solid #38bdf8',
+                                                color: isLLMUnavailable ? '#ef4444' : '#38bdf8',
                                                 borderRadius: '6px',
                                                 fontWeight: 'bold',
-                                                cursor: (sendingQueries[phrase.id] || !(blogQueries[phrase.id] || '').trim()) ? 'not-allowed' : 'pointer',
+                                                cursor: (sendingQueries[phrase.id] || isLLMUnavailable || !(blogQueries[phrase.id] || '').trim()) ? 'not-allowed' : 'pointer',
                                                 transition: 'all 0.2s'
                                               }}
                                             >
-                                              {sendingQueries[phrase.id] ? '⏳ Coach is writing...' : 'Ask Coach'}
+                                              {sendingQueries[phrase.id] ? '⏳ Coach is writing...' : isLLMUnavailable ? 'Coach Offline' : 'Ask Coach'}
                                             </button>
                                           </div>
                                         </div>
