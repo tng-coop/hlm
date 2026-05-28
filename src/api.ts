@@ -515,6 +515,33 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
             return { response: JSON.stringify([chosen]), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
         }
         
+        if (lower.includes('coach') || lower.includes('student:')) {
+            let phraseText = "this phrase";
+            const phraseMatch = promptText.match(/idiom\/phrase "([^"]+)"/i);
+            if (phraseMatch && phraseMatch[1]) {
+                phraseText = phraseMatch[1].trim();
+            }
+            
+            let queryText = "";
+            const queryMatch = promptText.match(/Here is their question: "([^"]+)"/i);
+            if (queryMatch && queryMatch[1]) {
+                queryText = queryMatch[1].toLowerCase().trim();
+            }
+            
+            let coachReply = "";
+            if (queryText.includes('business') || queryText.includes('formal') || queryText.includes('work')) {
+                coachReply = `Excellent question! In professional settings, "${phraseText}" is usually considered a bit too casual. If you are speaking with close colleagues, it is perfectly fine, but for formal client presentations or business emails, it is safer to use clear, direct alternatives like "disclose information prematurely" or "handle the difficult challenge directly".`;
+            } else if (queryText.includes('origin') || queryText.includes('history') || queryText.includes('where')) {
+                coachReply = `Yes, the history of "${phraseText}" is fascinating! It dates back centuries and reflects the lively, evolving nature of English idioms. Understanding the etymology really helps anchor the term in memory!`;
+            } else if (queryText.includes('japanese') || queryText.includes('translate') || queryText.includes('nihongo')) {
+                coachReply = `Great observation! While the literal translation works, the actual contextual nuance matches best with daily colloquial expressions in Japanese. Focus on practicing sentences in dialogue to get a natural feel!`;
+            } else {
+                coachReply = `That is a superb question about "${phraseText}"! The key is to practice using it in your active vocabulary. When speaking or writing, pay attention to the emotional tone of the listener and make sure the setting is natural. Keep practicing your interactive sentences!`;
+            }
+            
+            return { response: coachReply, engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
+        }
+        
         if (lower.includes('time')) {
             reply = `[WebGPU on-device Phi-3/Llama-3] The current local device time is ${new Date().toLocaleTimeString()} on ${new Date().toLocaleDateString()}. Your secure offline model is executing directly on the iPhone GPU!`;
         } else if (lower.includes('hello') || lower.includes('hi')) {
@@ -612,10 +639,34 @@ As HLM's integrated WebGPU model engine, I can help you practice English grammar
     }
     
     // Simulate smart conversation reply
-    let reply = `Hello! I am HLM's offline virtual coach assistant. How can I help you master your English idioms today? Your prompt was: "${promptText}"`;
-    if (lower.includes('student:') || lower.includes('coach:')) {
-        reply = `I encourage you to continue building natural dialogs. Practice speaking and writing in natural registers! Your prompt was: "${promptText}"`;
+    if (lower.includes('coach') || lower.includes('student:')) {
+        let phraseText = "this phrase";
+        const phraseMatch = promptText.match(/idiom\/phrase "([^"]+)"/i);
+        if (phraseMatch && phraseMatch[1]) {
+            phraseText = phraseMatch[1].trim();
+        }
+        
+        let queryText = "";
+        const queryMatch = promptText.match(/Here is their question: "([^"]+)"/i);
+        if (queryMatch && queryMatch[1]) {
+            queryText = queryMatch[1].toLowerCase().trim();
+        }
+        
+        let coachReply = "";
+        if (queryText.includes('business') || queryText.includes('formal') || queryText.includes('work')) {
+            coachReply = `Excellent question! In professional settings, "${phraseText}" is usually considered a bit too casual. If you are speaking with close colleagues, it is perfectly fine, but for formal client presentations or business emails, it is safer to use clear, direct alternatives like "disclose information prematurely" or "handle the difficult challenge directly".`;
+        } else if (queryText.includes('origin') || queryText.includes('history') || queryText.includes('where')) {
+            coachReply = `Yes, the history of "${phraseText}" is fascinating! It dates back centuries and reflects the lively, evolving nature of English idioms. Understanding the etymology really helps anchor the term in memory!`;
+        } else if (queryText.includes('japanese') || queryText.includes('translate') || queryText.includes('nihongo')) {
+            coachReply = `Great observation! While the literal translation works, the actual contextual nuance matches best with daily colloquial expressions in Japanese. Focus on practicing sentences in dialogue to get a natural feel!`;
+        } else {
+            coachReply = `That is a superb question about "${phraseText}"! The key is to practice using it in your active vocabulary. When speaking or writing, pay attention to the emotional tone of the listener and make sure the setting is natural. Keep practicing your interactive sentences!`;
+        }
+        
+        return { response: coachReply, engine: 'Offline Mock Simulator' };
     }
+    
+    let reply = `Hello! I am HLM's offline virtual coach assistant. How can I help you master your English idioms today? Your prompt was: "${promptText}"`;
     return { response: reply, engine: 'Offline Mock Simulator' };
 };
 
