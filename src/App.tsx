@@ -27,6 +27,7 @@ import {
   apiSyncPush,
   apiSyncPull,
   apiInitializeWebLLM,
+  apiSetPreferredEngine,
   type AIReviewResult,
   type AIExplanationResult
 } from './api';
@@ -805,6 +806,18 @@ Provide a highly informative, encouraging, and clear response to help the user m
   const [sandboxPrompt, setSandboxPrompt] = useState('');
   const [sandboxResponse, setSandboxResponse] = useState('');
   const [sandboxResponseEngine, setSandboxResponseEngine] = useState('');
+  const [preferredEngine, setPreferredEngine] = useState(() => {
+    let saved = localStorage.getItem('hlm_preferred_llm_engine') || 'auto';
+    
+    // Automatically sanitize and map legacy preferences to the unified 'built_in' option!
+    if (saved === 'chrome_nano' || saved === 'edge_phi') {
+      saved = 'built_in';
+      localStorage.setItem('hlm_preferred_llm_engine', 'built_in');
+    }
+    
+    apiSetPreferredEngine(saved);
+    return saved;
+  });
   const [detectedEngine, setDetectedEngine] = useState('Detecting...');
   const isLLMUnavailable = detectedEngine.includes('No Local LLM') || detectedEngine.includes('No LLM Detected');
   const [isSendingPrompt, setIsSendingPrompt] = useState(false);
@@ -812,7 +825,9 @@ Provide a highly informative, encouraging, and clear response to help the user m
   const [isWebLLMInitializing, setIsWebLLMInitializing] = useState(false);
   const [webLLMInitProgress, setWebLLMInitProgress] = useState('');
   const [webLLMInitError, setWebLLMInitError] = useState<string | null>(null);
-  const selectedWebGPUModel = 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
+  const [selectedWebGPUModel, setSelectedWebGPUModel] = useState(() => {
+    return localStorage.getItem('hlm_selected_webgpu_model') || 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
+  });
   const [autoActivateWebGPU, setAutoActivateWebGPU] = useState(() => {
     return localStorage.getItem('hlm_auto_activate_webgpu') === 'true';
   });
@@ -841,7 +856,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
 
   useEffect(() => {
     if (autoActivateWebGPU && !(window as any).webLLMEngine && !(window as any).webLLM) {
-      console.log(`[Auto-Activate] Found hlm_auto_activate_webgpu enabled on load. Auto-initializing Qwen2.5-0.5B-Instruct...`);
+      console.log(`[Auto-Activate] Found hlm_auto_activate_webgpu enabled on load. Auto-initializing ${selectedWebGPUModel}...`);
       handleActivateWebGPU();
     }
   }, []);
@@ -1134,12 +1149,15 @@ Provide a highly informative, encouraging, and clear response to help the user m
 
   useEffect(() => {
     refreshData();
+  }, []);
+
+  useEffect(() => {
     const detect = async () => {
       const engine = await aiDetectLocalEngine();
       setDetectedEngine(engine);
     };
     detect();
-  }, []);
+  }, [preferredEngine]);
 
   // Card studies trigger automatically when activeCard changes
   useEffect(() => {
@@ -2145,6 +2163,38 @@ Respond strictly in valid JSON format with the following keys:
                     <option value="1.2" style={{ background: '#1e293b', color: '#fff' }}>1.2x</option>
                     <option value="1.5" style={{ background: '#1e293b', color: '#fff' }}>1.5x</option>
                     <option value="2" style={{ background: '#1e293b', color: '#fff' }}>2.0x</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#c084fc', fontWeight: 'bold' }}>🤖 Local AI:</span>
+                  <select
+                    value={preferredEngine}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPreferredEngine(val);
+                      localStorage.setItem('hlm_preferred_llm_engine', val);
+                      apiSetPreferredEngine(val);
+                      aiDetectLocalEngine().then(setDetectedEngine);
+                    }}
+                    style={{
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      color: '#fff',
+                      padding: '0.35rem 0.6rem',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      maxWidth: '170px',
+                      fontWeight: 'bold',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <option value="auto" style={{ background: '#1e293b', color: '#fff' }}>Auto-Detect (Built-in ➔ WebGPU ➔ Ollama)</option>
+                    <option value="built_in" style={{ background: '#1e293b', color: '#fff' }}>Browser Built-in (LanguageModel)</option>
+                    <option value="webgpu" style={{ background: '#1e293b', color: '#fff' }}>WebGPU WebLLM (On-Device Model)</option>
+                    <option value="ollama" style={{ background: '#1e293b', color: '#fff' }}>Ollama Local Server (localhost)</option>
                   </select>
                 </div>
               </div>
@@ -4564,6 +4614,8 @@ Respond strictly in valid JSON format with the following keys:
                 </span>
               </div>
 
+
+
               {isLLMUnavailable && (
                 <div style={{
                   marginTop: '1.2rem',
@@ -4585,11 +4637,35 @@ Respond strictly in valid JSON format with the following keys:
                     </p>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#c084fc' }}>Selected On-Device Model:</span>
-                    <span style={{ fontSize: '0.82rem', color: '#fff', fontWeight: '500' }}>
-                      Qwen2.5-0.5B-Instruct (🌟 Ultra-Stable Mobile Optimized) [~350MB]
-                    </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <label htmlFor="webgpu-model-select" style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#c084fc' }}>
+                      Select On-Device Model:
+                    </label>
+                    <select
+                      id="webgpu-model-select"
+                      value={selectedWebGPUModel}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedWebGPUModel(val);
+                        localStorage.setItem('hlm_selected_webgpu_model', val);
+                      }}
+                      disabled={isWebLLMInitializing}
+                      style={{
+                        padding: '0.4rem',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '6px',
+                        color: '#fff',
+                        fontSize: '0.82rem',
+                        cursor: isWebLLMInitializing ? 'not-allowed' : 'pointer',
+                        outline: 'none',
+                        width: '100%',
+                        fontFamily: 'inherit'
+                      }}
+                    >
+                      <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen2.5-0.5B-Instruct (🌟 Ultra-Stable Mobile) [~350MB]</option>
+                      <option value="gemma-2-2b-it-q4f16_1-MLC">Gemma-2-2b-it (Google Gemma 2 2B - High Accuracy) [~1.4GB]</option>
+                    </select>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '-0.3rem' }}>
