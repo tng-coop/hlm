@@ -652,10 +652,23 @@ export const apiInitializeWebLLM = async (
 ): Promise<boolean> => {
     try {
         console.log(`[apiInitializeWebLLM] Starting WebGPU on-device ${modelId} initialization...`);
+        
+        // Detect if the device is a mobile browser (like iPhone/Safari) to apply strict memory containment
+        const isMobileOrConstrained = 
+            typeof navigator !== 'undefined' && 
+            (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
+             (navigator.maxTouchPoints && navigator.maxTouchPoints > 2));
+
+        console.log(`[apiInitializeWebLLM] Device detection: isMobileOrConstrained = ${isMobileOrConstrained}. Restricting context window size to prevent iOS WebKit OOM crash.`);
+
         const engine = await CreateMLCEngine(modelId, {
             initProgressCallback: (report) => {
                 console.log(`[WebLLM Progress]`, report.text);
                 onProgress(report.text);
+            },
+            // Configure extremely lightweight KV cache parameters to safeguard iOS/Safari RAM budgets
+            kvCacheParameters: {
+                context_window_size: isMobileOrConstrained ? 1024 : 2048,
             }
         });
         (window as any).webLLMEngine = engine;
