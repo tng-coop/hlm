@@ -647,11 +647,12 @@ Respond strictly in valid JSON format with the following keys:
 };
 
 export const apiInitializeWebLLM = async (
+    modelId: string,
     onProgress: (progress: string) => void
 ): Promise<boolean> => {
     try {
-        console.log(`[apiInitializeWebLLM] Starting WebGPU on-device Qwen-0.5B initialization...`);
-        const engine = await CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
+        console.log(`[apiInitializeWebLLM] Starting WebGPU on-device ${modelId} initialization...`);
+        const engine = await CreateMLCEngine(modelId, {
             initProgressCallback: (report) => {
                 console.log(`[WebLLM Progress]`, report.text);
                 onProgress(report.text);

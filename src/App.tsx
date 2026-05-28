@@ -811,13 +811,14 @@ Provide a highly informative, encouraging, and clear response to help the user m
   const [isWebLLMInitializing, setIsWebLLMInitializing] = useState(false);
   const [webLLMInitProgress, setWebLLMInitProgress] = useState('');
   const [webLLMInitError, setWebLLMInitError] = useState<string | null>(null);
+  const [selectedWebGPUModel, setSelectedWebGPUModel] = useState('Llama-3.2-3B-Instruct-q4f16_1-MLC');
 
   const handleActivateWebGPU = async () => {
     setIsWebLLMInitializing(true);
     setWebLLMInitProgress('Initializing browser WebGPU interface...');
     setWebLLMInitError(null);
     try {
-      const success = await apiInitializeWebLLM((progress) => {
+      const success = await apiInitializeWebLLM(selectedWebGPUModel, (progress) => {
         setWebLLMInitProgress(progress);
       });
       if (success) {
@@ -4507,8 +4508,34 @@ Respond strictly in valid JSON format with the following keys:
                       🚀 On-Device WebGPU LLM Activator
                     </h5>
                     <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                      You can download and run a real, 100% private LLM model (Qwen-0.5B, ~350MB) directly inside Safari/Chrome using Apple Silicon GPU cores. Once loaded, all local AI features will become active offline!
+                      Select and download a 100% private LLM model to run directly inside Safari/Chrome using Apple Silicon GPU cores. Once loaded, all local AI features will become active offline!
                     </p>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#c084fc' }}>Select On-Device LLM Model:</label>
+                    <select
+                      value={selectedWebGPUModel}
+                      onChange={(e) => setSelectedWebGPUModel(e.target.value)}
+                      disabled={isWebLLMInitializing}
+                      style={{
+                        padding: '0.5rem',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        border: '1px solid rgba(139, 92, 246, 0.3)',
+                        borderRadius: '6px',
+                        color: '#fff',
+                        fontSize: '0.8rem',
+                        cursor: isWebLLMInitializing ? 'not-allowed' : 'pointer',
+                        outline: 'none',
+                        fontFamily: 'inherit'
+                      }}
+                    >
+                      <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama-3.2-3B-Instruct (Recommended for Latest iPhone) [~1.8GB]</option>
+                      <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Qwen2.5-3B-Instruct (Excellent Bilingual Reasoning) [~1.8GB]</option>
+                      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5-1.5B-Instruct (Balanced Speed & Quality) [~900MB]</option>
+                      <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen2.5-0.5B-Instruct (Default - Ultra Lightweight) [~350MB]</option>
+                      <option value="Llama-3-8B-Instruct-q4f16_1-MLC">Llama-3-8B-Instruct (Extreme Reasoning - Requires 8GB+ RAM iPhone) [~4.5GB]</option>
+                    </select>
                   </div>
 
                   {webLLMInitProgress && (
