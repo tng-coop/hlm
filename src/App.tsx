@@ -818,46 +818,6 @@ Provide a highly informative, encouraging, and clear response to help the user m
     return localStorage.getItem('hlm_auto_activate_webgpu') === 'true';
   });
 
-  const [selectedLLMEngine, setSelectedLLMEngine] = useState(() => {
-    return localStorage.getItem('hlm_selected_llm_engine') || 'auto';
-  });
-  const [ollamaModel, setOllamaModel] = useState(() => {
-    return localStorage.getItem('hlm_ollama_model') || 'gemma:2b';
-  });
-  const [ollamaHost, setOllamaHost] = useState(() => {
-    return localStorage.getItem('hlm_ollama_host') || 'http://localhost:11434';
-  });
-  const [showLLMManagerPanel, setShowLLMManagerPanel] = useState(() => {
-    const isMock = localStorage.getItem('hlm_selected_llm_engine') === 'mock';
-    return isMock || localStorage.getItem('hlm_selected_llm_engine') === null;
-  });
-
-  const handleSaveLLMSettings = async (engine: string, model: string, host: string) => {
-    localStorage.setItem('hlm_selected_llm_engine', engine);
-    localStorage.setItem('hlm_ollama_model', model);
-    localStorage.setItem('hlm_ollama_host', host);
-    
-    setSelectedLLMEngine(engine);
-    setOllamaModel(model);
-    setOllamaHost(host);
-    
-    const label = await aiDetectLocalEngine();
-    setDetectedEngine(label);
-    
-    if (engine !== 'webgpu') {
-      const existingEngine = (window as any).webLLMEngine;
-      if (existingEngine && typeof existingEngine.unload === 'function') {
-        console.log(`[handleSaveLLMSettings] Switching away from WebGPU. Unloading to release active GPU core memory...`);
-        try {
-          await existingEngine.unload();
-          (window as any).webLLMEngine = null;
-        } catch (e) {
-          console.warn('Failed to unload WebGPU engine cleanly', e);
-        }
-      }
-    }
-  };
-
   const handleActivateWebGPU = async (targetModel?: string) => {
     const modelToUse = targetModel || selectedWebGPUModel;
     setIsWebLLMInitializing(true);
@@ -4536,283 +4496,127 @@ Respond strictly in valid JSON format with the following keys:
                 {t('lbl_sandbox_description')}
               </p>
               
-              {/* Active Engine Badge & Switcher Trigger */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1rem', marginTop: '1.2rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.8rem 1.2rem', background: isLLMUnavailable ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255,255,255,0.02)', border: isLLMUnavailable ? '1px solid #ef4444' : '1px solid var(--border)', borderRadius: '8px' }}>
-                  <span style={{ width: '8px', height: '8px', background: isLLMUnavailable ? '#ef4444' : '#10b981', borderRadius: '50%', display: 'inline-block', boxShadow: isLLMUnavailable ? '0 0 8px #ef4444' : '0 0 8px #10b981' }} />
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    <strong>{t('lbl_detected_llm')}:</strong> <span style={{ color: isLLMUnavailable ? '#ef4444' : '#fff', marginLeft: '0.3rem' }}>{detectedEngine}</span>
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowLLMManagerPanel(!showLLMManagerPanel)}
-                  style={{
-                    padding: '0.6rem 1.2rem',
-                    fontSize: '0.8rem',
-                    fontWeight: 'bold',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                >
-                  ⚙️ {showLLMManagerPanel ? 'Hide LLM Settings' : 'Configure LLM / Switch Engine'}
-                </button>
+              {/* Active Engine Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.2rem', padding: '0.8rem 1.2rem', background: isLLMUnavailable ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255,255,255,0.02)', border: isLLMUnavailable ? '1px solid #ef4444' : '1px solid var(--border)', borderRadius: '8px', width: 'fit-content' }}>
+                <span style={{ width: '8px', height: '8px', background: isLLMUnavailable ? '#ef4444' : '#10b981', borderRadius: '50%', display: 'inline-block', boxShadow: isLLMUnavailable ? '0 0 8px #ef4444' : '0 0 8px #10b981' }} />
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  <strong>{t('lbl_detected_llm')}:</strong> <span style={{ color: isLLMUnavailable ? '#ef4444' : '#fff', marginLeft: '0.3rem' }}>{detectedEngine}</span>
+                </span>
               </div>
 
-              {/* Collapsible Local LLM Manager Panel */}
-              {showLLMManagerPanel && (
-                <div className="fade-in" style={{
+              {isLLMUnavailable && (
+                <div style={{
                   marginTop: '1.2rem',
-                  padding: '1.5rem',
-                  background: 'rgba(139, 92, 246, 0.04)',
-                  border: '1px dashed rgba(139, 92, 246, 0.3)',
+                  padding: '1.2rem',
+                  background: 'rgba(139, 92, 246, 0.05)',
+                  border: '1px dashed #8b5cf6',
                   borderRadius: '12px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '1.2rem',
-                  maxWidth: '640px'
+                  gap: '1rem',
+                  maxWidth: '520px'
                 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                     <h5 style={{ margin: 0, fontSize: '0.95rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      🚀 Local LLM Manager & Switcher
+                      🚀 On-Device WebGPU LLM Activator
                     </h5>
                     <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                      Hot-swap between available browser-native models, local developer servers, on-device WebGPU models, or offline mock engines. All modifications are applied instantly in real-time.
+                      Select and download a 100% private LLM model to run directly inside Safari/Chrome using Apple Silicon GPU cores. Once loaded, all local AI features will become active offline!
                     </p>
                   </div>
 
-                  {/* Engine Selection Radios */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#c084fc' }}>Select Active AI Engine:</label>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
-                      {[
-                        { id: 'auto', label: '🔌 Auto-Detect Engine' },
-                        { id: 'window.ai', label: '🌐 Chrome Gemini Nano' },
-                        { id: 'ollama', label: '🦙 Ollama Local API' },
-                        { id: 'webgpu', label: '⚡ WebGPU On-Device' },
-                        { id: 'mock', label: '🎭 Offline Simulation' }
-                      ].map((item) => (
-                        <label key={item.id} style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          padding: '0.6rem 0.8rem',
-                          background: selectedLLMEngine === item.id ? 'rgba(139, 92, 246, 0.15)' : 'rgba(0,0,0,0.2)',
-                          border: selectedLLMEngine === item.id ? '1px solid #8b5cf6' : '1px solid rgba(255,255,255,0.05)',
-                          borderRadius: '6px',
-                          fontSize: '0.78rem',
-                          color: selectedLLMEngine === item.id ? '#fff' : '#cbd5e1',
-                          cursor: 'pointer',
-                          userSelect: 'none',
-                          transition: 'all 0.2s'
-                        }}>
-                          <input
-                            type="radio"
-                            name="llm-engine-selection"
-                            checked={selectedLLMEngine === item.id}
-                            onChange={() => handleSaveLLMSettings(item.id, ollamaModel, ollamaHost)}
-                            style={{ accentColor: '#8b5cf6', cursor: 'pointer' }}
-                          />
-                          {item.label}
-                        </label>
-                      ))}
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#c084fc' }}>Select On-Device LLM Model:</label>
+                    <select
+                      value={selectedWebGPUModel}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedWebGPUModel(val);
+                        localStorage.setItem('hlm_selected_webgpu_model', val);
+                      }}
+                      disabled={isWebLLMInitializing}
+                      style={{
+                        padding: '0.5rem',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        border: '1px solid rgba(139, 92, 246, 0.3)',
+                        borderRadius: '6px',
+                        color: '#fff',
+                        fontSize: '0.8rem',
+                        cursor: isWebLLMInitializing ? 'not-allowed' : 'pointer',
+                        outline: 'none',
+                        fontFamily: 'inherit'
+                      }}
+                    >
+                      <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama-3.2-1B-Instruct (🌟 Recommended mobile sweet spot) [~600MB]</option>
+                      <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen2.5-0.5B-Instruct (Lightweight / Ultra Stable Mobile) [~350MB]</option>
+                      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5-1.5B-Instruct (High Resource - May crash older iPhones!) [~900MB]</option>
+                      <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama-3.2-3B-Instruct (Desktop Only - Will crash iOS Safari!) [~1.8GB]</option>
+                      <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Qwen2.5-3B-Instruct (Desktop Only - Will crash iOS Safari!) [~1.8GB]</option>
+                      <option value="Llama-3-8B-Instruct-q4f16_1-MLC">Llama-3-8B-Instruct (Desktop Only - Will crash iOS Safari!) [~4.5GB]</option>
+                    </select>
                   </div>
 
-                  {/* Sub-config: Ollama settings */}
-                  {selectedLLMEngine === 'ollama' && (
-                    <div className="fade-in" style={{
-                      padding: '1rem',
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '-0.3rem' }}>
+                    <input
+                      type="checkbox"
+                      id="toggle-auto-activate"
+                      checked={autoActivateWebGPU}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setAutoActivateWebGPU(checked);
+                        localStorage.setItem('hlm_auto_activate_webgpu', String(checked));
+                      }}
+                      style={{ cursor: 'pointer', accentColor: '#8b5cf6' }}
+                    />
+                    <label htmlFor="toggle-auto-activate" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
+                      Auto-activate WebGPU AI on page load
+                    </label>
+                  </div>
+
+                  {webLLMInitProgress && (
+                    <div style={{
+                      padding: '0.8rem',
                       background: 'rgba(0,0,0,0.2)',
                       borderRadius: '8px',
-                      border: '1px solid rgba(255,255,255,0.05)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.8rem'
-                    }}>
-                      <h6 style={{ margin: 0, fontSize: '0.8rem', color: '#c084fc', fontWeight: 'bold' }}>🦙 Ollama Endpoint Configurations</h6>
-                      
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-                        <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                          <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Ollama API Host URL:</label>
-                          <input
-                            type="text"
-                            value={ollamaHost}
-                            onChange={(e) => handleSaveLLMSettings('ollama', ollamaModel, e.target.value)}
-                            placeholder="http://localhost:11434"
-                            style={{
-                              padding: '0.4rem 0.6rem',
-                              background: '#111',
-                              border: '1px solid var(--border)',
-                              borderRadius: '4px',
-                              color: '#fff',
-                              fontSize: '0.75rem',
-                              outline: 'none',
-                              fontFamily: 'monospace'
-                            }}
-                          />
-                        </div>
-
-                        <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                          <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Target Model Name:</label>
-                          <input
-                            type="text"
-                            value={ollamaModel}
-                            onChange={(e) => handleSaveLLMSettings('ollama', e.target.value, ollamaHost)}
-                            placeholder="gemma:2b"
-                            style={{
-                              padding: '0.4rem 0.6rem',
-                              background: '#111',
-                              border: '1px solid var(--border)',
-                              borderRadius: '4px',
-                              color: '#fff',
-                              fontSize: '0.75rem',
-                              outline: 'none',
-                              fontFamily: 'monospace'
-                            }}
-                          />
-                        </div>
-                      </div>
-                      <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                        💡 Tip: Ensure your local terminal is running <code>ollama serve</code> and you have pulled the model weights (e.g. <code>ollama pull gemma:2b</code>) before querying.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Sub-config: WebGPU Activator & Selector */}
-                  {selectedLLMEngine === 'webgpu' && (
-                    <div className="fade-in" style={{
-                      padding: '1rem',
-                      background: 'rgba(0,0,0,0.2)',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255,255,255,0.05)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.8rem'
-                    }}>
-                      <h6 style={{ margin: 0, fontSize: '0.8rem', color: '#c084fc', fontWeight: 'bold' }}>⚡ WebGPU On-Device MLC weights</h6>
-                      
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Select On-Device LLM weights:</label>
-                        <select
-                          value={selectedWebGPUModel}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setSelectedWebGPUModel(val);
-                            localStorage.setItem('hlm_selected_webgpu_model', val);
-                            aiDetectLocalEngine().then(setDetectedEngine);
-                          }}
-                          disabled={isWebLLMInitializing}
-                          style={{
-                            padding: '0.5rem',
-                            background: 'rgba(0, 0, 0, 0.4)',
-                            border: '1px solid rgba(139, 92, 246, 0.3)',
-                            borderRadius: '6px',
-                            color: '#fff',
-                            fontSize: '0.8rem',
-                            cursor: isWebLLMInitializing ? 'not-allowed' : 'pointer',
-                            outline: 'none',
-                            fontFamily: 'inherit'
-                          }}
-                        >
-                          <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama-3.2-1B-Instruct (🌟 Recommended mobile sweet spot) [~600MB]</option>
-                          <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen2.5-0.5B-Instruct (Lightweight / Ultra Stable Mobile) [~350MB]</option>
-                          <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5-1.5B-Instruct (High Resource - May crash older iPhones!) [~900MB]</option>
-                          <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama-3.2-3B-Instruct (Desktop Only - Will crash iOS Safari!) [~1.8GB]</option>
-                          <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Qwen2.5-3B-Instruct (Desktop Only - Will crash iOS Safari!) [~1.8GB]</option>
-                          <option value="Llama-3-8B-Instruct-q4f16_1-MLC">Llama-3-8B-Instruct (Desktop Only - Will crash iOS Safari!) [~4.5GB]</option>
-                        </select>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <input
-                          type="checkbox"
-                          id="toggle-auto-activate"
-                          checked={autoActivateWebGPU}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            setAutoActivateWebGPU(checked);
-                            localStorage.setItem('hlm_auto_activate_webgpu', String(checked));
-                          }}
-                          style={{ cursor: 'pointer', accentColor: '#8b5cf6' }}
-                        />
-                        <label htmlFor="toggle-auto-activate" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
-                          Auto-activate WebGPU AI on page load
-                        </label>
-                      </div>
-
-                      {webLLMInitProgress && (
-                        <div style={{
-                          padding: '0.8rem',
-                          background: 'rgba(0,0,0,0.2)',
-                          borderRadius: '8px',
-                          fontSize: '0.75rem',
-                          color: '#a78bfa',
-                          fontFamily: 'monospace',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-all'
-                        }}>
-                          {webLLMInitProgress}
-                        </div>
-                      )}
-
-                      {webLLMInitError && (
-                        <div style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                          ❌ {webLLMInitError}
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        disabled={isWebLLMInitializing}
-                        onClick={() => handleActivateWebGPU()}
-                        style={{
-                          alignSelf: 'flex-start',
-                          padding: '0.6rem 1.2rem',
-                          fontSize: '0.85rem',
-                          background: '#8b5cf6',
-                          border: '1px solid #8b5cf6',
-                          color: '#fff',
-                          borderRadius: '6px',
-                          fontWeight: 'bold',
-                          cursor: isWebLLMInitializing ? 'not-allowed' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.4rem',
-                          transition: 'all 0.2s',
-                          marginTop: '0.2rem'
-                        }}
-                      >
-                        {isWebLLMInitializing ? <span className="spinner" style={{ width: '12px', height: '12px', borderLeftColor: '#fff' }} /> : '⚡'}
-                        {isWebLLMInitializing ? 'Initializing Shader Shards...' : 'Activate WebGPU Local LLM'}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Sub-config: Mock simulation details */}
-                  {selectedLLMEngine === 'mock' && (
-                    <div className="fade-in" style={{
-                      padding: '1rem',
-                      background: 'rgba(0,0,0,0.2)',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255,255,255,0.05)',
                       fontSize: '0.75rem',
-                      color: 'var(--text-muted)',
-                      lineHeight: '1.4'
+                      color: '#a78bfa',
+                      fontFamily: 'monospace',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all'
                     }}>
-                      🎭 <strong>Offline / Mock Simulation Engine is Active</strong><br />
-                      This engine provides realistic offline mock answers for sandbox chat, grammar checks, card refinement, and card detail generation without making network calls or downloading GPU resources. It is highly responsive and perfect for testing out the HLM interface.
+                      {webLLMInitProgress}
                     </div>
                   )}
+
+                  {webLLMInitError && (
+                    <div style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                      ❌ {webLLMInitError}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={isWebLLMInitializing}
+                    onClick={() => handleActivateWebGPU()}
+                    style={{
+                      alignSelf: 'flex-start',
+                      padding: '0.6rem 1.2rem',
+                      fontSize: '0.85rem',
+                      background: '#8b5cf6',
+                      border: '1px solid #8b5cf6',
+                      color: '#fff',
+                      borderRadius: '6px',
+                      fontWeight: 'bold',
+                      cursor: isWebLLMInitializing ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {isWebLLMInitializing ? <span className="spinner" style={{ width: '12px', height: '12px', borderLeftColor: '#fff' }} /> : '⚡'}
+                    {isWebLLMInitializing ? 'Initializing Shader Shards...' : 'Activate WebGPU Local LLM'}
+                  </button>
                 </div>
               )}
 

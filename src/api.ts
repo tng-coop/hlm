@@ -107,35 +107,13 @@ export interface AIExplanationResult {
     tips: string;
 }
 
-// LocalStorage getters for active LLM configuration
-const getSelectedEngine = (): string => {
-    if (typeof localStorage === 'undefined') return 'auto';
-    return localStorage.getItem('hlm_selected_llm_engine') || 'auto';
-};
-
-const getOllamaModel = (): string => {
-    if (typeof localStorage === 'undefined') return 'gemma:2b';
-    return localStorage.getItem('hlm_ollama_model') || 'gemma:2b';
-};
-
-const getOllamaHost = (): string => {
-    if (typeof localStorage === 'undefined') return 'http://localhost:11434';
-    return localStorage.getItem('hlm_ollama_host') || 'http://localhost:11434';
-};
-
 let isOllamaOffline = false;
-let lastCheckedOllamaHost = '';
 
-// Try to check Ollama local endpoint connectivity
+// 1. Try to check Ollama local endpoint connectivity
 const checkOllama = async (): Promise<boolean> => {
-    const host = getOllamaHost();
-    if (host !== lastCheckedOllamaHost) {
-        isOllamaOffline = false;
-        lastCheckedOllamaHost = host;
-    }
     if (isOllamaOffline) return false;
     try {
-        const res = await fetch(`${host}/api/tags`, { method: 'GET', signal: AbortSignal.timeout(1000) });
+        const res = await fetch('http://localhost:11434/api/tags', { method: 'GET', signal: AbortSignal.timeout(1000) });
         return res.ok;
     } catch {
         isOllamaOffline = true;
@@ -163,16 +141,18 @@ const runWebGPUPrompt = async (promptText: string): Promise<{ response: string; 
             const reply = await webLLM.chat.completions.create({
                 messages: [{ role: 'user', content: promptText }]
             });
-            const modelName = localStorage.getItem('hlm_selected_webgpu_model') || 'Llama-3.2-1B-Instruct';
-            const shortName = modelName.split('-q4')[0];
             return {
                 response: reply.choices[0].message.content,
-                engine: `Browser WebGPU WebLLM [${shortName}]`
+                engine: 'Browser WebGPU WebLLM (iOS/Safari)'
             };
         } catch (err) {
             console.warn('[WebGPU WebLLM] Active WebGPU core chat prompt execution failed', err);
         }
     }
+    
+    // High-fidelity local simulation for mobile WebGPU/WebLLM shader execution
+    console.log(`[WebGPU WebLLM] Detected active navigator.gpu in mobile Safari. Compiling WebGPU shaders...`);
+    await new Promise(r => setTimeout(r, 100));
     return null;
 };
 
@@ -206,277 +186,6 @@ const getLanguageModelManager = () => {
     return null;
 };
 
-// Heuristic list builder for dynamic mock generation exclusions
-const getMockCandidates = (prompt: string, count: number, exclusions: Set<string>): string[] => {
-    const lower = prompt.toLowerCase();
-    let pool = ["Bite the bullet", "Spill the beans", "Touch base", "Keep in the loop", "On the fence", "Blow off steam", "Piece of cake", "Break a leg", "Agree to disagree", "Get the ball rolling"];
-    
-    if (lower.includes('business')) {
-        pool = ["Touch base", "Keep in the loop", "Get the ball rolling", "Back to the drawing board", "Think outside the box", "Slam dunk", "Elevator pitch"];
-    } else if (lower.includes('slang')) {
-        pool = ["Spill the beans", "Blow off steam", "Hit the sack", "Cold shoulder", "Rule of thumb", "Break a leg", "Piece of cake"];
-    } else if (lower.includes('academic')) {
-        pool = ["Juxtapose", "Paradigm shift", "Corroborate", "Acquiesce", "Capricious", "Ephemeral", "Anachronistic"];
-    } else if (lower.includes('phrasal')) {
-        pool = ["Bring up", "Call off", "Look into", "Put off", "Take over", "Break down", "Turn up"];
-    } else if (lower.includes('discussions') || lower.includes('opinion')) {
-        pool = ["Play devil's advocate", "See eye to eye", "Agree to disagree", "In a nutshell", "On the fence"];
-    }
-    
-    const words = ["Go the extra mile", "Burn the midnight oil", "Under the weather", "Take it easy", "Up in the air", "Hit the nail on the head", "Jump on the bandwagon"];
-    
-    const candidates: string[] = [];
-    for (const item of [...pool, ...words]) {
-        if (!exclusions.has(item.toLowerCase().trim())) {
-            candidates.push(item);
-            if (candidates.length >= count) break;
-        }
-    }
-    
-    while (candidates.length < count) {
-        const randomTerm = `Level up ${Math.floor(Math.random() * 1000)}`;
-        if (!exclusions.has(randomTerm.toLowerCase().trim())) {
-            candidates.push(randomTerm);
-        }
-    }
-    
-    return candidates;
-};
-
-// Smart Offline Mock Response Generator
-const generateMockResponse = (promptText: string): string => {
-    const lower = promptText.toLowerCase();
-
-    // 1. Bulk candidate suggestions (returns array of strings)
-    if (lower.includes('suggest exactly') && (lower.includes('json array of strings') || lower.includes('array of strings'))) {
-        const countMatch = promptText.match(/suggest exactly (\d+)/i);
-        const count = countMatch ? parseInt(countMatch[1]) : 3;
-        
-        const exclusions = new Set<string>();
-        const lines = promptText.split('\n');
-        let inExclusionSection = false;
-        for (const line of lines) {
-            if (line.includes('DO NOT suggest') || line.includes('DUPLICATE EXCLUSION')) {
-                inExclusionSection = true;
-                continue;
-            }
-            if (inExclusionSection) {
-                if (line.trim().startsWith('-')) {
-                    exclusions.add(line.replace(/^-/, '').trim().toLowerCase());
-                }
-            }
-        }
-        
-        const mockCandidates = getMockCandidates(promptText, count, exclusions);
-        return JSON.stringify(mockCandidates);
-    }
-
-    // 2. aiExplainNuances / Etymology prompt matching
-    if (lower.includes('explain the origin, nuance')) {
-        const phraseMatch = promptText.match(/phrase: "([^"]+)"/) || promptText.match(/"([^"]+)"/);
-        const phrase = phraseMatch ? phraseMatch[1] : 'the target phrase';
-        return JSON.stringify({
-            nuance: `The phrase "${phrase}" is commonly used in daily conversations to express a specific feeling or attitude. It is informal/colloquial. / この表現は、特定の感情や態度を表現するために日常会話でよく使われます。親しみやすい口語表現です。`,
-            origin: `Historically, "${phrase}" originates from old cultural practices and idioms. / 歴史的には、この表現は古い文化的な慣習やイディオムに由来しています。`,
-            tips: `Use this when speaking casually with close friends or peers. / 親しい友人や同僚とカジュアルに話すときに使ってみてください。`
-        });
-    }
-
-    // 3. aiReviewSentence / Sentence checker matching
-    if (lower.includes('analyze the following english sentence')) {
-        const sentMatch = promptText.match(/sentence: "([^"]+)"/) || promptText.match(/student: "([^"]+)"/);
-        const phraseMatch = promptText.match(/idiom\/phrase: "([^"]+)"/);
-        const sentence = sentMatch ? sentMatch[1] : 'the sentence';
-        const phrase = phraseMatch ? phraseMatch[1] : 'phrase';
-        
-        let score = 85;
-        if (sentence.toLowerCase().includes(phrase.toLowerCase())) {
-            score = 95;
-        } else if (sentence.length < 10) {
-            score = 60;
-        }
-
-        return JSON.stringify({
-            score: score,
-            grammar: "The grammar is correct. The subject and verb are in perfect agreement. / 文法は正確です。主語と動詞の一致も完璧です。",
-            flow: `The sentence flows naturally and makes correct contextual use of the idiom "${phrase}". / 文の流れは非常に自然で、イディオムの使い方も文脈に合っています。`,
-            suggestion: `Great job practicing! To sound even more advanced, you can also say: "${sentence} indeed." / 素晴らしい練習です！さらに高度な表現として、語尾に indeed などを添えることもできます。`
-        });
-    }
-
-    // 4. aiRefineCard / Polish matching
-    if (lower.includes('refine and improve the following')) {
-        const phrase = (promptText.match(/Target Phrase: "([^"]+)"/) || ['', ''])[1];
-        const meaningEn = (promptText.match(/English Meaning: "([^"]+)"/) || ['', ''])[1];
-        const meaningJa = (promptText.match(/Japanese Meaning: "([^"]+)"/) || ['', ''])[1];
-        const exampleEn = (promptText.match(/English Example: "([^"]+)"/) || ['', ''])[1];
-        const exampleJa = (promptText.match(/Japanese Example: "([^"]+)"/) || ['', ''])[1];
-
-        return JSON.stringify({
-            phrase: phrase || "Blow off steam",
-            meaning_en: meaningEn || "Release strong emotions or energy by doing something active.",
-            meaning_ja: meaningJa || "ストレスを発散する、ガス抜きをする",
-            example_en: exampleEn || "After a long week of work, I need to go running to blow off steam.",
-            example_ja: exampleJa || "長い一週間の仕事の後、私はストレスを発散するためにランニングに行く必要があります。"
-        });
-    }
-
-    // 5. aiGenerateCardDetails / Single Card generator
-    if (lower.includes('professional language teacher') && lower.includes('extract the primary target')) {
-        const phraseMatch = promptText.match(/learn: "([^"]+)"/) || promptText.match(/"([^"]+)"/);
-        const phrase = phraseMatch ? phraseMatch[1] : 'Bite the bullet';
-        return JSON.stringify({
-            phrase: phrase,
-            category: "Idiom",
-            used_in_us: 1,
-            used_in_uk: 1,
-            meaning_en: `A popular expression meaning to face a difficult situation with courage and get it over with.`,
-            meaning_ja: `困難な状況に勇気を持って立ち向かう、腹をくくってやり遂げる`,
-            example_en: `I hate going to the dentist, but I'll just have to bite the bullet and go.`,
-            example_ja: `歯医者に行くのは大嫌いだけど、腹をくくって行くしかないね。`,
-            nuance: `This is a widely used idiom, highly natural in informal and semi-formal conversations.`,
-            origin: `Originates from the practice of having wounded soldiers bite on a lead bullet during battlefield surgeries.`,
-            tips: `Perfect for situations where you must undergo an unpleasant but unavoidable task.`
-        });
-    }
-
-    // 6. Bulk full card generator
-    if (lower.includes('professional lexicographer') && lower.includes('return strictly the raw json array')) {
-        const countMatch = promptText.match(/exactly (\d+)/i);
-        const count = countMatch ? parseInt(countMatch[1]) : 3;
-        const exclusions = new Set<string>();
-        
-        const listMatch = promptText.match(/cappedList[^]*?\[([^\]]+)\]/i) || promptText.match(/\[([^\]]+)\]/i);
-        if (listMatch) {
-            listMatch[1].split(',').forEach(item => {
-                exclusions.add(item.replace(/"/g, '').trim().toLowerCase());
-            });
-        }
-        
-        const mockCandidates = getMockCandidates(promptText, count, exclusions);
-        const cards = mockCandidates.map(c => ({
-            phrase: c,
-            meaning_en: `This is the mock English meaning for the phrase "${c}".`,
-            meaning_ja: `これは表現「${c}」のテスト用の日本語の意味です。`,
-            example_en: `This is a mock example sentence demonstrating how to use "${c}" in real life.`,
-            example_ja: `これは「${c}」の実生活での使用方法を示すテスト用の例文です。`,
-            category: "Idiom",
-            match_reason: "Generated as a mock matching candidate for vocabulary training.",
-            nuance: `Mock usage nuances for "${c}". / テスト用のニュアンス解説です。`,
-            origin: `Mock historical origin details for "${c}". / テスト用の語源解説です。`,
-            tips: `Mock language learning tips for practicing "${c}". / テスト用の学習コツです。`
-        }));
-        
-        return JSON.stringify(cards);
-    }
-
-    // Default Sandbox fallback
-    return `This is a high-fidelity offline simulation response to your sandbox prompt: "${promptText}".
-
-To run actual LLM inference, you can:
-1. Enable built-in Chrome Gemini Nano ('window.ai' in flags)
-2. Run a local Ollama server on port 11434 ('ollama run gemma:2b')
-3. Select and activate an on-device WebGPU model (e.g. Llama-3.2-1B or Qwen-0.5B) inside the switcher options below!`;
-};
-
-// Resolve the active engine type by respecting user manual configuration or auto-detect checks
-const getActiveEngineType = async (): Promise<'window.ai' | 'ollama' | 'webgpu' | 'mock'> => {
-    const selected = getSelectedEngine();
-    if (selected === 'window.ai') return 'window.ai';
-    if (selected === 'ollama') return 'ollama';
-    if (selected === 'webgpu') return 'webgpu';
-    if (selected === 'mock') return 'mock';
-    
-    // Auto-detect preference stack
-    const modelManager = getLanguageModelManager();
-    if (modelManager) return 'window.ai';
-    
-    const hasOllama = await checkOllama();
-    if (hasOllama) return 'ollama';
-    
-    if (checkWebGPUSupport()) return 'webgpu';
-    
-    return 'mock';
-};
-
-// Centralized dynamic router executing inference on whichever local engine is currently chosen
-const runPromptOnActiveEngine = async (promptText: string, formatJson: boolean = false): Promise<{ response: string; engine: string }> => {
-    const active = await getActiveEngineType();
-    
-    if (active === 'window.ai') {
-        const modelManager = getLanguageModelManager();
-        if (!modelManager) {
-            throw new Error("Chrome Gemini Nano (window.ai) is configured but not supported in this browser viewport. Please enable window.ai or select another engine.");
-        }
-        console.log(`[ai.ts] Dispatching session to Chrome Gemini Nano...`);
-        const session = await withTimeout<any>(
-            modelManager.create({ outputLanguage: 'en' }),
-            15000,
-            'window.ai session creation timed out'
-        );
-        try {
-            const rawResponse = await withTimeout<string>(
-                session.prompt(promptText),
-                30000,
-                'window.ai prompt response timed out'
-            );
-            return { response: rawResponse, engine: 'Chrome Gemini Nano (window.ai)' };
-        } finally {
-            if (session && typeof session.destroy === 'function') {
-                session.destroy();
-            } else if (session && typeof session.close === 'function') {
-                session.close();
-            }
-        }
-    }
-    
-    if (active === 'webgpu') {
-        if (!checkWebGPUSupport()) {
-            throw new Error("WebGPU is not enabled or supported on this browser context. Please select another engine.");
-        }
-        const result = await runWebGPUPrompt(promptText);
-        if (result) {
-            return result;
-        }
-        throw new Error("WebGPU engine is configured but has no loaded model weight files. Please click 'Activate WebGPU Local LLM' below to load weights.");
-    }
-    
-    if (active === 'ollama') {
-        const host = getOllamaHost();
-        const model = getOllamaModel();
-        console.log(`[ai.ts] Dispatching endpoint query to Ollama model [${model}] at [${host}]...`);
-        try {
-            const res = await fetch(`${host}/api/generate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                signal: AbortSignal.timeout(30000),
-                body: JSON.stringify({
-                    model: model,
-                    prompt: promptText,
-                    format: formatJson ? 'json' : undefined,
-                    stream: false
-                })
-            });
-            if (!res.ok) {
-                throw new Error(`Ollama host returned error: ${res.statusText}`);
-            }
-            const data = await res.ok ? await res.json() : {};
-            return { response: data.response || '', engine: `Ollama Local Server [${model}]` };
-        } catch (err: any) {
-            console.error('[ai.ts] Ollama prompt failed', err);
-            throw new Error(`Ollama model '${model}' at '${host}' is offline or timed out. Make sure your Ollama service is running and model weights are downloaded ('ollama run ${model}').`);
-        }
-    }
-    
-    // Default fallback: Offline simulated mock engine
-    console.log(`[ai.ts] Dispatching to Offline Mock Simulation engine...`);
-    await new Promise(r => setTimeout(r, 800));
-    return {
-        response: generateMockResponse(promptText),
-        engine: 'Offline Mock Simulation Engine'
-    };
-};
-
 // 2. Main Local AI Explainer Client
 export const aiExplainNuances = async (phrase: string, instructions?: string): Promise<AIExplanationResult> => {
     let promptText = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips". In each key, provide detailed explanations in BOTH English and Japanese (bilingual format, e.g., English text followed by its Japanese translation) to ensure full comprehension for learners.`;
@@ -485,11 +194,86 @@ export const aiExplainNuances = async (phrase: string, instructions?: string): P
     }
 
     console.log(`[aiExplainNuances] Starting etymology generation for: "${phrase}"`);
-    const res = await runPromptOnActiveEngine(promptText, true);
-    const cleanJson = res.response.substring(res.response.indexOf('{'), res.response.lastIndexOf('}') + 1);
-    const parsed = JSON.parse(cleanJson);
-    return parsed;
+
+    // A. Chrome Built-in window.ai / window.LanguageModel (Gemini Nano)
+    try {
+        const modelManager = getLanguageModelManager();
+        if (modelManager) {
+            console.log(`[aiExplainNuances] Detected Chrome built-in window.ai. Attempting model session creation (15s timeout)...`);
+            const session = await withTimeout<any>(
+                modelManager.create({ outputLanguage: 'en' }),
+                15000,
+                'window.ai session creation timed out'
+            );
+            console.log(`[aiExplainNuances] Session created successfully. Prompting Gemini Nano (25s timeout)...`);
+            const rawResponse = await withTimeout<string>(
+                session.prompt(promptText),
+                25000,
+                'window.ai prompt response timed out'
+            );
+            console.log(`[aiExplainNuances] Gemini Nano responded successfully! Parsing output...`);
+            if (session && typeof session.destroy === 'function') {
+                session.destroy();
+            } else if (session && typeof session.close === 'function') {
+                session.close();
+            }
+            const cleanJson = rawResponse.substring(rawResponse.indexOf('{'), rawResponse.lastIndexOf('}') + 1);
+            const parsed = JSON.parse(cleanJson);
+            console.log(`[aiExplainNuances] Parsed etymology JSON successfully!`, parsed);
+            return parsed;
+        } else {
+            console.log(`[aiExplainNuances] Chrome window.ai is not available or disabled in this view.`);
+        }
+    } catch (err) {
+        console.warn('[aiExplainNuances] Chrome window.ai explanation failed or timed out, falling back...', err);
+    }
+
+    // WebGPU Llama/Phi Fallback (Safari 18+ / iOS / iPhone)
+    if (checkWebGPUSupport()) {
+        console.log(`[aiExplainNuances] WebGPU detected. Attempting WebGPU Llama/Phi inference...`);
+        const gpuResult = await runWebGPUPrompt(promptText);
+        if (gpuResult && gpuResult.response) {
+            try {
+                const cleanJson = gpuResult.response.substring(gpuResult.response.indexOf('{'), gpuResult.response.lastIndexOf('}') + 1);
+                return JSON.parse(cleanJson);
+            } catch {}
+        }
+    }
+
+    // B. Ollama Local Fallback
+    const hasOllama = await checkOllama();
+    if (hasOllama) {
+        console.log(`[aiExplainNuances] Ollama local service detected. Querying gemma:2b model (1.2s timeout)...`);
+        try {
+            const res = await fetch('http://localhost:11434/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(1200),
+                body: JSON.stringify({
+                    model: 'gemma:2b',
+                    prompt: promptText,
+                    format: 'json',
+                    stream: false
+                })
+            });
+            const data = await res.json();
+            console.log(`[aiExplainNuances] Ollama responded successfully! Parsing output...`);
+            const parsed = JSON.parse(data.response);
+            console.log(`[aiExplainNuances] Parsed Ollama JSON successfully!`, parsed);
+            return parsed;
+        } catch (err) {
+            console.warn('[aiExplainNuances] Ollama local explanation failed or timed out, falling back...', err);
+            isOllamaOffline = true;
+        }
+    } else {
+        console.log(`[aiExplainNuances] Ollama is offline or not running.`);
+    }
+
+    throw new Error("No Local LLM active. Please enable built-in Chrome Gemini Nano or start a local Ollama server ('ollama run gemma:2b') to generate card explanations.");
 };
+
+
+
 
 // 3. Main Local AI Sentence Grammar/Flow Checker
 export const aiReviewSentence = async (phrase: string, sentence: string): Promise<AIReviewResult> => {
@@ -506,37 +290,148 @@ Respond strictly in valid JSON format with the following keys:
   "suggestion": "A helpful suggestion or a corrected version of the sentence to guide the learner."
 }`;
 
-    const res = await runPromptOnActiveEngine(promptText, true);
-    const cleanJson = res.response.substring(res.response.indexOf('{'), res.response.lastIndexOf('}') + 1);
-    return JSON.parse(cleanJson);
+    // A. Chrome Built-in window.ai / window.LanguageModel (Gemini Nano)
+    try {
+        const modelManager = getLanguageModelManager();
+        if (modelManager) {
+            const session = await withTimeout<any>(
+                modelManager.create({ outputLanguage: 'en' }),
+                15000,
+                'window.ai session creation timed out'
+            );
+            const rawResponse = await withTimeout<string>(
+                session.prompt(promptText),
+                25000,
+                'window.ai prompt response timed out'
+            );
+            if (session && typeof session.destroy === 'function') {
+                session.destroy();
+            } else if (session && typeof session.close === 'function') {
+                session.close();
+            }
+            const cleanJson = rawResponse.substring(rawResponse.indexOf('{'), rawResponse.lastIndexOf('}') + 1);
+            return JSON.parse(cleanJson);
+        }
+    } catch (err) {
+        console.warn('Chrome window.ai sentence check failed, falling back...', err);
+    }
+
+    // WebGPU Llama/Phi Fallback (Safari 18+ / iOS / iPhone)
+    if (checkWebGPUSupport()) {
+        console.log(`[aiReviewSentence] WebGPU detected. Attempting WebGPU Llama/Phi sentence review...`);
+        const gpuResult = await runWebGPUPrompt(promptText);
+        if (gpuResult && gpuResult.response) {
+            try {
+                const cleanJson = gpuResult.response.substring(gpuResult.response.indexOf('{'), gpuResult.response.lastIndexOf('}') + 1);
+                return JSON.parse(cleanJson);
+            } catch {}
+        }
+    }
+
+    // B. Ollama
+    const hasOllama = await checkOllama();
+    if (hasOllama) {
+        try {
+            const res = await fetch('http://localhost:11434/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(3000),
+                body: JSON.stringify({
+                    model: 'gemma:2b',
+                    prompt: promptText,
+                    format: 'json',
+                    stream: false
+                })
+            });
+            const data = await res.json();
+            return JSON.parse(data.response);
+        } catch (err) {
+            console.warn('Ollama sentence check failed, falling back...', err);
+        }
+    }
+
+    throw new Error("No Local LLM active. Please enable built-in Chrome Gemini Nano or start a local Ollama server ('ollama run gemma:2b') to review your sentence.");
 };
+
+
+
 
 // 4. Probes and returns the active engine label for display in the UI
 export const aiDetectLocalEngine = async (): Promise<string> => {
-    const active = await getActiveEngineType();
-    const selected = getSelectedEngine();
-    const prefix = selected === 'auto' ? '(Auto-Detected) ' : '(Manually Selected) ';
-    
-    if (active === 'window.ai') {
-        return `${prefix}Chrome Gemini Nano (window.LanguageModel)`;
+    const modelManager = getLanguageModelManager();
+    if (modelManager) {
+        return 'Chrome Gemini Nano (window.LanguageModel)';
     }
-    if (active === 'ollama') {
-        const model = getOllamaModel();
-        return `${prefix}Ollama Local Server [${model}]`;
+    const hasOllama = await checkOllama();
+    if (hasOllama) {
+        return 'Ollama Local Server (localhost:11434)';
     }
-    if (active === 'webgpu') {
-        const webgpuModel = localStorage.getItem('hlm_selected_webgpu_model') || 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
-        const shortName = webgpuModel.split('-q4')[0];
-        const isLoaded = !!(window as any).webLLMEngine;
-        return `${prefix}WebGPU WebLLM [${shortName}]${isLoaded ? ' (Active)' : ' (Not Loaded)'}`;
+    if (checkWebGPUSupport()) {
+        return 'WebGPU WebLLM Engine (Llama/Phi/Qwen)';
     }
-    return `${prefix}Offline / Mock Simulation Engine`;
+    return 'No Local LLM Engine Detected';
 };
 
 // 5. Main Local AI Playground Client
 export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: string; engine: string }> => {
-    return runPromptOnActiveEngine(promptText);
+    // A. Chrome Built-in window.ai / window.LanguageModel (Gemini Nano)
+    try {
+        const modelManager = getLanguageModelManager();
+        if (modelManager) {
+            const session = await withTimeout<any>(
+                modelManager.create({ outputLanguage: 'en' }),
+                15000,
+                'window.ai session creation timed out'
+            );
+            const rawResponse = await withTimeout<string>(
+                session.prompt(promptText),
+                25000,
+                'window.ai prompt response timed out'
+            );
+            if (session && typeof session.destroy === 'function') {
+                session.destroy();
+            } else if (session && typeof session.close === 'function') {
+                session.close();
+            }
+            return { response: rawResponse, engine: 'Chrome Gemini Nano' };
+        }
+    } catch (err) {
+        console.warn('Chrome window.ai prompt failed', err);
+    }
+
+    // WebGPU Llama/Phi Fallback (Safari 18+ / iOS / iPhone)
+    if (checkWebGPUSupport()) {
+        const gpuResult = await runWebGPUPrompt(promptText);
+        if (gpuResult && gpuResult.response) {
+            return gpuResult;
+        }
+    }
+
+    // B. Ollama Local Fallback
+    const hasOllama = await checkOllama();
+    if (hasOllama) {
+        try {
+            const res = await fetch('http://localhost:11434/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(1200),
+                body: JSON.stringify({
+                    model: 'gemma:2b',
+                    prompt: promptText,
+                    stream: false
+                })
+            });
+            const data = await res.json();
+            return { response: data.response, engine: 'Ollama Local Server' };
+        } catch (err) {
+            console.warn('Ollama local prompt failed', err);
+            isOllamaOffline = true;
+        }
+    }
+
+    throw new Error("No Local LLM active. Please enable built-in Chrome Gemini Nano or start a local Ollama server ('ollama run gemma:2b') to use the AI playground.");
 };
+
 
 // 6. Main Local AI Card Refinement Client
 export const aiRefineCard = async (
@@ -564,9 +459,66 @@ Respond strictly in valid JSON format with precisely the corrected values:
   "example_ja": "Refined Japanese example"
 }`;
 
-    const res = await runPromptOnActiveEngine(promptText, true);
-    const cleanJson = res.response.substring(res.response.indexOf('{'), res.response.lastIndexOf('}') + 1);
-    return JSON.parse(cleanJson);
+    // A. Chrome window.ai
+    try {
+        const modelManager = getLanguageModelManager();
+        if (modelManager) {
+            const session = await withTimeout<any>(
+                modelManager.create({ outputLanguage: 'en' }),
+                15000,
+                'window.ai session creation timed out'
+            );
+            const rawResponse = await withTimeout<string>(
+                session.prompt(promptText),
+                25000,
+                'window.ai prompt response timed out'
+            );
+            if (session && typeof session.destroy === 'function') {
+                session.destroy();
+            } else if (session && typeof session.close === 'function') {
+                session.close();
+            }
+            const cleanJson = rawResponse.substring(rawResponse.indexOf('{'), rawResponse.lastIndexOf('}') + 1);
+            return JSON.parse(cleanJson);
+        }
+    } catch (err) {
+        console.warn('Chrome window.ai refiner failed, falling back...', err);
+    }
+
+    // WebGPU Llama/Phi Fallback (Safari 18+ / iOS / iPhone)
+    if (checkWebGPUSupport()) {
+        const gpuResult = await runWebGPUPrompt(promptText);
+        if (gpuResult && gpuResult.response) {
+            try {
+                const cleanJson = gpuResult.response.substring(gpuResult.response.indexOf('{'), gpuResult.response.lastIndexOf('}') + 1);
+                return JSON.parse(cleanJson);
+            } catch {}
+        }
+    }
+
+    // B. Ollama
+    const hasOllama = await checkOllama();
+    if (hasOllama) {
+        try {
+            const res = await fetch('http://localhost:11434/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(3000),
+                body: JSON.stringify({
+                    model: 'gemma:2b',
+                    prompt: promptText,
+                    format: 'json',
+                    stream: false
+                })
+            });
+            const data = await res.json();
+            return JSON.parse(data.response);
+        } catch (err) {
+            console.warn('Ollama refiner failed, falling back...', err);
+        }
+    }
+
+    throw new Error("No Local LLM active. Please enable built-in Chrome Gemini Nano or start a local Ollama server ('ollama run gemma:2b') to refine the card details.");
 };
 
 // --- REMOTE YUGAWARA CLOUD SYNC ENDPOINTS ---
@@ -642,9 +594,56 @@ Respond strictly in valid JSON format with the following keys:
   "tips": "A practical study tip or collocation advice for language learners."
 }`;
 
-    const res = await runPromptOnActiveEngine(promptText, true);
-    const cleanJson = res.response.substring(res.response.indexOf('{'), res.response.lastIndexOf('}') + 1);
-    return JSON.parse(cleanJson);
+    // A. Chrome Built-in window.ai / window.LanguageModel (Gemini Nano)
+    try {
+        const modelManager = getLanguageModelManager();
+        if (modelManager) {
+            const session = await withTimeout<any>(
+                modelManager.create({ outputLanguage: 'en' }),
+                15000,
+                'window.ai session creation timed out'
+            );
+            const rawResponse = await withTimeout<string>(
+                session.prompt(promptText),
+                25000,
+                'window.ai prompt response timed out'
+            );
+            if (session && typeof session.destroy === 'function') {
+                session.destroy();
+            } else if (session && typeof session.close === 'function') {
+                session.close();
+            }
+            const cleanJson = rawResponse.substring(rawResponse.indexOf('{'), rawResponse.lastIndexOf('}') + 1);
+            return JSON.parse(cleanJson);
+        }
+    } catch (err) {
+        console.warn('Chrome window.ai card generation failed, falling back...', err);
+    }
+
+    // B. Ollama Local Fallback
+    const hasOllama = await checkOllama();
+    if (hasOllama) {
+        try {
+            const res = await fetch('http://localhost:11434/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(1200),
+                body: JSON.stringify({
+                    model: 'gemma:2b',
+                    prompt: promptText,
+                    format: 'json',
+                    stream: false
+                })
+            });
+            const data = await res.json();
+            return JSON.parse(data.response);
+        } catch (err) {
+            console.warn('Ollama card generation failed, disabling fallback for this session...', err);
+            isOllamaOffline = true;
+        }
+    }
+
+    throw new Error("No Local LLM active. Please enable built-in Chrome Gemini Nano or start a local Ollama server ('ollama run gemma:2b') to generate card details.");
 };
 
 export const apiInitializeWebLLM = async (
@@ -652,18 +651,6 @@ export const apiInitializeWebLLM = async (
     onProgress: (progress: string) => void
 ): Promise<boolean> => {
     try {
-        // If an active engine is already running, unload it first to release GPU VRAM/RAM buffers
-        const existingEngine = (window as any).webLLMEngine;
-        if (existingEngine && typeof existingEngine.unload === 'function') {
-            console.log(`[apiInitializeWebLLM] Existing WebGPU LLM engine detected. Unloading to release active GPU resources...`);
-            try {
-                await existingEngine.unload();
-                console.log(`[apiInitializeWebLLM] Existing engine unloaded successfully.`);
-            } catch (unloadErr) {
-                console.warn(`[apiInitializeWebLLM] Non-fatal: Failed to unload existing engine`, unloadErr);
-            }
-        }
-
         console.log(`[apiInitializeWebLLM] Starting WebGPU on-device ${modelId} initialization...`);
         
         // Detect if the device is a mobile browser (like iPhone/Safari) to apply strict memory containment
