@@ -1296,8 +1296,18 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
           rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
         }
         
-        const parsed = JSON.parse(rawText);
-        const parsedArray = Array.isArray(parsed) ? parsed : [parsed];
+        let parsedArray: any[] = [];
+        try {
+          const cleanedArray = rawText.replace(/,\s*([\]])/g, '$1').trim();
+          const parsed = JSON.parse(cleanedArray);
+          parsedArray = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (arrayErr) {
+          console.warn('[handleLocalCardGeneration] Standard JSON array parse failed, falling back to regex extraction...', arrayErr);
+          const matches = rawText.match(/"([^"\\]*(?:\\.[^"\\]*)*)"/g);
+          if (matches) {
+            parsedArray = matches.map(m => m.slice(1, -1).replace(/\\"/g, '"').trim()).filter(Boolean);
+          }
+        }
         
         for (const item of parsedArray) {
           const phraseStr = typeof item === 'string' ? item.trim() : (item.phrase || '').trim();

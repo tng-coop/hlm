@@ -186,6 +186,47 @@ const getLanguageModelManager = () => {
     return null;
 };
 
+// Extremely resilient JSON parser to clean and extract keys even from mangled outputs of small local models (like Qwen 0.5B)
+const robustJsonParse = (rawText: string, expectedKeys: string[]): any => {
+    let cleaned = rawText.trim();
+    
+    // Extract JSON block if surrounded by conversational prefix/suffix
+    const startBrace = cleaned.indexOf('{');
+    const endBrace = cleaned.lastIndexOf('}');
+    if (startBrace !== -1 && endBrace !== -1) {
+        cleaned = cleaned.substring(startBrace, endBrace + 1);
+    }
+    
+    // Clean trailing commas in objects and arrays before parsing
+    cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+    
+    try {
+        return JSON.parse(cleaned);
+    } catch (e) {
+        console.warn("[robustJsonParse] Standard parsing failed, running heuristic regex extraction fallback...", e);
+    }
+
+    // Heuristic regex extractor as absolute fallback
+    const result: any = {};
+    for (const key of expectedKeys) {
+        // String extraction: match "key": "value"
+        const stringRegex = new RegExp(`["']?${key}["']?\\s*:\\s*["']([^"']*)["']`, 'i');
+        const match = cleaned.match(stringRegex);
+        if (match) {
+            result[key] = match[1].replace(/\\"/g, '"').trim();
+        } else {
+            // Number extraction: match "key": 123
+            const numRegex = new RegExp(`["']?${key}["']?\\s*:\\s*(\\d+)`, 'i');
+            const numMatch = cleaned.match(numRegex);
+            if (numMatch) {
+                result[key] = parseInt(numMatch[1]);
+            }
+        }
+    }
+    
+    return result;
+};
+
 // 2. Main Local AI Explainer Client
 export const aiExplainNuances = async (phrase: string, instructions?: string): Promise<AIExplanationResult> => {
     let promptText = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips". In each key, provide detailed explanations in BOTH English and Japanese (bilingual format, e.g., English text followed by its Japanese translation) to ensure full comprehension for learners.`;
@@ -218,7 +259,7 @@ export const aiExplainNuances = async (phrase: string, instructions?: string): P
                 session.close();
             }
             const cleanJson = rawResponse.substring(rawResponse.indexOf('{'), rawResponse.lastIndexOf('}') + 1);
-            const parsed = JSON.parse(cleanJson);
+            const parsed = robustJsonParse(cleanJson, ['nuance', 'origin', 'tips']);
             console.log(`[aiExplainNuances] Parsed etymology JSON successfully!`, parsed);
             return parsed;
         } else {
@@ -235,7 +276,7 @@ export const aiExplainNuances = async (phrase: string, instructions?: string): P
         if (gpuResult && gpuResult.response) {
             try {
                 const cleanJson = gpuResult.response.substring(gpuResult.response.indexOf('{'), gpuResult.response.lastIndexOf('}') + 1);
-                return JSON.parse(cleanJson);
+                return robustJsonParse(cleanJson, ['nuance', 'origin', 'tips']);
             } catch {}
         }
     }
@@ -258,7 +299,7 @@ export const aiExplainNuances = async (phrase: string, instructions?: string): P
             });
             const data = await res.json();
             console.log(`[aiExplainNuances] Ollama responded successfully! Parsing output...`);
-            const parsed = JSON.parse(data.response);
+            const parsed = robustJsonParse(data.response, ['nuance', 'origin', 'tips']);
             console.log(`[aiExplainNuances] Parsed Ollama JSON successfully!`, parsed);
             return parsed;
         } catch (err) {
@@ -310,7 +351,7 @@ Respond strictly in valid JSON format with the following keys:
                 session.close();
             }
             const cleanJson = rawResponse.substring(rawResponse.indexOf('{'), rawResponse.lastIndexOf('}') + 1);
-            return JSON.parse(cleanJson);
+            return robustJsonParse(cleanJson, ['score', 'grammar', 'flow', 'suggestion']);
         }
     } catch (err) {
         console.warn('Chrome window.ai sentence check failed, falling back...', err);
@@ -323,7 +364,7 @@ Respond strictly in valid JSON format with the following keys:
         if (gpuResult && gpuResult.response) {
             try {
                 const cleanJson = gpuResult.response.substring(gpuResult.response.indexOf('{'), gpuResult.response.lastIndexOf('}') + 1);
-                return JSON.parse(cleanJson);
+                return robustJsonParse(cleanJson, ['score', 'grammar', 'flow', 'suggestion']);
             } catch {}
         }
     }
@@ -344,7 +385,7 @@ Respond strictly in valid JSON format with the following keys:
                 })
             });
             const data = await res.json();
-            return JSON.parse(data.response);
+            return robustJsonParse(data.response, ['score', 'grammar', 'flow', 'suggestion']);
         } catch (err) {
             console.warn('Ollama sentence check failed, falling back...', err);
         }
@@ -479,7 +520,7 @@ Respond strictly in valid JSON format with precisely the corrected values:
                 session.close();
             }
             const cleanJson = rawResponse.substring(rawResponse.indexOf('{'), rawResponse.lastIndexOf('}') + 1);
-            return JSON.parse(cleanJson);
+            return robustJsonParse(cleanJson, ['phrase', 'meaning_en', 'meaning_ja', 'example_en', 'example_ja']);
         }
     } catch (err) {
         console.warn('Chrome window.ai refiner failed, falling back...', err);
@@ -491,7 +532,7 @@ Respond strictly in valid JSON format with precisely the corrected values:
         if (gpuResult && gpuResult.response) {
             try {
                 const cleanJson = gpuResult.response.substring(gpuResult.response.indexOf('{'), gpuResult.response.lastIndexOf('}') + 1);
-                return JSON.parse(cleanJson);
+                return robustJsonParse(cleanJson, ['phrase', 'meaning_en', 'meaning_ja', 'example_en', 'example_ja']);
             } catch {}
         }
     }
@@ -512,7 +553,7 @@ Respond strictly in valid JSON format with precisely the corrected values:
                 })
             });
             const data = await res.json();
-            return JSON.parse(data.response);
+            return robustJsonParse(data.response, ['phrase', 'meaning_en', 'meaning_ja', 'example_en', 'example_ja']);
         } catch (err) {
             console.warn('Ollama refiner failed, falling back...', err);
         }
@@ -614,10 +655,21 @@ Respond strictly in valid JSON format with the following keys:
                 session.close();
             }
             const cleanJson = rawResponse.substring(rawResponse.indexOf('{'), rawResponse.lastIndexOf('}') + 1);
-            return JSON.parse(cleanJson);
+            return robustJsonParse(cleanJson, ['phrase', 'category', 'used_in_us', 'used_in_uk', 'meaning_en', 'meaning_ja', 'example_en', 'example_ja', 'nuance', 'origin', 'tips']);
         }
     } catch (err) {
         console.warn('Chrome window.ai card generation failed, falling back...', err);
+    }
+
+    // WebGPU Llama/Phi Fallback (Safari 18+ / iOS / iPhone)
+    if (checkWebGPUSupport()) {
+        const gpuResult = await runWebGPUPrompt(promptText);
+        if (gpuResult && gpuResult.response) {
+            try {
+                const cleanJson = gpuResult.response.substring(gpuResult.response.indexOf('{'), gpuResult.response.lastIndexOf('}') + 1);
+                return robustJsonParse(cleanJson, ['phrase', 'category', 'used_in_us', 'used_in_uk', 'meaning_en', 'meaning_ja', 'example_en', 'example_ja', 'nuance', 'origin', 'tips']);
+            } catch {}
+        }
     }
 
     // B. Ollama Local Fallback
@@ -636,7 +688,7 @@ Respond strictly in valid JSON format with the following keys:
                 })
             });
             const data = await res.json();
-            return JSON.parse(data.response);
+            return robustJsonParse(data.response, ['phrase', 'category', 'used_in_us', 'used_in_uk', 'meaning_en', 'meaning_ja', 'example_en', 'example_ja', 'nuance', 'origin', 'tips']);
         } catch (err) {
             console.warn('Ollama card generation failed, disabling fallback for this session...', err);
             isOllamaOffline = true;
