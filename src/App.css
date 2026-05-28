@@ -604,6 +604,15 @@ option {
   .glass-card {
     padding: 1.2rem;
     border-radius: var(--radius-lg);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(18, 18, 24, 0.95) !important; /* Premium dark translucent solid fallback for GPU stability */
+  }
+
+  .study-card-front, .study-card-back {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(30, 30, 40, 0.98) !important;
   }
 
   .dashboard-grid {
