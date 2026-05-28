@@ -811,7 +811,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
   const [isWebLLMInitializing, setIsWebLLMInitializing] = useState(false);
   const [webLLMInitProgress, setWebLLMInitProgress] = useState('');
   const [webLLMInitError, setWebLLMInitError] = useState<string | null>(null);
-  const [selectedWebGPUModel, setSelectedWebGPUModel] = useState('Llama-3.2-3B-Instruct-q4f16_1-MLC');
+  const [selectedWebGPUModel, setSelectedWebGPUModel] = useState('Qwen2.5-1.5B-Instruct-q4f16_1-MLC');
 
   const handleActivateWebGPU = async () => {
     setIsWebLLMInitializing(true);
@@ -4530,11 +4530,12 @@ Respond strictly in valid JSON format with the following keys:
                         fontFamily: 'inherit'
                       }}
                     >
-                      <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama-3.2-3B-Instruct (Recommended for Latest iPhone) [~1.8GB]</option>
-                      <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Qwen2.5-3B-Instruct (Excellent Bilingual Reasoning) [~1.8GB]</option>
-                      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5-1.5B-Instruct (Balanced Speed & Quality) [~900MB]</option>
-                      <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen2.5-0.5B-Instruct (Default - Ultra Lightweight) [~350MB]</option>
-                      <option value="Llama-3-8B-Instruct-q4f16_1-MLC">Llama-3-8B-Instruct (Extreme Reasoning - Requires 8GB+ RAM iPhone) [~4.5GB]</option>
+                      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5-1.5B-Instruct (🌟 Recommended Sweet Spot for iPhones) [~900MB]</option>
+                      <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama-3.2-1B-Instruct (Highly Stable & Compact) [~600MB]</option>
+                      <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen2.5-0.5B-Instruct (Ultra Fast / Low Resource) [~350MB]</option>
+                      <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama-3.2-3B-Instruct (Desktop Only - Will crash iOS Safari!) [~1.8GB]</option>
+                      <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Qwen2.5-3B-Instruct (Desktop Only - Will crash iOS Safari!) [~1.8GB]</option>
+                      <option value="Llama-3-8B-Instruct-q4f16_1-MLC">Llama-3-8B-Instruct (Desktop Only - Will crash iOS Safari!) [~4.5GB]</option>
                     </select>
                   </div>
 
