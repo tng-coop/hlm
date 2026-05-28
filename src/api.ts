@@ -14,6 +14,7 @@ import {
     localUpdatePhrase
 } from './localData';
 import type { Phrase, LearningStats } from './types';
+import { CreateMLCEngine } from '@mlc-ai/web-llm';
 
 // Initialize the local browser database storage immediately on load
 initLocalData();
@@ -643,4 +644,24 @@ Respond strictly in valid JSON format with the following keys:
     }
 
     throw new Error("No Local LLM active. Please enable built-in Chrome Gemini Nano or start a local Ollama server ('ollama run gemma:2b') to generate card details.");
+};
+
+export const apiInitializeWebLLM = async (
+    onProgress: (progress: string) => void
+): Promise<boolean> => {
+    try {
+        console.log(`[apiInitializeWebLLM] Starting WebGPU on-device Qwen-0.5B initialization...`);
+        const engine = await CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
+            initProgressCallback: (report) => {
+                console.log(`[WebLLM Progress]`, report.text);
+                onProgress(report.text);
+            }
+        });
+        (window as any).webLLMEngine = engine;
+        console.log(`[apiInitializeWebLLM] Success! WebGPU LLM engine registered in window.webLLMEngine`);
+        return true;
+    } catch (err: any) {
+        console.error('[apiInitializeWebLLM] Failed to initialize MLC WebLLM engine', err);
+        throw err;
+    }
 };

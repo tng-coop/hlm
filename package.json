@@ -19,6 +19,7 @@
     "postinstall": "lefthook install"
   },
   "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.84",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "recharts": "^3.8.1"

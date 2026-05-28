@@ -26,6 +26,7 @@ import {
   apiSyncVerifyCode,
   apiSyncPush,
   apiSyncPull,
+  apiInitializeWebLLM,
   type AIReviewResult,
   type AIExplanationResult
 } from './api';
@@ -806,6 +807,32 @@ Provide a highly informative, encouraging, and clear response to help the user m
   const [detectedEngine, setDetectedEngine] = useState('Detecting...');
   const isLLMUnavailable = detectedEngine.includes('No Local LLM') || detectedEngine.includes('No LLM Detected');
   const [isSendingPrompt, setIsSendingPrompt] = useState(false);
+
+  const [isWebLLMInitializing, setIsWebLLMInitializing] = useState(false);
+  const [webLLMInitProgress, setWebLLMInitProgress] = useState('');
+  const [webLLMInitError, setWebLLMInitError] = useState<string | null>(null);
+
+  const handleActivateWebGPU = async () => {
+    setIsWebLLMInitializing(true);
+    setWebLLMInitProgress('Initializing browser WebGPU interface...');
+    setWebLLMInitError(null);
+    try {
+      const success = await apiInitializeWebLLM((progress) => {
+        setWebLLMInitProgress(progress);
+      });
+      if (success) {
+        setWebLLMInitProgress('WebGPU model weights successfully loaded and cached in your browser cache!');
+        const engineLabel = await aiDetectLocalEngine();
+        setDetectedEngine(engineLabel);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setWebLLMInitError(err.message || 'WebGPU initialization failed. Please make sure WebGPU is supported and enabled in your browser flags.');
+      setWebLLMInitProgress('');
+    } finally {
+      setIsWebLLMInitializing(false);
+    }
+  };
 
   // AI card generation states for revamped single-input form
   const [isGeneratingCard, setIsGeneratingCard] = useState(false);
@@ -4462,6 +4489,74 @@ Respond strictly in valid JSON format with the following keys:
                   <strong>{t('lbl_detected_llm')}:</strong> <span style={{ color: isLLMUnavailable ? '#ef4444' : '#fff', marginLeft: '0.3rem' }}>{detectedEngine}</span>
                 </span>
               </div>
+
+              {isLLMUnavailable && (
+                <div style={{
+                  marginTop: '1.2rem',
+                  padding: '1.2rem',
+                  background: 'rgba(139, 92, 246, 0.05)',
+                  border: '1px dashed #8b5cf6',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1rem',
+                  maxWidth: '520px'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <h5 style={{ margin: 0, fontSize: '0.95rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      🚀 On-Device WebGPU LLM Activator
+                    </h5>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                      You can download and run a real, 100% private LLM model (Qwen-0.5B, ~350MB) directly inside Safari/Chrome using Apple Silicon GPU cores. Once loaded, all local AI features will become active offline!
+                    </p>
+                  </div>
+
+                  {webLLMInitProgress && (
+                    <div style={{
+                      padding: '0.8rem',
+                      background: 'rgba(0,0,0,0.2)',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      color: '#a78bfa',
+                      fontFamily: 'monospace',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all'
+                    }}>
+                      {webLLMInitProgress}
+                    </div>
+                  )}
+
+                  {webLLMInitError && (
+                    <div style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                      ❌ {webLLMInitError}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={isWebLLMInitializing}
+                    onClick={handleActivateWebGPU}
+                    style={{
+                      alignSelf: 'flex-start',
+                      padding: '0.6rem 1.2rem',
+                      fontSize: '0.85rem',
+                      background: '#8b5cf6',
+                      border: '1px solid #8b5cf6',
+                      color: '#fff',
+                      borderRadius: '6px',
+                      fontWeight: 'bold',
+                      cursor: isWebLLMInitializing ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {isWebLLMInitializing ? <span className="spinner" style={{ width: '12px', height: '12px', borderLeftColor: '#fff' }} /> : '⚡'}
+                    {isWebLLMInitializing ? 'Initializing Shader Shards...' : 'Activate WebGPU Local LLM'}
+                  </button>
+                </div>
+              )}
 
               {/* Prompt Sandbox Form */}
               <form onSubmit={handleSendPrompt} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1.5rem' }}>
