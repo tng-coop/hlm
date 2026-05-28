@@ -817,6 +817,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
   const [sandboxResponse, setSandboxResponse] = useState('');
   const [sandboxResponseEngine, setSandboxResponseEngine] = useState('');
   const [detectedEngine, setDetectedEngine] = useState('Detecting...');
+  const isLLMUnavailable = detectedEngine.includes('No Local LLM') || detectedEngine.includes('No LLM Detected');
   const [isSendingPrompt, setIsSendingPrompt] = useState(false);
 
   // AI card generation states for revamped single-input form
@@ -3220,27 +3221,28 @@ Respond strictly in valid JSON format with the following keys:
                   <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
                     <button
                       type="button"
-                      disabled={isGeneratingCard}
+                      disabled={isGeneratingCard || isLLMUnavailable}
                       onClick={handleGenerateWithLocalAI}
                       style={{
                         padding: '0.6rem 1.2rem',
                         fontSize: '0.85rem',
-                        background: 'rgba(245, 158, 11, 0.12)',
-                        border: '1px solid #f59e0b',
-                        color: '#f59e0b',
+                        background: isLLMUnavailable ? 'rgba(239, 68, 68, 0.05)' : 'rgba(245, 158, 11, 0.12)',
+                        border: isLLMUnavailable ? '1px solid #ef4444' : '1px solid #f59e0b',
+                        color: isLLMUnavailable ? '#ef4444' : '#f59e0b',
                         borderRadius: '6px',
                         fontWeight: 'bold',
-                        cursor: isGeneratingCard ? 'not-allowed' : 'pointer',
+                        cursor: (isGeneratingCard || isLLMUnavailable) ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '0.4rem',
+                        opacity: isLLMUnavailable ? 0.6 : 1,
                         transition: 'all 0.2s'
                       }}
-                      onMouseEnter={(e) => { if (!isGeneratingCard) e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)' }}
-                      onMouseLeave={(e) => { if (!isGeneratingCard) e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)' }}
+                      onMouseEnter={(e) => { if (!isGeneratingCard && !isLLMUnavailable) e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)' }}
+                      onMouseLeave={(e) => { if (!isGeneratingCard && !isLLMUnavailable) e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)' }}
                     >
-                      {isGeneratingCard ? '⏳ Generating...' : '🤖 Generate with Local AI'}
+                      {isGeneratingCard ? '⏳ Generating...' : isLLMUnavailable ? '🤖 Local AI Unavailable' : '🤖 Generate with Local AI'}
                     </button>
 
                     <button
@@ -3964,24 +3966,25 @@ Respond strictly in valid JSON format with the following keys:
                                           <button
                                             type="button"
                                             className="btn-secondary"
-                                            disabled={loadingBlogs[phrase.id]}
+                                            disabled={loadingBlogs[phrase.id] || isLLMUnavailable}
                                             style={{
                                               padding: '0.6rem 1.2rem',
                                               fontSize: '0.85rem',
-                                              background: 'rgba(139, 92, 246, 0.15)',
-                                              border: '1px solid #8b5cf6',
-                                              color: '#c084fc',
+                                              background: isLLMUnavailable ? 'rgba(239, 68, 68, 0.05)' : 'rgba(139, 92, 246, 0.15)',
+                                              border: isLLMUnavailable ? '1px solid #ef4444' : '1px solid #8b5cf6',
+                                              color: isLLMUnavailable ? '#ef4444' : '#c084fc',
                                               borderRadius: '6px',
                                               fontWeight: 'bold',
-                                              cursor: 'pointer',
+                                              cursor: (loadingBlogs[phrase.id] || isLLMUnavailable) ? 'not-allowed' : 'pointer',
                                               display: 'flex',
                                               alignItems: 'center',
                                               gap: '0.4rem',
+                                              opacity: isLLMUnavailable ? 0.6 : 1,
                                               transition: 'all 0.2s'
                                             }}
                                             onClick={() => handleLoadBlog(phrase.id, phrase.phrase)}
                                           >
-                                            {loadingBlogs[phrase.id] ? '⏳ Generating Editorial...' : '📖 Generate with Local AI'}
+                                            {loadingBlogs[phrase.id] ? '⏳ Generating Editorial...' : isLLMUnavailable ? '📖 Local AI Unavailable' : '📖 Generate with Local AI'}
                                           </button>
                                           
                                           <button
@@ -4183,19 +4186,20 @@ Respond strictly in valid JSON format with the following keys:
                                                     <button
                                                       type="button"
                                                       className="btn-secondary"
-                                                      disabled={loadingBlogs[phrase.id]}
+                                                      disabled={loadingBlogs[phrase.id] || isLLMUnavailable}
                                                       style={{
                                                         padding: '0.5rem 1rem',
                                                         fontSize: '0.8rem',
-                                                        background: 'rgba(139, 92, 246, 0.15)',
-                                                        border: '1px solid #8b5cf6',
-                                                        color: '#c084fc',
+                                                        background: isLLMUnavailable ? 'rgba(239, 68, 68, 0.05)' : 'rgba(139, 92, 246, 0.15)',
+                                                        border: isLLMUnavailable ? '1px solid #ef4444' : '1px solid #8b5cf6',
+                                                        color: isLLMUnavailable ? '#ef4444' : '#c084fc',
                                                         borderRadius: '6px',
                                                         fontWeight: 'bold',
-                                                        cursor: loadingBlogs[phrase.id] ? 'not-allowed' : 'pointer',
+                                                        cursor: (loadingBlogs[phrase.id] || isLLMUnavailable) ? 'not-allowed' : 'pointer',
                                                         display: 'flex',
                                                         alignItems: 'center',
                                                         gap: '0.4rem',
+                                                        opacity: isLLMUnavailable ? 0.6 : 1,
                                                         transition: 'all 0.2s'
                                                       }}
                                                       onClick={() => handleLoadBlog(phrase.id, phrase.phrase, etymologyInstructions[phrase.id])}
@@ -4462,10 +4466,10 @@ Respond strictly in valid JSON format with the following keys:
               </p>
               
               {/* Active Engine Badge */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.2rem', padding: '0.8rem 1.2rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '8px', width: 'fit-content' }}>
-                <span style={{ width: '8px', height: '8px', background: '#10b981', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px #10b981' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.2rem', padding: '0.8rem 1.2rem', background: isLLMUnavailable ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255,255,255,0.02)', border: isLLMUnavailable ? '1px solid #ef4444' : '1px solid var(--border)', borderRadius: '8px', width: 'fit-content' }}>
+                <span style={{ width: '8px', height: '8px', background: isLLMUnavailable ? '#ef4444' : '#10b981', borderRadius: '50%', display: 'inline-block', boxShadow: isLLMUnavailable ? '0 0 8px #ef4444' : '0 0 8px #10b981' }} />
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  <strong>{t('lbl_detected_llm')}:</strong> <span style={{ color: '#fff', marginLeft: '0.3rem' }}>{detectedEngine}</span>
+                  <strong>{t('lbl_detected_llm')}:</strong> <span style={{ color: isLLMUnavailable ? '#ef4444' : '#fff', marginLeft: '0.3rem' }}>{detectedEngine}</span>
                 </span>
               </div>
 
@@ -4474,9 +4478,10 @@ Respond strictly in valid JSON format with the following keys:
                 <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <textarea
                     data-testid="sandbox-textarea"
-                    placeholder={t('ph_prompt')}
+                    placeholder={isLLMUnavailable ? 'Local AI is currently offline. Please run a local Ollama server, enable built-in Chrome Gemini Nano, or activate WebGPU on-device weights to start testing.' : t('ph_prompt')}
                     value={sandboxPrompt}
                     onChange={(e) => setSandboxPrompt(e.target.value)}
+                    disabled={isLLMUnavailable}
                     style={{ 
                       padding: '1rem', 
                       background: 'rgba(0,0,0,0.2)', 
@@ -4487,7 +4492,9 @@ Respond strictly in valid JSON format with the following keys:
                       minHeight: '120px', 
                       fontFamily: 'inherit',
                       fontSize: '1rem',
-                      lineHeight: '1.5'
+                      lineHeight: '1.5',
+                      opacity: isLLMUnavailable ? 0.6 : 1,
+                      cursor: isLLMUnavailable ? 'not-allowed' : 'text'
                     }}
                   />
                 </div>
@@ -4496,11 +4503,11 @@ Respond strictly in valid JSON format with the following keys:
                   type="submit" 
                   data-testid="sandbox-submit"
                   className="btn-primary" 
-                  disabled={isSendingPrompt || !sandboxPrompt.trim()}
-                  style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                  disabled={isSendingPrompt || isLLMUnavailable || !sandboxPrompt.trim()}
+                  style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '0.5rem', background: isLLMUnavailable ? '#333' : 'var(--primary)', borderColor: isLLMUnavailable ? '#444' : 'var(--primary)', color: isLLMUnavailable ? '#888' : '#fff', cursor: isLLMUnavailable ? 'not-allowed' : 'pointer' }}
                 >
                   {isSendingPrompt ? <span className="spinner" /> : null}
-                  {t('btn_send_prompt')}
+                  {isLLMUnavailable ? 'Local AI Offline' : t('btn_send_prompt')}
                 </button>
               </form>
             </div>
@@ -5452,27 +5459,28 @@ Respond strictly in valid JSON format with the following keys:
                   />
                   <button
                     type="button"
-                    disabled={isRefining}
+                    disabled={isRefining || isLLMUnavailable}
                     onClick={handleAIRefine}
                     style={{
                       padding: '0.5rem 1rem',
                       fontSize: '0.8rem',
-                      background: 'rgba(245, 158, 11, 0.12)',
-                      border: '1px solid #f59e0b',
-                      color: '#f59e0b',
+                      background: isLLMUnavailable ? 'rgba(239, 68, 68, 0.05)' : 'rgba(245, 158, 11, 0.12)',
+                      border: isLLMUnavailable ? '1px solid #ef4444' : '1px solid #f59e0b',
+                      color: isLLMUnavailable ? '#ef4444' : '#f59e0b',
                       borderRadius: '6px',
                       fontWeight: 'bold',
-                      cursor: isRefining ? 'not-allowed' : 'pointer',
+                      cursor: (isRefining || isLLMUnavailable) ? 'not-allowed' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: '0.4rem',
+                      opacity: isLLMUnavailable ? 0.6 : 1,
                       transition: 'all 0.2s'
                     }}
-                    onMouseEnter={(e) => { if (!isRefining) e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)'; }}
-                    onMouseLeave={(e) => { if (!isRefining) e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)'; }}
+                    onMouseEnter={(e) => { if (!isRefining && !isLLMUnavailable) e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)'; }}
+                    onMouseLeave={(e) => { if (!isRefining && !isLLMUnavailable) e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)'; }}
                   >
-                    {isRefining ? '⏳ ' + t('msg_refine_loading') : t('btn_ai_polish')}
+                    {isRefining ? '⏳ ' + t('msg_refine_loading') : isLLMUnavailable ? '🤖 Local AI Unavailable' : t('btn_ai_polish')}
                   </button>
                 </div>
 
