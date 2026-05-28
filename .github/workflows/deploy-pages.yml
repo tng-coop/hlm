@@ -60,11 +60,11 @@ jobs:
             const fs = require('fs');
             if (!fs.existsSync('dist/manual-en.html')) throw 'Missing manual-en.html in bundle';
             if (!fs.existsSync('dist/manual-jp.html')) throw 'Missing manual-jp.html in bundle';
-            const expected = ['01-dashboard-en.png', '01-dashboard-jp.png', '02-members-en.png', '02-members-jp.png', '03-contributions-en.png', '03-contributions-jp.png', '04-print-labels-en.png', '04-print-labels-jp.png'];
+            const expected = ['hlm-screenshot.png', 'hlm-dashboard.png', 'hlm-study.png', 'hlm-sandbox.png', 'hlm-sync.png'];
             for (const img of expected) {
               if (!fs.existsSync('dist/screenshots/' + img)) throw new Error('MISSING ASSET (404 RISK): ' + img);
             }
-            console.log('✅ All 8 translated EN/JP documentation images and split static manuals successfully verified against the build artifact.');
+            console.log('✅ All 5 HLM documentation screenshot assets and split static manuals successfully verified against the build artifact.');
           "
 
       - name: Upload artifact
