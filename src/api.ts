@@ -275,8 +275,7 @@ export const aiExplainNuances = async (phrase: string, instructions?: string): P
         const gpuResult = await runWebGPUPrompt(promptText);
         if (gpuResult && gpuResult.response) {
             try {
-                const cleanJson = gpuResult.response.substring(gpuResult.response.indexOf('{'), gpuResult.response.lastIndexOf('}') + 1);
-                return robustJsonParse(cleanJson, ['nuance', 'origin', 'tips']);
+                return robustJsonParse(gpuResult.response, ['nuance', 'origin', 'tips']);
             } catch {}
         }
     }
@@ -363,8 +362,7 @@ Respond strictly in valid JSON format with the following keys:
         const gpuResult = await runWebGPUPrompt(promptText);
         if (gpuResult && gpuResult.response) {
             try {
-                const cleanJson = gpuResult.response.substring(gpuResult.response.indexOf('{'), gpuResult.response.lastIndexOf('}') + 1);
-                return robustJsonParse(cleanJson, ['score', 'grammar', 'flow', 'suggestion']);
+                return robustJsonParse(gpuResult.response, ['score', 'grammar', 'flow', 'suggestion']);
             } catch {}
         }
     }
@@ -531,8 +529,7 @@ Respond strictly in valid JSON format with precisely the corrected values:
         const gpuResult = await runWebGPUPrompt(promptText);
         if (gpuResult && gpuResult.response) {
             try {
-                const cleanJson = gpuResult.response.substring(gpuResult.response.indexOf('{'), gpuResult.response.lastIndexOf('}') + 1);
-                return robustJsonParse(cleanJson, ['phrase', 'meaning_en', 'meaning_ja', 'example_en', 'example_ja']);
+                return robustJsonParse(gpuResult.response, ['phrase', 'meaning_en', 'meaning_ja', 'example_en', 'example_ja']);
             } catch {}
         }
     }
@@ -666,8 +663,7 @@ Respond strictly in valid JSON format with the following keys:
         const gpuResult = await runWebGPUPrompt(promptText);
         if (gpuResult && gpuResult.response) {
             try {
-                const cleanJson = gpuResult.response.substring(gpuResult.response.indexOf('{'), gpuResult.response.lastIndexOf('}') + 1);
-                return robustJsonParse(cleanJson, ['phrase', 'category', 'used_in_us', 'used_in_uk', 'meaning_en', 'meaning_ja', 'example_en', 'example_ja', 'nuance', 'origin', 'tips']);
+                return robustJsonParse(gpuResult.response, ['phrase', 'category', 'used_in_us', 'used_in_uk', 'meaning_en', 'meaning_ja', 'example_en', 'example_ja', 'nuance', 'origin', 'tips']);
             } catch {}
         }
     }
