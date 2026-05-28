@@ -3354,7 +3354,7 @@ Respond strictly in valid JSON format with the following keys:
                       onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'}
                       onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
                     >
-                      📋 {copiedCreatePrompt ? t('lbl_copied') : 'Copy Prompt for Commercial LLM'}
+                      📋 {copiedCreatePrompt ? t('lbl_copied') : 'Reality Check (Commercial LLM)'}
                     </button>
                   </div>
 
@@ -4100,7 +4100,7 @@ Respond strictly in valid JSON format with the following keys:
                                             onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'}
                                             onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
                                           >
-                                            📋 {copiedBlogPrompt === phrase.id ? 'Copied!' : 'Copy Prompt for Commercial LLM'}
+                                            📋 {copiedBlogPrompt === phrase.id ? 'Copied!' : 'Reality Check (Commercial LLM)'}
                                           </button>
                                         </div>
 
@@ -4321,7 +4321,7 @@ Respond strictly in valid JSON format with the following keys:
                                                       onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'}
                                                       onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
                                                     >
-                                                      📋 {copiedBlogPrompt === phrase.id ? 'Copied!' : 'Copy Prompt for Commercial LLM'}
+                                                      📋 {copiedBlogPrompt === phrase.id ? 'Copied!' : 'Reality Check (Commercial LLM)'}
                                                     </button>
                                                   </div>
 
