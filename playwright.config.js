@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-const targetUrl = process.env.TEST_URL || 'http://localhost:5173';
+const targetUrl = process.env.TEST_URL || 'https://localhost:5173';
 const isRemoteUrl = !!process.env.TEST_URL;
 
 export default defineConfig({
@@ -12,6 +12,7 @@ export default defineConfig({
   use: {
     baseURL: targetUrl,
     trace: 'on-first-retry',
+    ignoreHTTPSErrors: true,
   },
   projects: [
     {
@@ -31,8 +32,9 @@ export default defineConfig({
   ],
   webServer: isRemoteUrl ? undefined : {
     command: 'npm run dev',
-    url: 'http://localhost:5173',
+    url: 'https://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 10000,
+    ignoreHTTPSErrors: true,
   },
 });
