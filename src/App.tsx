@@ -3928,7 +3928,7 @@ Respond strictly in valid JSON format with the following keys:
                                               transition: 'all 0.2s'
                                             }}
                                             onClick={() => {
-                                              const prompt = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase.phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips".`;
+                                              const prompt = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase.phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips". In each key, provide detailed explanations in BOTH English and Japanese (bilingual format, e.g., English text followed by its Japanese translation) to ensure full comprehension for learners.`;
                                               copyToClipboard(prompt);
                                               setCopiedBlogPrompt(phrase.id);
                                               setTimeout(() => setCopiedBlogPrompt(null), 2000);
@@ -4148,7 +4148,7 @@ Respond strictly in valid JSON format with the following keys:
                                                       }}
                                                       onClick={() => {
                                                         const userInstructions = etymologyInstructions[phrase.id] || '';
-                                                        const prompt = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase.phrase}". Keep it concise, professional and easy to understand for language learners.${userInstructions ? `\nAdditional user instructions: ${userInstructions}` : ''}\nRespond strictly in valid JSON format with three keys: "nuance", "origin", and "tips".`;
+                                                        const prompt = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase.phrase}". Keep it concise, professional and easy to understand for language learners.${userInstructions ? `\nAdditional user instructions: ${userInstructions}` : ''}\nRespond strictly in valid JSON format with three keys: "nuance", "origin", and "tips". In each key, provide detailed explanations in BOTH English and Japanese (bilingual format, e.g., English text followed by its Japanese translation) to ensure full comprehension for learners.`;
                                                         copyToClipboard(prompt);
                                                         setCopiedBlogPrompt(phrase.id);
                                                         setTimeout(() => setCopiedBlogPrompt(null), 2000);

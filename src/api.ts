@@ -178,7 +178,7 @@ const getLanguageModelManager = () => {
 
 // 2. Main Local AI Explainer Client
 export const aiExplainNuances = async (phrase: string, instructions?: string): Promise<AIExplanationResult> => {
-    let promptText = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips".`;
+    let promptText = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips". In each key, provide detailed explanations in BOTH English and Japanese (bilingual format, e.g., English text followed by its Japanese translation) to ensure full comprehension for learners.`;
     if (instructions && instructions.trim()) {
         promptText += `\nAdditional user instructions for this generation/refinement: "${instructions.trim()}"`;
     }
@@ -270,29 +270,29 @@ const getOfflineExplanation = (phrase: string): AIExplanationResult => {
     const key = phrase.toLowerCase().trim();
     if (key.includes('bullet')) {
         return {
-            nuance: "This phrase conveys facing a grim, inevitable reality with fortitude. It is widely used in both everyday contexts and professional discussions to denote making a hard decision.",
-            origin: "Historically, before anesthesia was invented, wounded soldiers in battle were given a lead bullet to bite down on to endure pain during surgical procedures.",
-            tips: "Typically combined with the verb 'to decide' (e.g. 'I decided to bite the bullet') to mark the exact moment of acceptance."
+            nuance: "This phrase conveys facing a grim, inevitable reality with fortitude. It is widely used in both everyday contexts and professional discussions to denote making a hard decision. (この表現は、避けることのできない厳しい現実に毅然と立ち向かう姿勢を表します。日常会話とビジネスの議論の両方で、苦渋の決断を下す際によく使われます。)",
+            origin: "Historically, before anesthesia was invented, wounded soldiers in battle were given a lead bullet to bite down on to endure pain during surgical procedures. (歴史的には、麻酔が発明される前、戦場で負傷した兵士が手術中の痛みに耐えるために鉛の弾丸を噛まされたことに由来します。)",
+            tips: "Typically combined with the verb 'to decide' (e.g. 'I decided to bite the bullet') to mark the exact moment of acceptance. (通常、'to decide' などの動詞と組み合わせて（例：'I decided to bite the bullet'）、困難を受け入れた決定的な瞬間を示します。)"
         };
     }
     if (key.includes('leg')) {
         return {
-            nuance: "Used to wish actors, presenters, or musicians good luck before a performance. It has an encouraging yet casual tone.",
-            origin: "Derived from theatrical superstition that wishing someone actual 'good luck' would bring bad luck instead, so the reverse is said.",
-            tips: "Use strictly in performance-related settings (e.g. before an interview, play, or presentation). Avoid using it for standard academic tests."
+            nuance: "Used to wish actors, presenters, or musicians good luck before a performance. It has an encouraging yet casual tone. (役者や発表者、ミュージシャンに本番前の幸運を祈るために使われます。励ましつつもカジュアルな響きがあります。)",
+            origin: "Derived from theatrical superstition that wishing someone actual 'good luck' would bring bad luck instead, so the reverse is said. (本物の「グッドラック（幸運）」を祈ると逆に不運をもたらすという演劇界の迷信から、逆の言葉をかけるようになったことに由来します。)",
+            tips: "Use strictly in performance-related settings (e.g. before an interview, play, or presentation). Avoid using it for standard academic tests. (インタビューや演劇、プレゼンテーションの前など、パフォーマンス関連の場面で厳密に使用してください。通常の筆記試験などには使わないようにしましょう。)"
         };
     }
     if (key.includes('fence')) {
         return {
-            nuance: "This idiom describes a state of being undecided or uncommitted. It means you are torn between two options or have not yet chosen a side in an argument or decision.",
-            origin: "The phrase comes from the literal image of someone sitting on a physical fence that divides two properties. By staying on the fence, the person avoids choosing which side to jump down onto. It became popular in 19th-century American politics to describe politicians who avoided taking a firm stance.",
-            tips: "Combine this phrase with the verb 'to be' and the preposition 'about' (e.g., 'I am on the fence about the new job offer'). It is widely understood and appropriate for both casual conversations and formal business environments."
+            nuance: "This idiom describes a state of being undecided or uncommitted. It means you are torn between two options or have not yet chosen a side in an argument or decision. (この慣用句は、決断がつかない状態や、態度を保留している状態を表します。2つの選択肢の間で迷っているか、議論や決断でまだどちらの立場も選んでいないことを意味します。)",
+            origin: "The phrase comes from the literal image of someone sitting on a physical fence that divides two properties. By staying on the fence, the person avoids choosing which side to jump down onto. It became popular in 19th-century American politics to describe politicians who avoided taking a firm stance. (2つの所有地を分けるフェンスの上に座っている文字通りのイメージに由来します。フェンスの上にとどまることで、どちらの側に降りるか決めるのを避けます。19世紀のアメリカ政治で、明確な立場表明を避ける政治家を表す言葉として普及しました。)",
+            tips: "Combine this phrase with the verb 'to be' and the preposition 'about' (e.g., 'I am on the fence about the new job offer'). It is widely understood and appropriate for both casual conversations and formal business environments. (この表現は動詞 'to be' および前置詞 'about' と組み合わせて使用します（例：'I am on the fence about the new job offer'）。日常会話とフォーマルなビジネス環境の両方で広く理解され、使用されます。)"
         };
     }
     return {
-        nuance: `Natural usage tone associated with "${phrase}". Suitable for casual and everyday communication.`,
-        origin: `A product of standard colloquial English development context, representing popular conversational flow.`,
-        tips: `Practice using "${phrase.toLowerCase()}" in contextually natural written and spoken sentences.`
+        nuance: `Natural usage tone associated with "${phrase}". Suitable for casual and everyday communication. (「${phrase}」に関連する自然な表現のトーンです。カジュアルな日常会話に適しています。)`,
+        origin: `A product of standard colloquial English development context, representing popular conversational flow. (一般的な口語英語の発展過程から生み出されたものであり、大衆的な会話の流れを表しています。)`,
+        tips: `Practice using "${phrase.toLowerCase()}" in contextually natural written and spoken sentences. (文脈に合った自然な書き言葉や話し言葉の文で「${phrase.toLowerCase()}」を使う練習をしましょう。)`
     };
 };
 
@@ -453,22 +453,77 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
         let reply = "";
         
         if (lower.includes('valid json array') || lower.includes('lexicographer')) {
-            const isBiteExcluded = lower.includes('bite the dust');
-            const mockCards = [
+            const candidates = [
                 {
-                    phrase: isBiteExcluded ? "Face the music" : "Bite the dust",
-                    meaning_en: isBiteExcluded ? "Accept the unpleasant consequences of one's actions." : "To die or fall in battle; or to fail completely.",
-                    meaning_ja: isBiteExcluded ? "現実を受け止める、報いを受ける。" : "倒れる、敗北する、死ぬ。",
-                    example_en: isBiteExcluded ? "It is time to face the music and admit our mistake." : "Another computer of mine has bitten the dust.",
-                    example_ja: isBiteExcluded ? "現実を受け止め、私たちの過ちを認める時だ。" : "私のもう一台のコンピュータもついに壊れてしまった。",
+                    phrase: "Bite the dust",
+                    meaning_en: "To die or fall in battle; or to fail completely.",
+                    meaning_ja: "倒れる、敗北する、死ぬ。",
+                    example_en: "Another computer of mine has bitten the dust.",
+                    example_ja: "私のもう一台のコンピュータもついに壊れてしまった。",
                     category: "Idiom",
-                    match_reason: isBiteExcluded ? "WebGPU on-device compiled extraction fallback" : "WebGPU on-device compiled extraction result",
-                    nuance: isBiteExcluded ? "Used when one has to meet trouble bravely." : "Often used in a lighthearted or casual way for objects breaking down, as well as historically in military contexts.",
-                    origin: isBiteExcluded ? "Possibly from military drumming out practices." : "Dating back to Homer's Iliad, but popularized in American Western movies.",
-                    tips: isBiteExcluded ? "Frequently used in business and personal settings." : "Widely used for appliances and technology that fail permanently."
+                    match_reason: "WebGPU on-device compiled extraction result",
+                    nuance: "Often used in a lighthearted or casual way for objects breaking down. (物や家電などが壊れたり、失敗したりした際によく冗談交じりで使われます。)",
+                    origin: "Dating back to Homer's Iliad, but popularized in American Western movies. (ホメロスの『イリアス』に遡りますが、アメリカの西部劇映画で広く普及しました。)",
+                    tips: "Widely used for appliances and technology that fail permanently. (永久に壊れて使えなくなった機器や技術に対してよく使われます。)"
+                },
+                {
+                    phrase: "Face the music",
+                    meaning_en: "Accept the unpleasant consequences of one's actions.",
+                    meaning_ja: "現実を受け止める、報いを受ける。",
+                    example_en: "It is time to face the music and admit our mistake.",
+                    example_ja: "現実を受け止め、私たちの過ちを認める時だ。",
+                    category: "Idiom",
+                    match_reason: "WebGPU on-device compiled extraction fallback",
+                    nuance: "Used when one has to meet trouble or consequences bravely. (自分の行動の報いや困難に勇敢に立ち向かわなければならない時に使われます。)",
+                    origin: "Possibly from military drumming out practices or orchestra conductors. (軍隊の不名誉除隊のドラム演奏、またはオーケストラの指揮者に直面することに由来すると言われています。)",
+                    tips: "Frequently used in business and personal settings when taking responsibility. (責任を取る場面など、ビジネスや個人のやり取りで頻繁に使われます。)"
+                },
+                {
+                    phrase: "On the fence",
+                    meaning_en: "Undecided or uncommitted between two options.",
+                    meaning_ja: "決めかねている、中立の立場にいる。",
+                    example_en: "I am on the fence about whether to accept the new job offer.",
+                    example_ja: "新しい仕事のオファーを受けるかどうか、決めかねています。",
+                    category: "Idiom",
+                    match_reason: "WebGPU on-device compiled extraction result",
+                    nuance: "Neutral tone, describing someone who is torn or hesitant to take a side. (中立的なトーンで、どちらの味方をするか迷っている様子を表します。)",
+                    origin: "Sitting on a fence dividing two properties to avoid choosing a side. (2つの地所の境界であるフェンスの上に座り、どちら側に行くか選ばないことに由来します。)",
+                    tips: "Pairs with the preposition 'about' (e.g. on the fence about something). (前置詞 'about' と組み合わせて使われることが多いです。)"
+                },
+                {
+                    phrase: "Break a leg",
+                    meaning_en: "A superstitious way to wish someone good luck before a performance.",
+                    meaning_ja: "がんばって、幸運を祈る（主にパフォーマンス前に）。",
+                    example_en: "You're going to do great in the play tonight! Break a leg!",
+                    example_ja: "今夜の劇、君なら絶対にうまくいくよ！がんばって！",
+                    category: "Idiom",
+                    match_reason: "WebGPU on-device compiled extraction result",
+                    nuance: "Encouraging but very casual, used in performance-related settings. (励ましの意味を持ちますが、非常にカジュアルで、公演や発表の前に使われます。)",
+                    origin: "Theatrical superstition that wishing actual good luck brings bad luck. (本物の「幸運」を祈ると逆の不運を招くという、演劇界의迷信に由来します。)",
+                    tips: "Avoid using for standard exams; best for plays, speeches, and interviews. (通常の筆記試験には使わず、演劇、スピーチ、面接などに使うのが最適です。)"
+                },
+                {
+                    phrase: "Spill the beans",
+                    meaning_en: "Reveal secret information unintentionally or prematurely.",
+                    meaning_ja: "秘密を漏らす、白状する。",
+                    example_en: "Don't spill the beans about the surprise party next week!",
+                    example_ja: "来週のサプライズパーティーの秘密を漏らさないでね！",
+                    category: "Idiom",
+                    match_reason: "WebGPU on-device compiled extraction result",
+                    nuance: "Informal, describing the act of letting a secret slip out. (カジュアルな表現で、うっかり秘密を漏らしてしまう行為を指します。)",
+                    origin: "Ancient Greek voting system using colored beans where the jar could be knocked over. (古代ギリシャで色付きの豆を使って投票した際、瓶が倒れて結果が漏洩したことに由来すると言われています。)",
+                    tips: "Commonly used in casual and colloquial conversation. (日常のくだけた会話で非常によく使われます。)"
                 }
             ];
-            return { response: JSON.stringify(mockCards), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
+            
+            let chosen = candidates[0];
+            for (const candidate of candidates) {
+                if (!lower.includes(candidate.phrase.toLowerCase())) {
+                    chosen = candidate;
+                    break;
+                }
+            }
+            return { response: JSON.stringify([chosen]), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
         }
         
         if (lower.includes('time')) {
