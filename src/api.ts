@@ -496,7 +496,7 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
                         chosenStrings.push(candidate.phrase);
                     }
                 }
-                return { response: JSON.stringify(chosenStrings), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
+                return { response: JSON.stringify(chosenStrings), engine: 'Browser WebGPU WebLLM Simulator (iOS/Safari)' };
             }
             
             let chosen = candidates[0];
@@ -510,9 +510,9 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
             }
             
             if (!foundUnique) {
-                return { response: JSON.stringify([]), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
+                return { response: JSON.stringify([]), engine: 'Browser WebGPU WebLLM Simulator (iOS/Safari)' };
             }
-            return { response: JSON.stringify([chosen]), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
+            return { response: JSON.stringify([chosen]), engine: 'Browser WebGPU WebLLM Simulator (iOS/Safari)' };
         }
         
         if (lower.includes('coach') || lower.includes('student:')) {
@@ -530,16 +530,36 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
             
             let coachReply = "";
             if (queryText.includes('business') || queryText.includes('formal') || queryText.includes('work')) {
-                coachReply = `Excellent question! In professional settings, "${phraseText}" is usually considered a bit too casual. If you are speaking with close colleagues, it is perfectly fine, but for formal client presentations or business emails, it is safer to use clear, direct alternatives like "disclose information prematurely" or "handle the difficult challenge directly".`;
+                const variations = [
+                    `Excellent question! In professional settings, "${phraseText}" is usually considered a bit too casual. If you are speaking with close colleagues, it is perfectly fine, but for formal client presentations or business emails, it is safer to use clear, direct alternatives like "disclose information prematurely" or "handle the difficult challenge directly".`,
+                    `Great point about workplace register! "${phraseText}" works beautifully in informal peer-to-peer discussions at the office. However, for a formal client review or slides, I would recommend substituting it with a more direct action verb like "resolve immediately" or "address the situation with fortitude".`,
+                    `When using "${phraseText}" in a business context, tone is everything. It is highly effective for breaking the ice or in a casual standup meeting. But if you are writing a formal report, try substituting it with "take the necessary measures" to maintain a polished tone.`
+                ];
+                coachReply = variations[Math.floor(Math.random() * variations.length)];
             } else if (queryText.includes('origin') || queryText.includes('history') || queryText.includes('where')) {
-                coachReply = `Yes, the history of "${phraseText}" is fascinating! It dates back centuries and reflects the lively, evolving nature of English idioms. Understanding the etymology really helps anchor the term in memory!`;
+                const variations = [
+                    `Yes, the history of "${phraseText}" is fascinating! It dates back centuries and reflects the lively, evolving nature of English idioms. Understanding the etymology really helps anchor the term in memory!`,
+                    `Etymology is a fantastic way to learn! "${phraseText}" has a rich cultural history originating from early conversational usage. Knowing where it comes from makes it much easier to remember and use naturally.`,
+                    `Fascinating query! The etymological roots of "${phraseText}" highlight how colloquial phrases evolve over time. It developed from specific historical practices to become the versatile idiom we use today.`
+                ];
+                coachReply = variations[Math.floor(Math.random() * variations.length)];
             } else if (queryText.includes('japanese') || queryText.includes('translate') || queryText.includes('nihongo')) {
-                coachReply = `Great observation! While the literal translation works, the actual contextual nuance matches best with daily colloquial expressions in Japanese. Focus on practicing sentences in dialogue to get a natural feel!`;
+                const variations = [
+                    `Great observation! While the literal translation works, the actual contextual nuance matches best with daily colloquial expressions in Japanese. Focus on practicing sentences in dialogue to get a natural feel!`,
+                    `Bilingual translations are tricky! "${phraseText}" doesn't always have a 1:1 literal match in Japanese. Instead, look for expressions that carry the same emotional weight and conversational register.`,
+                    `Excellent question! Translating "${phraseText}" into Japanese is all about matching the situation. Focus on the underlying feeling—whether it's hesitancy, determination, or excitement—to find the natural Japanese equivalent.`
+                ];
+                coachReply = variations[Math.floor(Math.random() * variations.length)];
             } else {
-                coachReply = `That is a superb question about "${phraseText}"! The key is to practice using it in your active vocabulary. When speaking or writing, pay attention to the emotional tone of the listener and make sure the setting is natural. Keep practicing your interactive sentences!`;
+                const variations = [
+                    `That is a superb question about "${phraseText}"! The key is to practice using it in your active vocabulary. When speaking or writing, pay attention to the emotional tone of the listener and make sure the setting is natural. Keep practicing your interactive sentences!`,
+                    `I love that you are exploring "${phraseText}"! Try building a short roleplay dialogue in your head using this phrase. The more context you wrap around it, the faster it will become part of your natural speaking habits!`,
+                    `A highly practical query! "${phraseText}" is best mastered through active retrieval. Try writing three custom sentences today reflecting your own daily life, and review them using HLM's review cards tomorrow!`
+                ];
+                coachReply = variations[Math.floor(Math.random() * variations.length)];
             }
             
-            return { response: coachReply, engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
+            return { response: coachReply, engine: 'Browser WebGPU WebLLM Simulator (iOS/Safari)' };
         }
         
         if (lower.includes('time')) {
@@ -556,7 +576,7 @@ Prompt processed: "${promptText}"
 As HLM's integrated WebGPU model engine, I can help you practice English grammar, etymology, and idiom structure entirely offline with maximum privacy. How else can I help?`;
         }
         
-        return { response: reply, engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
+        return { response: reply, engine: 'Browser WebGPU WebLLM Simulator (iOS/Safari)' };
     }
 
     // B. Ollama Local Fallback
@@ -654,13 +674,33 @@ As HLM's integrated WebGPU model engine, I can help you practice English grammar
         
         let coachReply = "";
         if (queryText.includes('business') || queryText.includes('formal') || queryText.includes('work')) {
-            coachReply = `Excellent question! In professional settings, "${phraseText}" is usually considered a bit too casual. If you are speaking with close colleagues, it is perfectly fine, but for formal client presentations or business emails, it is safer to use clear, direct alternatives like "disclose information prematurely" or "handle the difficult challenge directly".`;
+            const variations = [
+                `Excellent question! In professional settings, "${phraseText}" is usually considered a bit too casual. If you are speaking with close colleagues, it is perfectly fine, but for formal client presentations or business emails, it is safer to use clear, direct alternatives like "disclose information prematurely" or "handle the difficult challenge directly".`,
+                `Great point about workplace register! "${phraseText}" works beautifully in informal peer-to-peer discussions at the office. However, for a formal client review or slides, I would recommend substituting it with a more direct action verb like "resolve immediately" or "address the situation with fortitude".`,
+                `When using "${phraseText}" in a business context, tone is everything. It is highly effective for breaking the ice or in a casual standup meeting. But if you are writing a formal report, try substituting it with "take the necessary measures" to maintain a polished tone.`
+            ];
+            coachReply = variations[Math.floor(Math.random() * variations.length)];
         } else if (queryText.includes('origin') || queryText.includes('history') || queryText.includes('where')) {
-            coachReply = `Yes, the history of "${phraseText}" is fascinating! It dates back centuries and reflects the lively, evolving nature of English idioms. Understanding the etymology really helps anchor the term in memory!`;
+            const variations = [
+                `Yes, the history of "${phraseText}" is fascinating! It dates back centuries and reflects the lively, evolving nature of English idioms. Understanding the etymology really helps anchor the term in memory!`,
+                `Etymology is a fantastic way to learn! "${phraseText}" has a rich cultural history originating from early conversational usage. Knowing where it comes from makes it much easier to remember and use naturally.`,
+                `Fascinating query! The etymological roots of "${phraseText}" highlight how colloquial phrases evolve over time. It developed from specific historical practices to become the versatile idiom we use today.`
+            ];
+            coachReply = variations[Math.floor(Math.random() * variations.length)];
         } else if (queryText.includes('japanese') || queryText.includes('translate') || queryText.includes('nihongo')) {
-            coachReply = `Great observation! While the literal translation works, the actual contextual nuance matches best with daily colloquial expressions in Japanese. Focus on practicing sentences in dialogue to get a natural feel!`;
+            const variations = [
+                `Great observation! While the literal translation works, the actual contextual nuance matches best with daily colloquial expressions in Japanese. Focus on practicing sentences in dialogue to get a natural feel!`,
+                `Bilingual translations are tricky! "${phraseText}" doesn't always have a 1:1 literal match in Japanese. Instead, look for expressions that carry the same emotional weight and conversational register.`,
+                `Excellent question! Translating "${phraseText}" into Japanese is all about matching the situation. Focus on the underlying feeling—whether it's hesitancy, determination, or excitement—to find the natural Japanese equivalent.`
+            ];
+            coachReply = variations[Math.floor(Math.random() * variations.length)];
         } else {
-            coachReply = `That is a superb question about "${phraseText}"! The key is to practice using it in your active vocabulary. When speaking or writing, pay attention to the emotional tone of the listener and make sure the setting is natural. Keep practicing your interactive sentences!`;
+            const variations = [
+                `That is a superb question about "${phraseText}"! The key is to practice using it in your active vocabulary. When speaking or writing, pay attention to the emotional tone of the listener and make sure the setting is natural. Keep practicing your interactive sentences!`,
+                `I love that you are exploring "${phraseText}"! Try building a short roleplay dialogue in your head using this phrase. The more context you wrap around it, the faster it will become part of your natural speaking habits!`,
+                `A highly practical query! "${phraseText}" is best mastered through active retrieval. Try writing three custom sentences today reflecting your own daily life, and review them using HLM's review cards tomorrow!`
+            ];
+            coachReply = variations[Math.floor(Math.random() * variations.length)];
         }
         
         return { response: coachReply, engine: 'Offline Mock Simulator' };
