@@ -642,6 +642,7 @@ function App() {
   const [aiReview, setAiReview] = useState<AIReviewResult | null>(null);
   const [aiExplanation, setAiExplanation] = useState<AIExplanationResult | null>(null);
   const [isCheckingSentence, setIsCheckingSentence] = useState(false);
+  const [copiedRealityCheck, setCopiedRealityCheck] = useState(false);
 
   // Card Manager States
   const [expandedPhraseId, setExpandedPhraseId] = useState<number | null>(null);
@@ -1177,6 +1178,29 @@ Provide a highly informative, encouraging, and clear response to help the user m
     } finally {
       setIsCheckingSentence(false);
     }
+  };
+
+  const handleRealityCheck = () => {
+    if (!activeCard || !userSentence.trim()) return;
+    const promptText = `Review my English sentence. I am practicing using the target vocabulary idiom/phrase: "${activeCard.phrase}".
+My sentence: "${userSentence.trim()}"
+
+Please evaluate the grammar, natural flow/collocation, and correctness of my usage of the phrase in the sentence.
+Provide:
+1. A score from 0 to 100 based on correctness.
+2. A brief evaluation of grammar and syntax.
+3. A brief evaluation of natural flow and common collocations.
+4. A helpful suggestion or a corrected version of the sentence to guide my learning.
+
+Respond in a friendly, professional, bilingual (English & Japanese) format to ensure full comprehension.`;
+    copyToClipboard(promptText)
+      .then(() => {
+        setCopiedRealityCheck(true);
+        setTimeout(() => setCopiedRealityCheck(false), 2000);
+      })
+      .catch((err) => {
+        console.error('Failed to copy reality check prompt', err);
+      });
   };
 
   // AI Context nuances extraction
@@ -2438,14 +2462,43 @@ Respond strictly in valid JSON format with the following keys:
                           placeholder={t('lbl_practice_placeholder')}
                           style={{ flex: 1, padding: '0.8rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff', resize: 'vertical', minHeight: '60px', fontFamily: 'inherit' }}
                         />
-                        <button 
-                          className="btn-primary" 
-                          onClick={checkSentence} 
-                          disabled={isCheckingSentence || !userSentence.trim()}
-                          style={{ padding: '0 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        >
-                          {isCheckingSentence ? <span className="spinner" /> : 'AI Check'}
-                        </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', justifyContent: 'stretch' }}>
+                          <button 
+                            className="btn-primary" 
+                            onClick={checkSentence} 
+                            disabled={isCheckingSentence || !userSentence.trim()}
+                            style={{ flex: 1, padding: '0 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap', minHeight: '34px' }}
+                          >
+                            {isCheckingSentence ? <span className="spinner" /> : 'AI Check'}
+                          </button>
+                          <button 
+                            type="button"
+                            className="btn-secondary" 
+                            onClick={handleRealityCheck} 
+                            disabled={!userSentence.trim()}
+                            style={{ 
+                              flex: 1, 
+                              padding: '0 1.2rem', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              whiteSpace: 'nowrap', 
+                              fontSize: '0.8rem',
+                              background: 'rgba(255,255,255,0.06)',
+                              border: '1px solid rgba(255,255,255,0.12)',
+                              color: '#fff',
+                              borderRadius: '6px',
+                              cursor: !userSentence.trim() ? 'not-allowed' : 'pointer',
+                              opacity: !userSentence.trim() ? 0.5 : 1,
+                              minHeight: '34px',
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => { if (userSentence.trim()) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'; }}
+                            onMouseLeave={(e) => { if (userSentence.trim()) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'; }}
+                          >
+                            📋 {copiedRealityCheck ? 'Copied!' : 'Reality Check'}
+                          </button>
+                        </div>
                       </div>
 
                       {/* Live AI Review display */}
