@@ -97,6 +97,8 @@ body {
 
 .nav-tabs {
   display: flex;
+  align-items: center;
+  width: 100%;
   gap: 0.5rem;
   background: var(--surface);
   padding: 0.5rem;
@@ -583,15 +585,20 @@ option {
 
   .nav-tabs {
     width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
     padding: 0.35rem;
   }
   
   .nav-tabs button {
-    padding: 0.5rem 1rem;
+    padding: 0.65rem 0.5rem;
     font-size: 0.85rem;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
   }
 
   .glass-card {

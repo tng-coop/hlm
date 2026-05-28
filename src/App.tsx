@@ -2014,7 +2014,7 @@ Respond strictly in valid JSON format with the following keys:
             </button>
           </div>
         </h1>
-        <nav className="nav-tabs" style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '0.5rem' }}>
+        <nav className="nav-tabs">
           <button data-testid="tab-dashboard" className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>{t('tab_dashboard')}</button>
           <button data-testid="tab-study" className={activeTab === 'study' ? 'active' : ''} onClick={() => setActiveTab('study')}>{t('tab_study')} <span style={{ background: 'var(--primary)', color: '#fff', borderRadius: '10px', padding: '0.1rem 0.4rem', fontSize: '0.75rem', marginLeft: '0.3rem' }}>{dueQueue.length}</span></button>
           <button data-testid="tab-manager" className={activeTab === 'manager' ? 'active' : ''} onClick={() => setActiveTab('manager')}>{t('tab_manager')}</button>
