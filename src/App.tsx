@@ -766,20 +766,22 @@ ${updatedHistory.map(m => `${m.role === 'user' ? 'Student' : 'Coach'}: ${m.conte
 
 Provide a highly informative, encouraging, and clear response to help the user master this phrase. Respond in pure text.`;
         const promptRes = await aiPromptLocalLLM(prompt);
-        coachReply = promptRes.response;
+        coachReply = `${promptRes.response}\n\n*(Inference: ${promptRes.engine})*`;
       } catch (e) {
         // High-fidelity fallback simulated answers when local LLM is offline/not found
         await new Promise(r => setTimeout(r, 600));
         const lower = query.toLowerCase();
+        let baseReply = "";
         if (lower.includes('business') || lower.includes('formal') || lower.includes('work')) {
-          coachReply = `Excellent question! In professional settings, "${phraseText}" is usually considered a bit too casual. If you are speaking with close colleagues, it is perfectly fine, but for formal client presentations or business emails, it is safer to use clear, direct alternatives like "disclose information prematurely" or "handle the difficult challenge directly".`;
+          baseReply = `Excellent question! In professional settings, "${phraseText}" is usually considered a bit too casual. If you are speaking with close colleagues, it is perfectly fine, but for formal client presentations or business emails, it is safer to use clear, direct alternatives like "disclose information prematurely" or "handle the difficult challenge directly".`;
         } else if (lower.includes('origin') || lower.includes('history') || lower.includes('where')) {
-          coachReply = `Yes, the history of "${phraseText}" is fascinating! It dates back centuries and reflects the lively, evolving nature of English idioms. Understanding the etymology really helps anchor the term in memory!`;
+          baseReply = `Yes, the history of "${phraseText}" is fascinating! It dates back centuries and reflects the lively, evolving nature of English idioms. Understanding the etymology really helps anchor the term in memory!`;
         } else if (lower.includes('japanese') || lower.includes('translate') || lower.includes('nihongo')) {
-          coachReply = `Great observation! While the literal translation works, the actual contextual nuance matches best with daily colloquial expressions in Japanese. Focus on practicing sentences in dialogue to get a natural feel!`;
+          baseReply = `Great observation! While the literal translation works, the actual contextual nuance matches best with daily colloquial expressions in Japanese. Focus on practicing sentences in dialogue to get a natural feel!`;
         } else {
-          coachReply = `That is a superb question about "${phraseText}"! The key is to practice using it in your active vocabulary. When speaking or writing, pay attention to the emotional tone of the listener and make sure the setting is natural. Keep practicing your interactive sentences!`;
+          baseReply = `That is a superb question about "${phraseText}"! The key is to practice using it in your active vocabulary. When speaking or writing, pay attention to the emotional tone of the listener and make sure the setting is natural. Keep practicing your interactive sentences!`;
         }
+        coachReply = `${baseReply}\n\n*(Inference: Offline Mock Fallback)*`;
       }
       setBlogChats(prev => ({
         ...prev,
