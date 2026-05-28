@@ -144,6 +144,35 @@ const parseMarkdown = (text: string): React.ReactNode => {
   );
 };
 
+const copyToClipboard = (text: string): Promise<void> => {
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise<void>((resolve, reject) => {
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.top = '0';
+      textArea.style.left = '0';
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      textArea.setSelectionRange(0, 99999);
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      if (successful) {
+        resolve();
+      } else {
+        reject(new Error('Fallback clipboard copy returned false'));
+      }
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
 function App() {
   const [lang, setLang] = useState(() => {
     const saved = localStorage.getItem('hlm_lang');
@@ -1132,7 +1161,7 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
     const countVal = Math.min(Math.max(generationCount, 1), 5);
     const promptText = buildGeneratorPrompt(generationInstructions, countVal);
     
-    navigator.clipboard.writeText(promptText)
+    copyToClipboard(promptText)
       .then(() => {
         setCopiedGenPrompt(true);
         setTimeout(() => setCopiedGenPrompt(false), 2000);
@@ -1618,7 +1647,7 @@ Respond strictly in valid JSON format with the following keys:
   "origin": "Historical etymology, cultural origin story, or how the phrase came to be.",
   "tips": "A practical study tip or collocation advice for language learners."
 }`;
-    navigator.clipboard.writeText(promptText)
+    copyToClipboard(promptText)
       .then(() => {
         setCopiedCreatePrompt(true);
         setTimeout(() => setCopiedCreatePrompt(false), 2000);
@@ -3900,7 +3929,7 @@ Respond strictly in valid JSON format with the following keys:
                                             }}
                                             onClick={() => {
                                               const prompt = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase.phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips".`;
-                                              navigator.clipboard.writeText(prompt);
+                                              copyToClipboard(prompt);
                                               setCopiedBlogPrompt(phrase.id);
                                               setTimeout(() => setCopiedBlogPrompt(null), 2000);
                                             }}
@@ -4120,7 +4149,7 @@ Respond strictly in valid JSON format with the following keys:
                                                       onClick={() => {
                                                         const userInstructions = etymologyInstructions[phrase.id] || '';
                                                         const prompt = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase.phrase}". Keep it concise, professional and easy to understand for language learners.${userInstructions ? `\nAdditional user instructions: ${userInstructions}` : ''}\nRespond strictly in valid JSON format with three keys: "nuance", "origin", and "tips".`;
-                                                        navigator.clipboard.writeText(prompt);
+                                                        copyToClipboard(prompt);
                                                         setCopiedBlogPrompt(phrase.id);
                                                         setTimeout(() => setCopiedBlogPrompt(null), 2000);
                                                       }}
@@ -4682,7 +4711,7 @@ Respond strictly in valid JSON format with the following keys:
                         <button
                           type="button"
                           onClick={() => {
-                            navigator.clipboard.writeText(apiResultJson);
+                            copyToClipboard(apiResultJson);
                             setApiCopyFeedback(true);
                             setTimeout(() => setApiCopyFeedback(false), 2000);
                           }}
