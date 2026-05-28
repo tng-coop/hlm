@@ -135,7 +135,7 @@ const runWebGPUPrompt = async (promptText: string): Promise<{ response: string; 
     
     // Support pre-bound MLC WebLLM or custom local browser WebGPU models
     const webLLM = (window as any).webLLM || (window as any).webLLMEngine;
-    if (webLLM && typeof webLLM.chat === 'function') {
+    if (webLLM && (typeof webLLM.chat === 'object' || typeof webLLM.chat === 'function')) {
         try {
             console.log(`[WebGPU WebLLM] Running inference directly on iPhone GPU cores via WebLLM...`);
             const reply = await webLLM.chat.completions.create({
