@@ -528,15 +528,73 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
                         chosenStrings.push(candidate.phrase);
                     }
                 }
-                return { response: JSON.stringify(chosenStrings.slice(0, 3)), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
+                
+                // Dynamically backfill if chosenStrings has fewer than 5 items
+                if (chosenStrings.length < 5) {
+                    let topic = "Custom Topic";
+                    const match = promptText.match(/Instructions: "([^"]+)"/);
+                    if (match && match[1]) {
+                        topic = match[1].trim();
+                    }
+                    
+                    const templates = [
+                        `Drive results in ${topic}`,
+                        `Keep in mind for ${topic}`,
+                        `Step up your ${topic}`,
+                        `Bring to the table in ${topic}`,
+                        `Hit the ground running with ${topic}`,
+                        `Think outside the box on ${topic}`
+                    ];
+                    
+                    for (const temp of templates) {
+                        const cleanPhrase = temp.replace(/\s+/g, ' ').trim();
+                        const formatted = cleanPhrase.charAt(0).toUpperCase() + cleanPhrase.slice(1);
+                        if (!lower.includes(formatted.toLowerCase()) && !chosenStrings.some(s => s.toLowerCase() === formatted.toLowerCase())) {
+                            chosenStrings.push(formatted);
+                        }
+                    }
+                    
+                    for (let i = 1; i <= 5; i++) {
+                        if (chosenStrings.length >= 5) break;
+                        const backup = `Master key concept ${i} for ${topic}`;
+                        if (!lower.includes(backup.toLowerCase()) && !chosenStrings.some(s => s.toLowerCase() === backup.toLowerCase())) {
+                            chosenStrings.push(backup);
+                        }
+                    }
+                }
+                
+                return { response: JSON.stringify(chosenStrings.slice(0, 5)), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
             }
             
             let chosen = candidates[0];
+            let foundUnique = false;
             for (const candidate of candidates) {
                 if (!lower.includes(candidate.phrase.toLowerCase())) {
                     chosen = candidate;
+                    foundUnique = true;
                     break;
                 }
+            }
+            
+            if (!foundUnique) {
+                let topic = "Custom Topic";
+                const match = promptText.match(/Instructions: "([^"]+)"/);
+                if (match && match[1]) {
+                    topic = match[1].trim();
+                }
+                const formatted = `Drive results in ${topic}`;
+                chosen = {
+                    phrase: formatted,
+                    meaning_en: `To act or behave in a natural manner associated with "${formatted}".`,
+                    meaning_ja: `「${formatted}」に関連する、日常会話で非常によく使われる自然な表現。`,
+                    example_en: `Let's work together to practice using "${formatted.toLowerCase()}" in our writing.`,
+                    example_ja: `ライティングで「${formatted.toLowerCase()}」を使えるように一緒に練習しましょう。`,
+                    category: "Colloquial",
+                    match_reason: "WebGPU on-device compiled dynamic extraction fallback",
+                    nuance: `Natural usage tone associated with "${formatted}". Suitable for casual and everyday communication.`,
+                    origin: `A product of standard colloquial English development context.`,
+                    tips: `Practice using "${formatted.toLowerCase()}" in contextually natural sentences.`
+                };
             }
             return { response: JSON.stringify([chosen]), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
         }
@@ -586,8 +644,8 @@ As HLM's integrated WebGPU model engine, I can help you practice English grammar
     const lower = promptText.toLowerCase();
     
     // Check if the prompt requests the JSON array format (batch generation)
-    if (lower.includes('valid json array') || lower.includes('lexicographer')) {
-        const mockCards = [
+    if (lower.includes('valid json array') || lower.includes('lexicographer') || lower.includes('array of strings') || lower.includes('strings containing')) {
+        const candidates = [
             {
                 phrase: "Bite the dust",
                 meaning_en: "To die or fall in battle; or to fail completely.",
@@ -607,13 +665,158 @@ As HLM's integrated WebGPU model engine, I can help you practice English grammar
                 example_en: "It is time to face the music and admit our mistake.",
                 example_ja: "現実を受け止め、私たちの過ちを認める時だ。",
                 category: "Idiom",
-                match_reason: "Matches animal instruction contexts or general vocabulary",
+                match_reason: "Matches instruction requirements",
                 nuance: "Used when one has to meet trouble or criticism bravely.",
                 origin: "Possibly from the military practice of drumming out a dismissed soldier, or theatre orchestra.",
                 tips: "Frequently used in business and personal accountability settings."
+            },
+            {
+                phrase: "On the fence",
+                meaning_en: "Undecided or uncommitted between two options.",
+                meaning_ja: "決めかねている、中立の立場にいる。",
+                example_en: "I am on the fence about whether to accept the new job offer.",
+                example_ja: "新しい仕事のオファーを受けるかどうか、決めかねています。",
+                category: "Idiom",
+                match_reason: "Matches instruction requirements",
+                nuance: "Neutral tone, describing someone who is torn or hesitant to take a side.",
+                origin: "Sitting on a fence dividing two properties to avoid choosing a side.",
+                tips: "Pairs with the preposition 'about'."
+            },
+            {
+                phrase: "Break a leg",
+                meaning_en: "A superstitious way to wish someone good luck before a performance.",
+                meaning_ja: "がんばって、幸運を祈る（主にパフォーマンス前に）。",
+                example_en: "You're going to do great in the play tonight! Break a leg!",
+                example_ja: "今夜の劇、君なら絶対にうまくいくよ！がんばって！",
+                category: "Idiom",
+                match_reason: "Matches instruction requirements",
+                nuance: "Encouraging but very casual, used in performance-related settings.",
+                origin: "Theatrical superstition that wishing actual good luck brings bad luck.",
+                tips: "Avoid using for standard exams; best for plays, speeches, and interviews."
+            },
+            {
+                phrase: "Spill the beans",
+                meaning_en: "Reveal secret information unintentionally or prematurely.",
+                meaning_ja: "秘密を漏らす、白状する。",
+                example_en: "Don't spill the beans about the surprise party next week!",
+                example_ja: "来週のサプライズパーティーの秘密を漏らさないでね！",
+                category: "Idiom",
+                match_reason: "Matches instruction requirements",
+                nuance: "Informal, describing the act of letting a secret slip out.",
+                origin: "Ancient Greek voting system using colored beans where the jar could be knocked over.",
+                tips: "Commonly used in casual and colloquial conversation."
             }
         ];
-        return { response: JSON.stringify(mockCards), engine: 'Offline Mock Simulator' };
+
+        if (lower.includes('array of strings') || lower.includes('strings containing')) {
+            const chosenStrings: string[] = [];
+            for (const candidate of candidates) {
+                if (!lower.includes(candidate.phrase.toLowerCase())) {
+                    chosenStrings.push(candidate.phrase);
+                }
+            }
+            
+            // Dynamically backfill if chosenStrings has fewer than 5 items
+            if (chosenStrings.length < 5) {
+                let topic = "Custom Topic";
+                const match = promptText.match(/Instructions: "([^"]+)"/);
+                if (match && match[1]) {
+                    topic = match[1].trim();
+                }
+                
+                const templates = [
+                    `Drive results in ${topic}`,
+                    `Keep in mind for ${topic}`,
+                    `Step up your ${topic}`,
+                    `Bring to the table in ${topic}`,
+                    `Hit the ground running with ${topic}`,
+                    `Think outside the box on ${topic}`
+                ];
+                
+                for (const temp of templates) {
+                    const cleanPhrase = temp.replace(/\s+/g, ' ').trim();
+                    const formatted = cleanPhrase.charAt(0).toUpperCase() + cleanPhrase.slice(1);
+                    if (!lower.includes(formatted.toLowerCase()) && !chosenStrings.some(s => s.toLowerCase() === formatted.toLowerCase())) {
+                        chosenStrings.push(formatted);
+                    }
+                }
+                
+                for (let i = 1; i <= 5; i++) {
+                    if (chosenStrings.length >= 5) break;
+                    const backup = `Master key concept ${i} for ${topic}`;
+                    if (!lower.includes(backup.toLowerCase()) && !chosenStrings.some(s => s.toLowerCase() === backup.toLowerCase())) {
+                        chosenStrings.push(backup);
+                    }
+                }
+            }
+            
+            return { response: JSON.stringify(chosenStrings.slice(0, 5)), engine: 'Offline Mock Simulator' };
+        }
+
+        // Return array of objects
+        const chosenObjects: any[] = [];
+        for (const candidate of candidates) {
+            if (!lower.includes(candidate.phrase.toLowerCase())) {
+                chosenObjects.push(candidate);
+            }
+        }
+
+        if (chosenObjects.length < 5) {
+            let topic = "Custom Topic";
+            const match = promptText.match(/Instructions: "([^"]+)"/);
+            if (match && match[1]) {
+                topic = match[1].trim();
+            }
+
+            const templates = [
+                `Drive results in ${topic}`,
+                `Keep in mind for ${topic}`,
+                `Step up your ${topic}`,
+                `Bring to the table in ${topic}`,
+                `Hit the ground running with ${topic}`,
+                `Think outside the box on ${topic}`
+            ];
+
+            for (const temp of templates) {
+                const cleanPhrase = temp.replace(/\s+/g, ' ').trim();
+                const formatted = cleanPhrase.charAt(0).toUpperCase() + cleanPhrase.slice(1);
+                if (!lower.includes(formatted.toLowerCase()) && !chosenObjects.some(c => c.phrase.toLowerCase() === formatted.toLowerCase())) {
+                    chosenObjects.push({
+                        phrase: formatted,
+                        meaning_en: `To act or behave in a natural manner associated with "${formatted}".`,
+                        meaning_ja: `「${formatted}」に関連する、日常会話で非常によく使われる自然な表現。`,
+                        example_en: `Let's work together to practice using "${formatted.toLowerCase()}" in our writing.`,
+                        example_ja: `ライティングで「${formatted.toLowerCase()}」を使えるように一緒に練習しましょう。`,
+                        category: "Colloquial",
+                        match_reason: "Offline mock simulator dynamic extraction fallback",
+                        nuance: `Natural usage tone associated with "${formatted}". Suitable for casual and everyday communication.`,
+                        origin: `A product of standard colloquial English development context.`,
+                        tips: `Practice using "${formatted.toLowerCase()}" in contextually natural sentences.`
+                    });
+                }
+            }
+
+            for (let i = 1; i <= 5; i++) {
+                if (chosenObjects.length >= 5) break;
+                const backup = `Master key concept ${i} for ${topic}`;
+                if (!lower.includes(backup.toLowerCase()) && !chosenObjects.some(c => c.phrase.toLowerCase() === backup.toLowerCase())) {
+                    chosenObjects.push({
+                        phrase: backup,
+                        meaning_en: `To understand the core vocabulary of "${backup}".`,
+                        meaning_ja: `「${backup}」の基本語彙を理解する。`,
+                        example_en: `We must learn how to master key concept ${i} for ${topic}.`,
+                        example_ja: `${topic}の重要なコンセプト${i}をマスターする方法を学ぶ必要があります。`,
+                        category: "Colloquial",
+                        match_reason: "Offline mock simulator backup dynamic fallback",
+                        nuance: `Academic and standard usage tip for "${backup}".`,
+                        origin: `Modern language curriculum development frameworks.`,
+                        tips: `Focus on repeating and building active vocabulary sentences.`
+                    });
+                }
+            }
+        }
+
+        return { response: JSON.stringify(chosenObjects.slice(0, 5)), engine: 'Offline Mock Simulator' };
     }
     
     // Simulate smart conversation reply
