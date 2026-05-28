@@ -1157,62 +1157,67 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
       let uniqueGenerated: Phrase[] = [];
       const existingSet = new Set(phrases.map(p => p.phrase.toLowerCase().trim()));
       
-      while (uniqueGenerated.length < countVal && attempts < 3) {
+      while (uniqueGenerated.length < countVal && attempts < 10) {
         attempts++;
-        const remainingCount = countVal - uniqueGenerated.length;
         
         // To protect local LLM token windows and context limits,
-        // we only pass up to the 100 most recent vocabulary phrases in the exclusion list.
+        // we only pass up to the 15 most recent vocabulary phrases in the exclusion list.
         // Client-side deduplication handles the remaining database boundaries.
         const dbExclusions = phrases.map(p => p.phrase);
-        const cappedDbExclusions = dbExclusions.slice(-100);
-        const combinedExclusions = [...cappedDbExclusions, ...uniqueGenerated.map(p => p.phrase)];
+        const cappedDbExclusions = dbExclusions.slice(-15);
+        const combinedExclusions = [...new Set([...cappedDbExclusions, ...uniqueGenerated.map(p => p.phrase)])];
+        
+        const exclusionBullets = combinedExclusions.length > 0
+          ? combinedExclusions.map(p => `- ${p}`).join('\n')
+          : '(None)';
         
         const promptText = `You are a professional lexicographer and vocabulary assistant.
-Generate exactly ${remainingCount} English vocabulary cards based on the following instructions:
+Generate exactly 1 new English vocabulary card based on the following instructions:
 Instructions: "${generationInstructions || 'General everyday idioms/phrases'}"
 
 CRITICAL DUPLICATE EXCLUSION RULE:
 DO NOT generate any of the following phrases as they already exist in my database. Under no circumstances should these phrases be returned:
-${JSON.stringify(combinedExclusions)}
+${exclusionBullets}
 
-Return ONLY a valid JSON array of objects satisfying this exact schema:
-[
-  {
-    "phrase": "Example Phrase",
-    "meaning_en": "English definition",
-    "meaning_ja": "Japanese definition",
-    "example_en": "Authentic example sentence in English",
-    "example_ja": "Japanese translation of the example sentence",
-    "category": "Idiom", // choose from: Idiom, Slang, Phrasal Verb, Colloquial
-    "match_reason": "Explain briefly why this card matches the request instructions.",
-    "nuance": "Detailed context and usage nuances, including tone, register, and situational guidance.",
-    "origin": "Historical etymology, cultural origin story, or how the phrase came to be.",
-    "tips": "A practical study tip or collocation advice for language learners."
-  }
-]
-No other text, conversational intro, markdown fences, or wrap code. Return strictly the raw JSON array.`;
+Return ONLY a single valid JSON object satisfying this exact schema:
+{
+  "phrase": "Example Phrase",
+  "meaning_en": "English definition",
+  "meaning_ja": "Japanese definition",
+  "example_en": "Authentic example sentence in English",
+  "example_ja": "Japanese translation of the example sentence",
+  "category": "Idiom", // choose from: Idiom, Slang, Phrasal Verb, Colloquial
+  "match_reason": "Explain briefly why this card matches the request instructions.",
+  "nuance": "Detailed context and usage nuances, including tone, register, and situational guidance.",
+  "origin": "Historical etymology, cultural origin story, or how the phrase came to be.",
+  "tips": "A practical study tip or collocation advice for language learners."
+}
+No other text, conversational intro, markdown fences, or wrap code. Return strictly the raw JSON object.`;
 
         const result = await aiPromptLocalLLM(promptText);
         
-        // Clean result text to extract strictly the JSON array
+        // Clean result text to extract strictly the JSON object or array block
         let rawText = result.response.trim();
         
-        // Strip markdown code fences if present
-        if (rawText.startsWith('```')) {
-          const jsonStart = rawText.indexOf('[');
-          const jsonEnd = rawText.lastIndexOf(']') + 1;
-          if (jsonStart !== -1 && jsonEnd !== -1) {
-            rawText = rawText.substring(jsonStart, jsonEnd);
-          } else {
-            rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-          }
+        let jsonStart = rawText.indexOf('{');
+        let jsonEnd = rawText.lastIndexOf('}') + 1;
+        
+        const arrayStart = rawText.indexOf('[');
+        const arrayEnd = rawText.lastIndexOf(']') + 1;
+        
+        if (arrayStart !== -1 && (jsonStart === -1 || arrayStart < jsonStart)) {
+          jsonStart = arrayStart;
+          jsonEnd = arrayEnd;
         }
         
-        const parsedArray = JSON.parse(rawText);
-        if (!Array.isArray(parsedArray)) {
-          throw new Error('AI response did not return a valid array of cards.');
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          rawText = rawText.substring(jsonStart, jsonEnd);
+        } else {
+          rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
         }
+        
+        const parsed = JSON.parse(rawText);
+        const parsedArray = Array.isArray(parsed) ? parsed : [parsed];
         
         for (const card of parsedArray) {
           const cleanedPhrase = (card.phrase || '').trim();

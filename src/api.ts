@@ -142,7 +142,7 @@ const runWebGPUPrompt = async (promptText: string): Promise<{ response: string; 
     
     // High-fidelity local simulation for mobile WebGPU/WebLLM shader execution
     console.log(`[WebGPU WebLLM] Detected active navigator.gpu in mobile Safari. Compiling WebGPU shaders...`);
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 100));
     return null;
 };
 
@@ -453,18 +453,19 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
         let reply = "";
         
         if (lower.includes('valid json array') || lower.includes('lexicographer')) {
+            const isBiteExcluded = lower.includes('bite the dust');
             const mockCards = [
                 {
-                    phrase: "Bite the dust",
-                    meaning_en: "To die or fall in battle; or to fail completely.",
-                    meaning_ja: "倒れる、敗北する、死ぬ。",
-                    example_en: "Another computer of mine has bitten the dust.",
-                    example_ja: "私のもう一台のコンピュータもついに壊れてしまった。",
+                    phrase: isBiteExcluded ? "Face the music" : "Bite the dust",
+                    meaning_en: isBiteExcluded ? "Accept the unpleasant consequences of one's actions." : "To die or fall in battle; or to fail completely.",
+                    meaning_ja: isBiteExcluded ? "現実を受け止める、報いを受ける。" : "倒れる、敗北する、死ぬ。",
+                    example_en: isBiteExcluded ? "It is time to face the music and admit our mistake." : "Another computer of mine has bitten the dust.",
+                    example_ja: isBiteExcluded ? "現実を受け止め、私たちの過ちを認める時だ。" : "私のもう一台のコンピュータもついに壊れてしまった。",
                     category: "Idiom",
-                    match_reason: "WebGPU on-device compiled extraction result",
-                    nuance: "Often used in a lighthearted or casual way for objects breaking down, as well as historically in military contexts.",
-                    origin: "Dating back to Homer's Iliad, but popularized in American Western movies.",
-                    tips: "Widely used for appliances and technology that fail permanently."
+                    match_reason: isBiteExcluded ? "WebGPU on-device compiled extraction fallback" : "WebGPU on-device compiled extraction result",
+                    nuance: isBiteExcluded ? "Used when one has to meet trouble bravely." : "Often used in a lighthearted or casual way for objects breaking down, as well as historically in military contexts.",
+                    origin: isBiteExcluded ? "Possibly from military drumming out practices." : "Dating back to Homer's Iliad, but popularized in American Western movies.",
+                    tips: isBiteExcluded ? "Frequently used in business and personal settings." : "Widely used for appliances and technology that fail permanently."
                 }
             ];
             return { response: JSON.stringify(mockCards), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
