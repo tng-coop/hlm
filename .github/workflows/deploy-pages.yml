@@ -1,4 +1,4 @@
-name: Deploy Demo to GitHub Pages
+name: Deploy HLM App to GitHub Pages
 
 on:
   # Runs on pushes targeting the default branch
