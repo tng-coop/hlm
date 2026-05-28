@@ -459,66 +459,34 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
         
         if (lower.includes('valid json array') || lower.includes('lexicographer')) {
             const candidates = [
-                {
-                    phrase: "Bite the dust",
-                    meaning_en: "To die or fall in battle; or to fail completely.",
-                    meaning_ja: "倒れる、敗北する、死ぬ。",
-                    example_en: "Another computer of mine has bitten the dust.",
-                    example_ja: "私のもう一台のコンピュータもついに壊れてしまった。",
-                    category: "Idiom",
-                    match_reason: "WebGPU on-device compiled extraction result",
-                    nuance: "Often used in a lighthearted or casual way for objects breaking down. (物や家電などが壊れたり、失敗したりした際によく冗談交じりで使われます。)",
-                    origin: "Dating back to Homer's Iliad, but popularized in American Western movies. (ホメロスの『イリアス』に遡りますが、アメリカの西部劇映画で広く普及しました。)",
-                    tips: "Widely used for appliances and technology that fail permanently. (永久に壊れて使えなくなった機器や技術に対してよく使われます。)"
-                },
-                {
-                    phrase: "Face the music",
-                    meaning_en: "Accept the unpleasant consequences of one's actions.",
-                    meaning_ja: "現実を受け止める、報いを受ける。",
-                    example_en: "It is time to face the music and admit our mistake.",
-                    example_ja: "現実を受け止め、私たちの過ちを認める時だ。",
-                    category: "Idiom",
-                    match_reason: "WebGPU on-device compiled extraction fallback",
-                    nuance: "Used when one has to meet trouble or consequences bravely. (自分の行動の報いや困難に勇敢に立ち向かわなければならない時に使われます。)",
-                    origin: "Possibly from military drumming out practices or orchestra conductors. (軍隊の不名誉除隊のドラム演奏、またはオーケストラの指揮者に直面することに由来すると言われています。)",
-                    tips: "Frequently used in business and personal settings when taking responsibility. (責任を取る場面など、ビジネスや個人のやり取りで頻繁に使われます。)"
-                },
-                {
-                    phrase: "On the fence",
-                    meaning_en: "Undecided or uncommitted between two options.",
-                    meaning_ja: "決めかねている、中立の立場にいる。",
-                    example_en: "I am on the fence about whether to accept the new job offer.",
-                    example_ja: "新しい仕事のオファーを受けるかどうか、決めかねています。",
-                    category: "Idiom",
-                    match_reason: "WebGPU on-device compiled extraction result",
-                    nuance: "Neutral tone, describing someone who is torn or hesitant to take a side. (中立的なトーンで、どちらの味方をするか迷っている様子を表します。)",
-                    origin: "Sitting on a fence dividing two properties to avoid choosing a side. (2つの地所の境界であるフェンスの上に座り、どちら側に行くか選ばないことに由来します。)",
-                    tips: "Pairs with the preposition 'about' (e.g. on the fence about something). (前置詞 'about' と組み合わせて使われることが多いです。)"
-                },
-                {
-                    phrase: "Break a leg",
-                    meaning_en: "A superstitious way to wish someone good luck before a performance.",
-                    meaning_ja: "がんばって、幸運を祈る（主にパフォーマンス前に）。",
-                    example_en: "You're going to do great in the play tonight! Break a leg!",
-                    example_ja: "今夜の劇、君なら絶対にうまくいくよ！がんばって！",
-                    category: "Idiom",
-                    match_reason: "WebGPU on-device compiled extraction result",
-                    nuance: "Encouraging but very casual, used in performance-related settings. (励ましの意味を持ちますが、非常にカジュアルで、公演や発表の前に使われます。)",
-                    origin: "Theatrical superstition that wishing actual good luck brings bad luck. (本物の「幸運」を祈ると逆の不運を招くという、演劇界의迷信に由来します。)",
-                    tips: "Avoid using for standard exams; best for plays, speeches, and interviews. (通常の筆記試験には使わず、演劇、スピーチ、面接などに使うのが最適です。)"
-                },
-                {
-                    phrase: "Spill the beans",
-                    meaning_en: "Reveal secret information unintentionally or prematurely.",
-                    meaning_ja: "秘密を漏らす、白状する。",
-                    example_en: "Don't spill the beans about the surprise party next week!",
-                    example_ja: "来週のサプライズパーティーの秘密を漏らさないでね！",
-                    category: "Idiom",
-                    match_reason: "WebGPU on-device compiled extraction result",
-                    nuance: "Informal, describing the act of letting a secret slip out. (カジュアルな表現で、うっかり秘密を漏らしてしまう行為を指します。)",
-                    origin: "Ancient Greek voting system using colored beans where the jar could be knocked over. (古代ギリシャで色付きの豆を使って投票した際、瓶が倒れて結果が漏洩したことに由来すると言われています。)",
-                    tips: "Commonly used in casual and colloquial conversation. (日常のくだけた会話で非常によく使われます。)"
-                }
+                { phrase: "Bite the dust", meaning_en: "To die or fall in battle; or to fail completely.", meaning_ja: "倒れる、敗北する、死ぬ。", example_en: "Another computer of mine has bitten the dust.", example_ja: "私のもう一台のコンピュータもついに壊れてしまった。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Face the music", meaning_en: "Accept the unpleasant consequences of one's actions.", meaning_ja: "現実を受け止める、報いを受ける。", example_en: "It is time to face the music and admit our mistake.", example_ja: "現実を受け止め、私たちの過ちを認める時だ。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction fallback" },
+                { phrase: "On the fence", meaning_en: "Undecided or uncommitted between two options.", meaning_ja: "決めかねている、中立の立場にいる。", example_en: "I am on the fence about whether to accept the new job offer.", example_ja: "新しい仕事のオファーを受けるかどうか、決めかねています。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Break a leg", meaning_en: "A superstitious way to wish someone good luck before a performance.", meaning_ja: "がんばって、幸運を祈る（主にパフォーマンス前に）。", example_en: "You're going to do great in the play tonight! Break a leg!", example_ja: "今夜の劇、君なら絶対にうまくいくよ！がんばって！", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Spill the beans", meaning_en: "Reveal secret information unintentionally or prematurely.", meaning_ja: "秘密を漏らす、白状する。", example_en: "Don't spill the beans about the surprise party next week!", example_ja: "来週のサプライズパーティーの秘密を漏らさないでね！", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Bite the bullet", meaning_en: "Face a difficult situation with courage and endure pain.", meaning_ja: "困難な状況に毅然と立ち向かう、我慢する。", example_en: "I decided to bite the bullet and go to the dentist.", example_ja: "私は意を決して歯医者に行くことにした。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Blow off steam", meaning_en: "Release strong emotions or energy through active physical activity.", meaning_ja: "感情やストレスを発散する（うっぷんを晴らす）。", example_en: "I went running to blow off steam after our intense argument.", example_ja: "激しい議論の後、うっぷんを晴らすために走りに行った。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Piece of cake", meaning_en: "Something that is very easy to do.", meaning_ja: "非常に簡単なこと（朝飯前）。", example_en: "Don't worry about the exam; it was a piece of cake.", example_ja: "試験のことは心配しないで。とても簡単だったから。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Under the weather", meaning_en: "Slightly unwell or feeling sick.", meaning_ja: "体調が少し悪い、気分が優れない。", example_en: "I'm feeling a bit under the weather today, so I'll stay home.", example_ja: "今日は少し体調が悪いので、家にいます。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Once in a blue moon", meaning_en: "Something that happens very rarely.", meaning_ja: "ごく稀にしか起こらないこと（めったにない）。", example_en: "My brother lives abroad, so I only see him once in a blue moon.", example_ja: "弟は海外に住んでいるので、めったに会えません。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Burn the midnight oil", meaning_en: "Read or work late into the night.", meaning_ja: "夜遅くまで勉強する、夜なべする。", example_en: "She had to burn the midnight oil to prepare for the board presentation.", example_ja: "彼女は取締役会での発表準備のために夜遅くまで働かなければならなかった。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Actions speak louder than words", meaning_en: "What you do is more significant than what you say.", meaning_ja: "言葉よりも行動が重要である（口先より実行）。", example_en: "He promises to improve, but actions speak louder than words.", example_ja: "彼は改善すると約束しているが、言葉より行動が大事だ。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Back to the drawing board", meaning_en: "Start over after a plan or design has failed.", meaning_ja: "計画を白紙に戻して最初からやり直す。", example_en: "Our proposal was rejected, so it's back to the drawing board.", example_ja: "私たちの提案は却下されたので、計画を最初からやり直す必要があります。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Beat around the bush", meaning_en: "Avoid talking about the main point; speak indirectly.", meaning_ja: "遠回しに言う、話をはぐらかす。", example_en: "Stop beating around the bush and tell me what you want.", example_ja: "遠回しに言うのをやめて、何が言いたいのか教えてください。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Blessing in disguise", meaning_en: "Something that seems bad at first but results in a good outcome.", meaning_ja: "不幸に見えて、結果として幸いなこと（怪我の功名）。", example_en: "Losing that job was a blessing in disguise because I found a much better one.", example_ja: "より良い仕事を見つけられたので、あの仕事を失ったことは怪我の功名だった。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Burn bridges", meaning_en: "Destroy one's path or relations, making retreat impossible.", meaning_ja: "関係を絶つ、後戻りできない状況を作る。", example_en: "Don't burn your bridges when leaving a job; you might need their reference.", example_ja: "仕事を辞める際に関係を絶ってはいけない。推薦状が必要になるかもしれないからだ。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Call it a day", meaning_en: "Decide to stop working for the rest of the day.", meaning_ja: "今日の仕事を切り上げる（終わりにする）。", example_en: "We've made good progress, so let's call it a day.", example_ja: "良い進捗があったので、今日は終わりにしましょう。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Cut corners", meaning_en: "Do something in the easiest or cheapest way, ignoring rules.", meaning_ja: "手抜きをする、妥協する、費用を削減する。", example_en: "Never cut corners when it comes to safety standards.", example_ja: "安全基準に関して決して手抜きをしてはならない。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Get out of hand", meaning_en: "Become uncontrollable or chaotic.", meaning_ja: "手に負えなくなる、収拾がつかなくなる。", example_en: "The party got out of hand after too many guests arrived.", example_ja: "あるいはあまりにも多くのゲストが到着したため、パーティーは手に負えなくなった。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Hit the nail on the head", meaning_en: "Describe exactly what is causing a situation or problem.", meaning_ja: "核心を突く、まさにその通りだと言う。", example_en: "You hit the nail on the head with your analysis of the budget issue.", example_ja: "予算問題に対するあなたの分析は、まさに核心を突いていました。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Keep head above water", meaning_en: "Survive a difficult situation, especially financial struggle.", meaning_ja: "困難な状況をなんとか切り抜ける、借金を作らずにやっていく。", example_en: "With high rent, they are barely keeping their heads above water.", example_ja: "高い家賃のため、彼らはなんとか生計を維持している状態だ。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Let the cat out of the bag", meaning_en: "Reveal a secret, often accidentally.", meaning_ja: "秘密を漏らす、うっかり秘密をバラしてしまう。", example_en: "We wanted it to be a surprise, but he let the cat out of the bag.", example_ja: "サプライズにしたかったのだが、彼が秘密をバラしてしまった。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Miss the boat", meaning_en: "Be too late to take advantage of an opportunity.", meaning_ja: "好機を逃す、手遅れになる。", example_en: "If you don't buy the shares now, you might miss the boat.", example_ja: "今その株を買わなければ、チャンスを逃すことになるかもしれません。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "No pain no gain", meaning_en: "Suffering or effort is needed to make progress or succeed.", meaning_ja: "痛みなくして得るものなし（努力なくして成功なし）。", example_en: "I've been studying for five hours, but no pain no gain.", example_ja: "5時間も勉強しているが、努力なくして得るものなしだ。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Pull someone's leg", meaning_en: "Deceive someone playfully; tease them.", meaning_ja: "からかう、冗談を言ってだます。", example_en: "Is it really raining cats and dogs, or are you just pulling my leg?", example_ja: "本当に土砂降りなのか、それとも私をからかっているだけなのか？", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Speak of the devil", meaning_en: "When the person you were talking about appears unexpectedly.", meaning_ja: "噂をすれば影（その人が現れる）。", example_en: "We were just talking about John, and speak of the devil, here he is!", example_ja: "ちょうどジョンの話をしていたところだったが、噂をすれば影で、彼が来た！", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Steal someone's thunder", meaning_en: "Take credit for someone else's achievement or ideas.", meaning_ja: "お株を奪う、人のアイデアや功績を横取りする。", example_en: "She announced her engagement at my birthday party, stealing my thunder.", example_ja: "彼女は私の誕生日パーティーで婚約を発表し、私の主役の座を奪った。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" },
+                { phrase: "Through thick and thin", meaning_en: "Under all circumstances, no matter how difficult.", meaning_ja: "どんな苦境にあっても（終始一貫して、山あり谷あり）。", example_en: "They supported each other through thick and thin for forty years.", example_ja: "彼らは40年間、どんな苦境にあってもお互いを支え合いました。", category: "Idiom", match_reason: "WebGPU on-device compiled extraction result" }
             ];
             
             if (lower.includes('array of strings') || lower.includes('strings containing')) {
@@ -528,42 +496,7 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
                         chosenStrings.push(candidate.phrase);
                     }
                 }
-                
-                // Dynamically backfill if chosenStrings has fewer than 5 items
-                if (chosenStrings.length < 5) {
-                    let topic = "Custom Topic";
-                    const match = promptText.match(/Instructions: "([^"]+)"/);
-                    if (match && match[1]) {
-                        topic = match[1].trim();
-                    }
-                    
-                    const templates = [
-                        `Drive results in ${topic}`,
-                        `Keep in mind for ${topic}`,
-                        `Step up your ${topic}`,
-                        `Bring to the table in ${topic}`,
-                        `Hit the ground running with ${topic}`,
-                        `Think outside the box on ${topic}`
-                    ];
-                    
-                    for (const temp of templates) {
-                        const cleanPhrase = temp.replace(/\s+/g, ' ').trim();
-                        const formatted = cleanPhrase.charAt(0).toUpperCase() + cleanPhrase.slice(1);
-                        if (!lower.includes(formatted.toLowerCase()) && !chosenStrings.some(s => s.toLowerCase() === formatted.toLowerCase())) {
-                            chosenStrings.push(formatted);
-                        }
-                    }
-                    
-                    for (let i = 1; i <= 5; i++) {
-                        if (chosenStrings.length >= 5) break;
-                        const backup = `Master key concept ${i} for ${topic}`;
-                        if (!lower.includes(backup.toLowerCase()) && !chosenStrings.some(s => s.toLowerCase() === backup.toLowerCase())) {
-                            chosenStrings.push(backup);
-                        }
-                    }
-                }
-                
-                return { response: JSON.stringify(chosenStrings.slice(0, 5)), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
+                return { response: JSON.stringify(chosenStrings), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
             }
             
             let chosen = candidates[0];
@@ -577,24 +510,7 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
             }
             
             if (!foundUnique) {
-                let topic = "Custom Topic";
-                const match = promptText.match(/Instructions: "([^"]+)"/);
-                if (match && match[1]) {
-                    topic = match[1].trim();
-                }
-                const formatted = `Drive results in ${topic}`;
-                chosen = {
-                    phrase: formatted,
-                    meaning_en: `To act or behave in a natural manner associated with "${formatted}".`,
-                    meaning_ja: `「${formatted}」に関連する、日常会話で非常によく使われる自然な表現。`,
-                    example_en: `Let's work together to practice using "${formatted.toLowerCase()}" in our writing.`,
-                    example_ja: `ライティングで「${formatted.toLowerCase()}」を使えるように一緒に練習しましょう。`,
-                    category: "Colloquial",
-                    match_reason: "WebGPU on-device compiled dynamic extraction fallback",
-                    nuance: `Natural usage tone associated with "${formatted}". Suitable for casual and everyday communication.`,
-                    origin: `A product of standard colloquial English development context.`,
-                    tips: `Practice using "${formatted.toLowerCase()}" in contextually natural sentences.`
-                };
+                return { response: JSON.stringify([]), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
             }
             return { response: JSON.stringify([chosen]), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
         }
@@ -643,69 +559,36 @@ As HLM's integrated WebGPU model engine, I can help you practice English grammar
     
     const lower = promptText.toLowerCase();
     
-    // Check if the prompt requests the JSON array format (batch generation)
     if (lower.includes('valid json array') || lower.includes('lexicographer') || lower.includes('array of strings') || lower.includes('strings containing')) {
         const candidates = [
-            {
-                phrase: "Bite the dust",
-                meaning_en: "To die or fall in battle; or to fail completely.",
-                meaning_ja: "倒れる、敗北する、死ぬ。",
-                example_en: "Another computer of mine has bitten the dust.",
-                example_ja: "私のもう一台のコンピュータもついに壊れてしまった。",
-                category: "Idiom",
-                match_reason: "Matches instruction requirements perfectly",
-                nuance: "Often used in a lighthearted or casual way for objects breaking down, as well as historically in military contexts.",
-                origin: "Dating back to Homer's Iliad, but popularized in American Western movies.",
-                tips: "Widely used for appliances and technology that fail permanently."
-            },
-            {
-                phrase: "Face the music",
-                meaning_en: "Accept the unpleasant consequences of one's actions.",
-                meaning_ja: "現実を受け止める、報いを受ける。",
-                example_en: "It is time to face the music and admit our mistake.",
-                example_ja: "現実を受け止め、私たちの過ちを認める時だ。",
-                category: "Idiom",
-                match_reason: "Matches instruction requirements",
-                nuance: "Used when one has to meet trouble or criticism bravely.",
-                origin: "Possibly from the military practice of drumming out a dismissed soldier, or theatre orchestra.",
-                tips: "Frequently used in business and personal accountability settings."
-            },
-            {
-                phrase: "On the fence",
-                meaning_en: "Undecided or uncommitted between two options.",
-                meaning_ja: "決めかねている、中立の立場にいる。",
-                example_en: "I am on the fence about whether to accept the new job offer.",
-                example_ja: "新しい仕事のオファーを受けるかどうか、決めかねています。",
-                category: "Idiom",
-                match_reason: "Matches instruction requirements",
-                nuance: "Neutral tone, describing someone who is torn or hesitant to take a side.",
-                origin: "Sitting on a fence dividing two properties to avoid choosing a side.",
-                tips: "Pairs with the preposition 'about'."
-            },
-            {
-                phrase: "Break a leg",
-                meaning_en: "A superstitious way to wish someone good luck before a performance.",
-                meaning_ja: "がんばって、幸運を祈る（主にパフォーマンス前に）。",
-                example_en: "You're going to do great in the play tonight! Break a leg!",
-                example_ja: "今夜の劇、君なら絶対にうまくいくよ！がんばって！",
-                category: "Idiom",
-                match_reason: "Matches instruction requirements",
-                nuance: "Encouraging but very casual, used in performance-related settings.",
-                origin: "Theatrical superstition that wishing actual good luck brings bad luck.",
-                tips: "Avoid using for standard exams; best for plays, speeches, and interviews."
-            },
-            {
-                phrase: "Spill the beans",
-                meaning_en: "Reveal secret information unintentionally or prematurely.",
-                meaning_ja: "秘密を漏らす、白状する。",
-                example_en: "Don't spill the beans about the surprise party next week!",
-                example_ja: "来週のサプライズパーティーの秘密を漏らさないでね！",
-                category: "Idiom",
-                match_reason: "Matches instruction requirements",
-                nuance: "Informal, describing the act of letting a secret slip out.",
-                origin: "Ancient Greek voting system using colored beans where the jar could be knocked over.",
-                tips: "Commonly used in casual and colloquial conversation."
-            }
+            { phrase: "Bite the dust", meaning_en: "To die or fall in battle; or to fail completely.", meaning_ja: "倒れる、敗北する、死ぬ。", example_en: "Another computer of mine has bitten the dust.", example_ja: "私のもう一台のコンピュータもついに壊れてしまった。", category: "Idiom", match_reason: "Matches instruction requirements perfectly" },
+            { phrase: "Face the music", meaning_en: "Accept the unpleasant consequences of one's actions.", meaning_ja: "現実を受け止める、報いを受ける。", example_en: "It is time to face the music and admit our mistake.", example_ja: "現実を受け止め、私たちの過ちを認める時だ。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "On the fence", meaning_en: "Undecided or uncommitted between two options.", meaning_ja: "決めかねている、中立の立場にいる。", example_en: "I am on the fence about whether to accept the new job offer.", example_ja: "新しい仕事のオファーを受けるかどうか、決めかねています。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Break a leg", meaning_en: "A superstitious way to wish someone good luck before a performance.", meaning_ja: "がんばって、幸運を祈る（主にパフォーマンス前に）。", example_en: "You're going to do great in the play tonight! Break a leg!", example_ja: "今夜の劇、君なら絶対にうまくいくよ！がんばって！", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Spill the beans", meaning_en: "Reveal secret information unintentionally or prematurely.", meaning_ja: "秘密を漏らす、白状する。", example_en: "Don't spill the beans about the surprise party next week!", example_ja: "来週のサプライズパーティーの秘密を漏らさないでね！", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Bite the bullet", meaning_en: "Face a difficult situation with courage and endure pain.", meaning_ja: "困難な状況に毅然と立ち向かう、我慢する。", example_en: "I decided to bite the bullet and go to the dentist.", example_ja: "私は意を決して歯医者に行くことにした。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Blow off steam", meaning_en: "Release strong emotions or energy through active physical activity.", meaning_ja: "感情やストレスを発散する（うっぷんを晴らす）。", example_en: "I went running to blow off steam after our intense argument.", example_ja: "激しい議論の後、うっぷんを晴らすために走りに行った。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Piece of cake", meaning_en: "Something that is very easy to do.", meaning_ja: "非常に簡単なこと（朝飯前）。", example_en: "Don't worry about the exam; it was a piece of cake.", example_ja: "試験のことは心配しないで。とても簡単だったから。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Under the weather", meaning_en: "Slightly unwell or feeling sick.", meaning_ja: "体調が少し悪い、気分が優れない。", example_en: "I'm feeling a bit under the weather today, so I'll stay home.", example_ja: "今日は少し体調が悪いので、家にいます。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Once in a blue moon", meaning_en: "Something that happens very rarely.", meaning_ja: "ごく稀にしか起こらないこと（めったにない）。", example_en: "My brother lives abroad, so I only see him once in a blue moon.", example_ja: "弟は海外に住んでいるので、めったに会えません。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Burn the midnight oil", meaning_en: "Read or work late into the night.", meaning_ja: "夜遅くまで勉強する、夜なべする。", example_en: "She had to burn the midnight oil to prepare for the board presentation.", example_ja: "彼女は取締役会での発表準備のために夜遅くまで働かなければならなかった。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Actions speak louder than words", meaning_en: "What you do is more significant than what you say.", meaning_ja: "言葉よりも行動が重要である（口先より実行）。", example_en: "He promises to improve, but actions speak louder than words.", example_ja: "彼は改善すると約束しているが、言葉より行動が大事だ。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Back to the drawing board", meaning_en: "Start over after a plan or design has failed.", meaning_ja: "計画を白紙に戻して最初からやり直す。", example_en: "Our proposal was rejected, so it's back to the drawing board.", example_ja: "私たちの提案は却下されたので、計画を最初からやり直す必要があります。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Beat around the bush", meaning_en: "Avoid talking about the main point; speak indirectly.", meaning_ja: "遠回しに言う、話をはぐらかす。", example_en: "Stop beating around the bush and tell me what you want.", example_ja: "遠回しに言うのをやめて、何が言いたいのか教えてください。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Blessing in disguise", meaning_en: "Something that seems bad at first but results in a good outcome.", meaning_ja: "不幸に見えて、結果として幸いなこと（怪我の功名）。", example_en: "Losing that job was a blessing in disguise because I found a much better one.", example_ja: "より良い仕事を見つけられたので、あの仕事を失ったことは怪我の功名だった。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Burn bridges", meaning_en: "Destroy one's path or relations, making retreat impossible.", meaning_ja: "関係を絶つ、後戻りできない状況を作る。", example_en: "Don't burn your bridges when leaving a job; you might need their reference.", example_ja: "仕事を辞める際に関係を絶ってはいけない。推薦状が必要になるかもしれないからだ。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Call it a day", meaning_en: "Decide to stop working for the rest of the day.", meaning_ja: "今日の仕事を切り上げる（終わりにする）。", example_en: "We've made good progress, so let's call it a day.", example_ja: "良い進捗があったので、今日は終わりにしましょう。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Cut corners", meaning_en: "Do something in the easiest or cheapest way, ignoring rules.", meaning_ja: "手抜きをする、妥協する、費用を削減する。", example_en: "Never cut corners when it comes to safety standards.", example_ja: "安全基準に関して決して手抜きをしてはならない。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Get out of hand", meaning_en: "Become uncontrollable or chaotic.", meaning_ja: "手に負えなくなる、収拾がつかなくなる。", example_en: "The party got out of hand after too many guests arrived.", example_ja: "あるいはあまりにも多くのゲストが到着したため、パーティーは手に負えなくなった。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Hit the nail on the head", meaning_en: "Describe exactly what is causing a situation or problem.", meaning_ja: "核心を突く、まさにその通りだと言う。", example_en: "You hit the nail on the head with your analysis of the budget issue.", example_ja: "予算問題に対するあなたの分析は、まさに核心を突いていました。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Keep head above water", meaning_en: "Survive a difficult situation, especially financial struggle.", meaning_ja: "困難な状況をなんとか切り抜ける、借金を作らずにやっていく。", example_en: "With high rent, they are barely keeping their heads above water.", example_ja: "高い家賃のため、彼らはなんとか生計を維持している状態だ。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Let the cat out of the bag", meaning_en: "Reveal a secret, often accidentally.", meaning_ja: "秘密を漏らす、うっかり秘密をバラしてしまう。", example_en: "We wanted it to be a surprise, but he let the cat out of the bag.", example_ja: "サプライズにしたかったのだが、彼が秘密をバラしてしまった。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Miss the boat", meaning_en: "Be too late to take advantage of an opportunity.", meaning_ja: "好機を逃す、手遅れになる。", example_en: "If you don't buy the shares now, you might miss the boat.", example_ja: "今その株を買わなければ、チャンスを逃すことになるかもしれません。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "No pain no gain", meaning_en: "Suffering or effort is needed to make progress or succeed.", meaning_ja: "痛みなくして得るものなし（努力なくして成功なし）。", example_en: "I've been studying for five hours, but no pain no gain.", example_ja: "5時間も勉強しているが、努力なくして得るものなしだ。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Pull someone's leg", meaning_en: "Deceive someone playfully; tease them.", meaning_ja: "からかう、冗談を言ってだます。", example_en: "Is it really raining cats and dogs, or are you just pulling my leg?", example_ja: "本当に土砂降りなのか、それとも私をからかっているだけなのか？", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Speak of the devil", meaning_en: "When the person you were talking about appears unexpectedly.", meaning_ja: "噂をすれば影（その人が現れる）。", example_en: "We were just talking about John, and speak of the devil, here he is!", example_ja: "ちょうどジョンの話をしていたところだったが、噂をすれば影で、彼が来た！", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Steal someone's thunder", meaning_en: "Take credit for someone else's achievement or ideas.", meaning_ja: "お株を奪う、人のアイデアや功績を横取りする。", example_en: "She announced her engagement at my birthday party, stealing my thunder.", example_ja: "彼女は私の誕生日パーティーで婚約を発表し、私の主役の座を奪った。", category: "Idiom", match_reason: "Matches instruction requirements" },
+            { phrase: "Through thick and thin", meaning_en: "Under all circumstances, no matter how difficult.", meaning_ja: "どんな苦境にあっても（終始一貫して、山あり谷あり）。", example_en: "They supported each other through thick and thin for forty years.", example_ja: "彼らは40年間、どんな苦境にあってもお互いを支え合いました。", category: "Idiom", match_reason: "Matches instruction requirements" }
         ];
 
         if (lower.includes('array of strings') || lower.includes('strings containing')) {
@@ -715,42 +598,7 @@ As HLM's integrated WebGPU model engine, I can help you practice English grammar
                     chosenStrings.push(candidate.phrase);
                 }
             }
-            
-            // Dynamically backfill if chosenStrings has fewer than 5 items
-            if (chosenStrings.length < 5) {
-                let topic = "Custom Topic";
-                const match = promptText.match(/Instructions: "([^"]+)"/);
-                if (match && match[1]) {
-                    topic = match[1].trim();
-                }
-                
-                const templates = [
-                    `Drive results in ${topic}`,
-                    `Keep in mind for ${topic}`,
-                    `Step up your ${topic}`,
-                    `Bring to the table in ${topic}`,
-                    `Hit the ground running with ${topic}`,
-                    `Think outside the box on ${topic}`
-                ];
-                
-                for (const temp of templates) {
-                    const cleanPhrase = temp.replace(/\s+/g, ' ').trim();
-                    const formatted = cleanPhrase.charAt(0).toUpperCase() + cleanPhrase.slice(1);
-                    if (!lower.includes(formatted.toLowerCase()) && !chosenStrings.some(s => s.toLowerCase() === formatted.toLowerCase())) {
-                        chosenStrings.push(formatted);
-                    }
-                }
-                
-                for (let i = 1; i <= 5; i++) {
-                    if (chosenStrings.length >= 5) break;
-                    const backup = `Master key concept ${i} for ${topic}`;
-                    if (!lower.includes(backup.toLowerCase()) && !chosenStrings.some(s => s.toLowerCase() === backup.toLowerCase())) {
-                        chosenStrings.push(backup);
-                    }
-                }
-            }
-            
-            return { response: JSON.stringify(chosenStrings.slice(0, 5)), engine: 'Offline Mock Simulator' };
+            return { response: JSON.stringify(chosenStrings), engine: 'Offline Mock Simulator' };
         }
 
         // Return array of objects
@@ -760,63 +608,7 @@ As HLM's integrated WebGPU model engine, I can help you practice English grammar
                 chosenObjects.push(candidate);
             }
         }
-
-        if (chosenObjects.length < 5) {
-            let topic = "Custom Topic";
-            const match = promptText.match(/Instructions: "([^"]+)"/);
-            if (match && match[1]) {
-                topic = match[1].trim();
-            }
-
-            const templates = [
-                `Drive results in ${topic}`,
-                `Keep in mind for ${topic}`,
-                `Step up your ${topic}`,
-                `Bring to the table in ${topic}`,
-                `Hit the ground running with ${topic}`,
-                `Think outside the box on ${topic}`
-            ];
-
-            for (const temp of templates) {
-                const cleanPhrase = temp.replace(/\s+/g, ' ').trim();
-                const formatted = cleanPhrase.charAt(0).toUpperCase() + cleanPhrase.slice(1);
-                if (!lower.includes(formatted.toLowerCase()) && !chosenObjects.some(c => c.phrase.toLowerCase() === formatted.toLowerCase())) {
-                    chosenObjects.push({
-                        phrase: formatted,
-                        meaning_en: `To act or behave in a natural manner associated with "${formatted}".`,
-                        meaning_ja: `「${formatted}」に関連する、日常会話で非常によく使われる自然な表現。`,
-                        example_en: `Let's work together to practice using "${formatted.toLowerCase()}" in our writing.`,
-                        example_ja: `ライティングで「${formatted.toLowerCase()}」を使えるように一緒に練習しましょう。`,
-                        category: "Colloquial",
-                        match_reason: "Offline mock simulator dynamic extraction fallback",
-                        nuance: `Natural usage tone associated with "${formatted}". Suitable for casual and everyday communication.`,
-                        origin: `A product of standard colloquial English development context.`,
-                        tips: `Practice using "${formatted.toLowerCase()}" in contextually natural sentences.`
-                    });
-                }
-            }
-
-            for (let i = 1; i <= 5; i++) {
-                if (chosenObjects.length >= 5) break;
-                const backup = `Master key concept ${i} for ${topic}`;
-                if (!lower.includes(backup.toLowerCase()) && !chosenObjects.some(c => c.phrase.toLowerCase() === backup.toLowerCase())) {
-                    chosenObjects.push({
-                        phrase: backup,
-                        meaning_en: `To understand the core vocabulary of "${backup}".`,
-                        meaning_ja: `「${backup}」の基本語彙を理解する。`,
-                        example_en: `We must learn how to master key concept ${i} for ${topic}.`,
-                        example_ja: `${topic}の重要なコンセプト${i}をマスターする方法を学ぶ必要があります。`,
-                        category: "Colloquial",
-                        match_reason: "Offline mock simulator backup dynamic fallback",
-                        nuance: `Academic and standard usage tip for "${backup}".`,
-                        origin: `Modern language curriculum development frameworks.`,
-                        tips: `Focus on repeating and building active vocabulary sentences.`
-                    });
-                }
-            }
-        }
-
-        return { response: JSON.stringify(chosenObjects.slice(0, 5)), engine: 'Offline Mock Simulator' };
+        return { response: JSON.stringify(chosenObjects), engine: 'Offline Mock Simulator' };
     }
     
     // Simulate smart conversation reply
@@ -1178,6 +970,86 @@ const getOfflineGeneratedCard = (phrase: string): Partial<Phrase> => {
             nuance: "Accidental or premature disclosure.",
             origin: "Possibly from ancient Greek voting systems using colored beans.",
             tips: "Informal, conversational use."
+        };
+    }
+    if (key.includes('bullet')) {
+        return {
+            phrase: "Bite the bullet",
+            category: "Idiom",
+            difficulty: "Intermediate",
+            used_in_us: 1,
+            used_in_uk: 1,
+            meaning_en: "Face a difficult situation with courage and endure pain.",
+            meaning_ja: "困難な状況に毅然と立ち向かう、我慢する。",
+            example_en: "I decided to bite the bullet and go to the dentist.",
+            example_ja: "私は意を決して歯医者に行くことにした。",
+            nuance: "Conveys facing a grim, inevitable reality with fortitude. (避けることのできない厳しい現実に毅然と立ち向かう姿勢を表します。)",
+            origin: "Historically, wounded soldiers in battle bit on a lead bullet to endure pain during surgery without anesthesia. (歴史的には、麻酔なしで手術を受ける兵士が痛みに耐えるために鉛の弾丸を噛まされたことに由来します。)",
+            tips: "Often paired with 'decide to' to show the exact moment of choice."
+        };
+    }
+    if (key.includes('cake')) {
+        return {
+            phrase: "Piece of cake",
+            category: "Idiom",
+            difficulty: "Beginner",
+            used_in_us: 1,
+            used_in_uk: 1,
+            meaning_en: "Something that is very easy to do.",
+            meaning_ja: "非常に簡単なこと（朝飯前）。",
+            example_en: "The exam was a piece of cake; I finished it early.",
+            example_ja: "テストは朝飯前だった。早く終わったよ。",
+            nuance: "Casual and extremely informal. (非常にカジュアルで口語的な表現です。)",
+            origin: "From the 19th-century tradition of cake walks where cakes were given as prizes for walking nicely. (19世紀に米国で行われていた、上手に歩いた者にケーキを賞品として与えた「ケーキウォーク」に由来します。)",
+            tips: "Widely popular and very safe to use in everyday situations."
+        };
+    }
+    if (key.includes('weather')) {
+        return {
+            phrase: "Under the weather",
+            category: "Idiom",
+            difficulty: "Intermediate",
+            used_in_us: 1,
+            used_in_uk: 1,
+            meaning_en: "Slightly unwell or feeling sick.",
+            meaning_ja: "少し体調が悪い、気分が優れない。",
+            example_en: "I'm feeling under the weather, so I'll stay home today.",
+            example_ja: "体調が優れないので、今日は家にいます。",
+            nuance: "Refers strictly to mild illnesses like a cold or headache. (風邪などの比較的軽い病気や体調不良に対して使われます。)",
+            origin: "From maritime times when sick sailors went below deck to protect themselves during bad weather. (船の上で気分が悪くなった船乗りが、時化の際に甲板下に退避したことに由来します。)",
+            tips: "A very polite and safe way to call in sick at work."
+        };
+    }
+    if (key.includes('moon')) {
+        return {
+            phrase: "Once in a blue moon",
+            category: "Idiom",
+            difficulty: "Intermediate",
+            used_in_us: 1,
+            used_in_uk: 1,
+            meaning_en: "Something that happens very rarely.",
+            meaning_ja: "ごく稀にしか起こらないこと（めったにない）。",
+            example_en: "He calls his parents once in a blue moon.",
+            example_ja: "彼はめったに両親に電話をかけない。",
+            nuance: "Emphasizes absolute infrequency. (物事が極めて稀にしか発生しないことを強調します。)",
+            origin: "From the calendar name of a second full moon in a single month. (ひと月の間に満月が2回あるという珍しい天文学的暦に由来します。)",
+            tips: "Usually positioned as a trailing adverbial clause."
+        };
+    }
+    if (key.includes('oil')) {
+        return {
+            phrase: "Burn the midnight oil",
+            category: "Idiom",
+            difficulty: "Intermediate",
+            used_in_us: 1,
+            used_in_uk: 1,
+            meaning_en: "Read or work late into the night.",
+            meaning_ja: "夜遅くまで勉強する、夜なべして働く。",
+            example_en: "I had to burn the midnight oil to prepare for the test.",
+            example_ja: "試験に備えるために夜遅くまで勉強しなければならなかった。",
+            nuance: "Intense, focused study or work. (期限に追われて夜遅くまで猛勉強や猛烈な作業をする際に適しています。)",
+            origin: "From times before electricity when late-night work was done under oil lamps. (電気のない時代、深夜にオイルランプの油を使いながら作業や学習をしたことに由来します。)",
+            tips: "Highly appropriate in both workplace and student environments."
         };
     }
 
