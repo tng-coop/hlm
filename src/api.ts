@@ -661,16 +661,19 @@ export const apiInitializeWebLLM = async (
 
         console.log(`[apiInitializeWebLLM] Device detection: isMobileOrConstrained = ${isMobileOrConstrained}. Restricting context window size to prevent iOS WebKit OOM crash.`);
 
-        const engine = await CreateMLCEngine(modelId, {
-            initProgressCallback: (report) => {
-                console.log(`[WebLLM Progress]`, report.text);
-                onProgress(report.text);
+        const engine = await CreateMLCEngine(
+            modelId, 
+            {
+                initProgressCallback: (report) => {
+                    console.log(`[WebLLM Progress]`, report.text);
+                    onProgress(report.text);
+                }
             },
-            // Configure extremely lightweight KV cache parameters to safeguard iOS/Safari RAM budgets
-            kvCacheParameters: {
+            {
+                // Configure extremely lightweight KV cache parameters to safeguard iOS/Safari RAM budgets
                 context_window_size: isMobileOrConstrained ? 1024 : 2048,
             }
-        });
+        );
         (window as any).webLLMEngine = engine;
         console.log(`[apiInitializeWebLLM] Success! WebGPU LLM engine registered in window.webLLMEngine`);
         return true;
