@@ -811,14 +811,20 @@ Provide a highly informative, encouraging, and clear response to help the user m
   const [isWebLLMInitializing, setIsWebLLMInitializing] = useState(false);
   const [webLLMInitProgress, setWebLLMInitProgress] = useState('');
   const [webLLMInitError, setWebLLMInitError] = useState<string | null>(null);
-  const [selectedWebGPUModel, setSelectedWebGPUModel] = useState('Qwen2.5-1.5B-Instruct-q4f16_1-MLC');
+  const [selectedWebGPUModel, setSelectedWebGPUModel] = useState(() => {
+    return localStorage.getItem('hlm_selected_webgpu_model') || 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
+  });
+  const [autoActivateWebGPU, setAutoActivateWebGPU] = useState(() => {
+    return localStorage.getItem('hlm_auto_activate_webgpu') === 'true';
+  });
 
-  const handleActivateWebGPU = async () => {
+  const handleActivateWebGPU = async (targetModel?: string) => {
+    const modelToUse = targetModel || selectedWebGPUModel;
     setIsWebLLMInitializing(true);
     setWebLLMInitProgress('Initializing browser WebGPU interface...');
     setWebLLMInitError(null);
     try {
-      const success = await apiInitializeWebLLM(selectedWebGPUModel, (progress) => {
+      const success = await apiInitializeWebLLM(modelToUse, (progress) => {
         setWebLLMInitProgress(progress);
       });
       if (success) {
@@ -834,6 +840,13 @@ Provide a highly informative, encouraging, and clear response to help the user m
       setIsWebLLMInitializing(false);
     }
   };
+
+  useEffect(() => {
+    if (autoActivateWebGPU && !(window as any).webLLMEngine && !(window as any).webLLM) {
+      console.log(`[Auto-Activate] Found hlm_auto_activate_webgpu enabled on load. Auto-initializing...`);
+      handleActivateWebGPU(selectedWebGPUModel);
+    }
+  }, []);
 
   // AI card generation states for revamped single-input form
   const [isGeneratingCard, setIsGeneratingCard] = useState(false);
@@ -4516,7 +4529,11 @@ Respond strictly in valid JSON format with the following keys:
                     <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#c084fc' }}>Select On-Device LLM Model:</label>
                     <select
                       value={selectedWebGPUModel}
-                      onChange={(e) => setSelectedWebGPUModel(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedWebGPUModel(val);
+                        localStorage.setItem('hlm_selected_webgpu_model', val);
+                      }}
                       disabled={isWebLLMInitializing}
                       style={{
                         padding: '0.5rem',
@@ -4530,13 +4547,30 @@ Respond strictly in valid JSON format with the following keys:
                         fontFamily: 'inherit'
                       }}
                     >
-                      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5-1.5B-Instruct (🌟 Recommended Sweet Spot for iPhones) [~900MB]</option>
-                      <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama-3.2-1B-Instruct (Highly Stable & Compact) [~600MB]</option>
-                      <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen2.5-0.5B-Instruct (Ultra Fast / Low Resource) [~350MB]</option>
+                      <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama-3.2-1B-Instruct (🌟 Recommended mobile sweet spot) [~600MB]</option>
+                      <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen2.5-0.5B-Instruct (Lightweight / Ultra Stable Mobile) [~350MB]</option>
+                      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5-1.5B-Instruct (High Resource - May crash older iPhones!) [~900MB]</option>
                       <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama-3.2-3B-Instruct (Desktop Only - Will crash iOS Safari!) [~1.8GB]</option>
                       <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Qwen2.5-3B-Instruct (Desktop Only - Will crash iOS Safari!) [~1.8GB]</option>
                       <option value="Llama-3-8B-Instruct-q4f16_1-MLC">Llama-3-8B-Instruct (Desktop Only - Will crash iOS Safari!) [~4.5GB]</option>
                     </select>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '-0.3rem' }}>
+                    <input
+                      type="checkbox"
+                      id="toggle-auto-activate"
+                      checked={autoActivateWebGPU}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setAutoActivateWebGPU(checked);
+                        localStorage.setItem('hlm_auto_activate_webgpu', String(checked));
+                      }}
+                      style={{ cursor: 'pointer', accentColor: '#8b5cf6' }}
+                    />
+                    <label htmlFor="toggle-auto-activate" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
+                      Auto-activate WebGPU AI on page load
+                    </label>
                   </div>
 
                   {webLLMInitProgress && (
@@ -4563,7 +4597,7 @@ Respond strictly in valid JSON format with the following keys:
                   <button
                     type="button"
                     disabled={isWebLLMInitializing}
-                    onClick={handleActivateWebGPU}
+                    onClick={() => handleActivateWebGPU()}
                     style={{
                       alignSelf: 'flex-start',
                       padding: '0.6rem 1.2rem',
