@@ -586,6 +586,8 @@ function App() {
   const [blogQueries, setBlogQueries] = useState<{ [id: number]: string }>({});
   const [sendingQueries, setSendingQueries] = useState<{ [id: number]: boolean }>({});
   const [copiedBlogPrompt, setCopiedBlogPrompt] = useState<number | null>(null);
+  const [etymologyUpdateExpanded, setEtymologyUpdateExpanded] = useState<{ [id: number]: boolean }>({});
+  const [etymologyInstructions, setEtymologyInstructions] = useState<{ [id: number]: string }>({});
 
   const handlePasteCommercialBlog = async (phraseId: number, rawText: string) => {
     if (!rawText.trim()) return;
@@ -632,13 +634,13 @@ function App() {
   };
 
   // Load Blog Details dynamically and save permanently to database
-  const handleLoadBlog = async (phraseId: number, phraseText: string) => {
-    console.log(`[handleLoadBlog] User clicked "Generate Deep-Dive Blog Post & Q&A" for phrase: "${phraseText}" (ID: ${phraseId})`);
+  const handleLoadBlog = async (phraseId: number, phraseText: string, instructions?: string) => {
+    console.log(`[handleLoadBlog] User clicked "Generate Deep-Dive Blog Post & Q&A" for phrase: "${phraseText}" (ID: ${phraseId}) with instructions: "${instructions || 'none'}"`);
     setLoadingBlogs(prev => ({ ...prev, [phraseId]: true }));
     setBlogErrors(prev => ({ ...prev, [phraseId]: null }));
     try {
       console.log(`[handleLoadBlog] Dispatching aiExplainNuances to generate etymology...`);
-      const result = await aiExplainNuances(phraseText);
+      const result = await aiExplainNuances(phraseText, instructions);
       console.log(`[handleLoadBlog] Etymology generation completed. Result nuance exists:`, result.nuance ? "YES" : "NO");
       
       const existingCard = phrases.find(p => p.id === phraseId);
@@ -4034,6 +4036,124 @@ Respond strictly in valid JSON format with the following keys:
                                                 </button>
                                               </span>
                                               <div style={{ margin: 0, fontStyle: 'italic' }}>{parseMarkdown(phrase.tips || '')}</div>
+                                            </div>
+
+                                            {/* Collapsible Refine / Regenerate Section */}
+                                            <div style={{ marginTop: '1.2rem', paddingTop: '1rem', borderTop: '1px dashed rgba(255, 255, 255, 0.08)' }}>
+                                              <div
+                                                onClick={() => setEtymologyUpdateExpanded(prev => ({ ...prev, [phrase.id]: !prev[phrase.id] }))}
+                                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: '#c084fc', fontSize: '0.82rem', fontWeight: 'bold' }}
+                                              >
+                                                <span>🔄 Refine or Regenerate Etymology & Nuance with AI</span>
+                                                <span style={{ textDecoration: 'underline' }}>{etymologyUpdateExpanded[phrase.id] ? '▲ Collapse' : '▼ Expand Controls'}</span>
+                                              </div>
+                                              
+                                              {etymologyUpdateExpanded[phrase.id] && (
+                                                <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem', width: '100%' }}>
+                                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%' }}>
+                                                    <label style={{ fontSize: '0.75rem', color: '#c084fc', fontWeight: 'bold' }}>✍️ Custom LLM Instructions / Prompt Tweaks (Optional)</label>
+                                                    <textarea
+                                                      rows={2}
+                                                      value={etymologyInstructions[phrase.id] || ''}
+                                                      onChange={(e) => setEtymologyInstructions(prev => ({ ...prev, [phrase.id]: e.target.value }))}
+                                                      placeholder="E.g., 'Make it extremely simple', 'Translate explanation to Japanese', 'Highlight business contexts'..."
+                                                      style={{
+                                                        padding: '0.5rem',
+                                                        background: 'rgba(255, 255, 255, 0.03)',
+                                                        border: '1px solid rgba(192, 132, 252, 0.25)',
+                                                        borderRadius: '6px',
+                                                        color: '#fff',
+                                                        fontSize: '0.8rem',
+                                                        resize: 'none',
+                                                        outline: 'none',
+                                                        width: '100%',
+                                                        transition: 'all 0.2s'
+                                                      }}
+                                                    />
+                                                  </div>
+
+                                                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                    <button
+                                                      type="button"
+                                                      className="btn-secondary"
+                                                      disabled={loadingBlogs[phrase.id]}
+                                                      style={{
+                                                        padding: '0.5rem 1rem',
+                                                        fontSize: '0.8rem',
+                                                        background: 'rgba(139, 92, 246, 0.15)',
+                                                        border: '1px solid #8b5cf6',
+                                                        color: '#c084fc',
+                                                        borderRadius: '6px',
+                                                        fontWeight: 'bold',
+                                                        cursor: loadingBlogs[phrase.id] ? 'not-allowed' : 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.4rem',
+                                                        transition: 'all 0.2s'
+                                                      }}
+                                                      onClick={() => handleLoadBlog(phrase.id, phrase.phrase, etymologyInstructions[phrase.id])}
+                                                    >
+                                                      {loadingBlogs[phrase.id] ? '⏳ Regenerating...' : '🤖 Regenerate with Local AI'}
+                                                    </button>
+                                                    
+                                                    <button
+                                                      type="button"
+                                                      style={{
+                                                        padding: '0.5rem 1rem',
+                                                        fontSize: '0.8rem',
+                                                        background: 'rgba(255, 255, 255, 0.05)',
+                                                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                                                        color: '#fff',
+                                                        borderRadius: '6px',
+                                                        fontWeight: 'bold',
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.4rem',
+                                                        transition: 'all 0.2s'
+                                                      }}
+                                                      onClick={() => {
+                                                        const userInstructions = etymologyInstructions[phrase.id] || '';
+                                                        const prompt = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase.phrase}". Keep it concise, professional and easy to understand for language learners.${userInstructions ? `\nAdditional user instructions: ${userInstructions}` : ''}\nRespond strictly in valid JSON format with three keys: "nuance", "origin", and "tips".`;
+                                                        navigator.clipboard.writeText(prompt);
+                                                        setCopiedBlogPrompt(phrase.id);
+                                                        setTimeout(() => setCopiedBlogPrompt(null), 2000);
+                                                      }}
+                                                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'}
+                                                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                                                    >
+                                                      📋 {copiedBlogPrompt === phrase.id ? 'Copied!' : 'Copy Prompt for Commercial LLM'}
+                                                    </button>
+                                                  </div>
+
+                                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%' }}>
+                                                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>💡 Commercial AI Fallback Paste Area (Optional)</label>
+                                                    <textarea
+                                                      rows={2}
+                                                      placeholder='Paste JSON response containing "nuance", "origin", "tips" from ChatGPT, Gemini Web, etc. to re-import and update...'
+                                                      style={{
+                                                        padding: '0.5rem',
+                                                        background: 'rgba(0, 0, 0, 0.25)',
+                                                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                        borderRadius: '6px',
+                                                        color: '#fff',
+                                                        fontSize: '0.8rem',
+                                                        fontFamily: 'monospace',
+                                                        resize: 'none',
+                                                        outline: 'none',
+                                                        width: '100%'
+                                                      }}
+                                                      onChange={(e) => handlePasteCommercialBlog(phrase.id, e.target.value)}
+                                                    />
+                                                  </div>
+
+                                                  {blogErrors[phrase.id] && (
+                                                    <div style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 'bold', marginTop: '0.3rem' }}>
+                                                      ⚠️ {blogErrors[phrase.id]}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              )}
                                             </div>
                                           </div>
                                         </div>

@@ -177,8 +177,11 @@ const getLanguageModelManager = () => {
 };
 
 // 2. Main Local AI Explainer Client
-export const aiExplainNuances = async (phrase: string): Promise<AIExplanationResult> => {
-    const promptText = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips".`;
+export const aiExplainNuances = async (phrase: string, instructions?: string): Promise<AIExplanationResult> => {
+    let promptText = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips".`;
+    if (instructions && instructions.trim()) {
+        promptText += `\nAdditional user instructions for this generation/refinement: "${instructions.trim()}"`;
+    }
 
     console.log(`[aiExplainNuances] Starting etymology generation for: "${phrase}"`);
 
