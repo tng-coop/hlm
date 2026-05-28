@@ -173,6 +173,44 @@ const copyToClipboard = (text: string): Promise<void> => {
   });
 };
 
+const promptPresets = [
+  {
+    id: 'biz',
+    icon: '👔',
+    label_en: 'Business',
+    label_ja: 'ビジネス熟語',
+    prompt: 'High-value business idioms and phrasal verbs for professional meetings, negotiations, and workplace collaboration.'
+  },
+  {
+    id: 'slang',
+    icon: '💬',
+    label_en: 'Slang',
+    label_ja: '日常会話スラング',
+    prompt: 'Common informal slangs, idioms, and colloquial expressions used in casual everyday conversations.'
+  },
+  {
+    id: 'acad',
+    icon: '🎓',
+    label_en: 'Academic',
+    label_ja: 'アカデミック語彙',
+    prompt: 'Sophisticated vocabulary, academic phrasal verbs, and formal expressions suitable for writing and advanced tests.'
+  },
+  {
+    id: 'verbs',
+    icon: '🔄',
+    label_en: 'Phrasal Verbs',
+    label_ja: '多義的句動詞',
+    prompt: 'Essential English phrasal verbs that have multiple distinct meanings depending on context, with clear examples.'
+  },
+  {
+    id: 'discus',
+    icon: '🗣️',
+    label_en: 'Discussions',
+    label_ja: '意見表明フレーズ',
+    prompt: 'Useful vocabulary and phrases for expressing agreement, disagreement, offering suggestions, and structuring logical arguments.'
+  }
+];
+
 function App() {
   const [lang, setLang] = useState(() => {
     const saved = localStorage.getItem('hlm_lang');
@@ -1184,6 +1222,7 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
     try {
       let attempts = 0;
       let uniqueGenerated: Phrase[] = [];
+      let sessionExclusions: string[] = [];
       const existingSet = new Set(phrases.map(p => p.phrase.toLowerCase().trim()));
       
       while (uniqueGenerated.length < countVal && attempts < 10) {
@@ -1194,7 +1233,7 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
         // Client-side deduplication handles the remaining database boundaries.
         const dbExclusions = phrases.map(p => p.phrase);
         const cappedDbExclusions = dbExclusions.slice(-15);
-        const combinedExclusions = [...new Set([...cappedDbExclusions, ...uniqueGenerated.map(p => p.phrase)])];
+        const combinedExclusions = [...new Set([...cappedDbExclusions, ...uniqueGenerated.map(p => p.phrase), ...sessionExclusions])];
         
         const exclusionBullets = combinedExclusions.length > 0
           ? combinedExclusions.map(p => `- ${p}`).join('\n')
@@ -1251,6 +1290,8 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
         for (const card of parsedArray) {
           const cleanedPhrase = (card.phrase || '').trim();
           if (!cleanedPhrase) continue;
+          
+          sessionExclusions.push(cleanedPhrase);
           
           const isDuplicate = existingSet.has(cleanedPhrase.toLowerCase()) ||
                               uniqueGenerated.some(u => u.phrase.toLowerCase().trim() === cleanedPhrase.toLowerCase());
@@ -2895,6 +2936,35 @@ Respond strictly in valid JSON format with the following keys:
                     <label style={{ fontWeight: 'bold', color: '#f59e0b', fontSize: '0.85rem' }}>
                       {t('lbl_ai_gen_instructions')}
                     </label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.4rem', marginTop: '0.2rem' }}>
+                      {promptPresets.map((preset) => {
+                        const isSelected = generationInstructions === preset.prompt;
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => setGenerationInstructions(preset.prompt)}
+                            style={{
+                              padding: '0.35rem 0.7rem',
+                              fontSize: '0.78rem',
+                              background: isSelected ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                              border: isSelected ? '1px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.1)',
+                              borderRadius: '20px',
+                              color: isSelected ? '#f59e0b' : '#e2e8f0',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              transition: 'all 0.2s',
+                              fontWeight: isSelected ? 'bold' : 'normal'
+                            }}
+                          >
+                            <span>{preset.icon}</span>
+                            <span>{lang === 'ja' ? preset.label_ja : preset.label_en}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                     <textarea
                       data-testid="generator-instructions-textarea"
                       placeholder={t('ph_ai_gen_instructions')}
