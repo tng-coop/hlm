@@ -106,12 +106,16 @@ export interface AIExplanationResult {
     tips: string;
 }
 
+let isOllamaOffline = false;
+
 // 1. Try to check Ollama local endpoint connectivity
 const checkOllama = async (): Promise<boolean> => {
+    if (isOllamaOffline) return false;
     try {
         const res = await fetch('http://localhost:11434/api/tags', { method: 'GET', signal: AbortSignal.timeout(1000) });
         return res.ok;
     } catch {
+        isOllamaOffline = true;
         return false;
     }
 };
@@ -235,12 +239,12 @@ export const aiExplainNuances = async (phrase: string, instructions?: string): P
     // B. Ollama Local Fallback
     const hasOllama = await checkOllama();
     if (hasOllama) {
-        console.log(`[aiExplainNuances] Ollama local service detected. Querying gemma:2b model (3s timeout)...`);
+        console.log(`[aiExplainNuances] Ollama local service detected. Querying gemma:2b model (1.2s timeout)...`);
         try {
             const res = await fetch('http://localhost:11434/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                signal: AbortSignal.timeout(3000),
+                signal: AbortSignal.timeout(1200),
                 body: JSON.stringify({
                     model: 'gemma:2b',
                     prompt: promptText,
@@ -255,6 +259,7 @@ export const aiExplainNuances = async (phrase: string, instructions?: string): P
             return parsed;
         } catch (err) {
             console.warn('[aiExplainNuances] Ollama local explanation failed or timed out, falling back...', err);
+            isOllamaOffline = true;
         }
     } else {
         console.log(`[aiExplainNuances] Ollama is offline or not running.`);
@@ -516,6 +521,16 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
                 }
             ];
             
+            if (lower.includes('array of strings') || lower.includes('strings containing')) {
+                const chosenStrings: string[] = [];
+                for (const candidate of candidates) {
+                    if (!lower.includes(candidate.phrase.toLowerCase())) {
+                        chosenStrings.push(candidate.phrase);
+                    }
+                }
+                return { response: JSON.stringify(chosenStrings.slice(0, 3)), engine: 'Browser WebGPU WebLLM (iOS/Safari)' };
+            }
+            
             let chosen = candidates[0];
             for (const candidate of candidates) {
                 if (!lower.includes(candidate.phrase.toLowerCase())) {
@@ -550,7 +565,7 @@ As HLM's integrated WebGPU model engine, I can help you practice English grammar
             const res = await fetch('http://localhost:11434/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                signal: AbortSignal.timeout(3000),
+                signal: AbortSignal.timeout(1200),
                 body: JSON.stringify({
                     model: 'gemma:2b',
                     prompt: promptText,
@@ -561,6 +576,7 @@ As HLM's integrated WebGPU model engine, I can help you practice English grammar
             return { response: data.response, engine: 'Ollama Local Server' };
         } catch (err) {
             console.warn('Ollama local prompt failed', err);
+            isOllamaOffline = true;
         }
     }
 
@@ -841,7 +857,7 @@ Respond strictly in valid JSON format with the following keys:
             const res = await fetch('http://localhost:11434/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                signal: AbortSignal.timeout(3000),
+                signal: AbortSignal.timeout(1200),
                 body: JSON.stringify({
                     model: 'gemma:2b',
                     prompt: promptText,
@@ -852,7 +868,8 @@ Respond strictly in valid JSON format with the following keys:
             const data = await res.json();
             return JSON.parse(data.response);
         } catch (err) {
-            console.warn('Ollama card generation failed, falling back...', err);
+            console.warn('Ollama card generation failed, disabling fallback for this session...', err);
+            isOllamaOffline = true;
         }
     }
 
@@ -894,6 +911,54 @@ const getOfflineGeneratedCard = (phrase: string): Partial<Phrase> => {
             nuance: "Superstitious expression, wishing the opposite to avoid bad luck.",
             origin: "Derived from theatrical superstition.",
             tips: "Strictly for performance contexts."
+        };
+    }
+    if (key.includes('dust')) {
+        return {
+            phrase: "Bite the dust",
+            category: "Idiom",
+            difficulty: "Intermediate",
+            used_in_us: 1,
+            used_in_uk: 1,
+            meaning_en: "To die or fall in battle; or to fail completely; break down.",
+            meaning_ja: "倒れる、敗北する、死ぬ、または（機械などが）故障する。",
+            example_en: "My old smartphone has finally bitten the dust.",
+            example_ja: "私の古いスマートフォンがついに壊れてしまった。",
+            nuance: "Often used in a lighthearted or casual way for objects breaking down. (物や家電などが壊れたり、失敗したりした際によく冗談交じりで使われます。)",
+            origin: "Dating back to Homer's Iliad, but popularized in American Western movies. (ホメロスの『イリアス』に遡りますが、アメリカの西部劇映画で広く普及しました。)",
+            tips: "Widely used for appliances and technology that fail permanently. (永久に壊れて使えなくなった機器や技術に対してよく使われます。)"
+        };
+    }
+    if (key.includes('music')) {
+        return {
+            phrase: "Face the music",
+            category: "Idiom",
+            difficulty: "Intermediate",
+            used_in_us: 1,
+            used_in_uk: 1,
+            meaning_en: "Accept the unpleasant consequences of one's actions.",
+            meaning_ja: "現実を受け止める、自分の行動の報いを受ける。",
+            example_en: "It is time to face the music and admit our mistake.",
+            example_ja: "現実を受け止め、私たちの過ちを認める時だ。",
+            nuance: "Used when one has to meet trouble or consequences bravely. (自分の行動の報いや困難に勇敢に立ち向かわなければならない時に使われます。)",
+            origin: "Possibly from military drumming out practices or orchestra conductors. (軍隊の不名誉除隊のドラム演奏、またはオーケストラの指揮者に直面することに由来すると言われています。)",
+            tips: "Frequently used in business and personal settings when taking responsibility. (責任を取る場面など、ビジネスや個人のやり取りで頻繁に使われます。)"
+        };
+    }
+    if (key.includes('fence')) {
+        return {
+            phrase: "On the fence",
+            category: "Idiom",
+            difficulty: "Intermediate",
+            used_in_us: 1,
+            used_in_uk: 1,
+            meaning_en: "Undecided or uncommitted between two options.",
+            meaning_ja: "決めかねている、中立の立場にいる。",
+            example_en: "I am on the fence about whether to accept the new job offer.",
+            example_ja: "新しい仕事のオファーを受けるかどうか、決めかねています。",
+            nuance: "Neutral tone, describing someone who is torn or hesitant to take a side. (中立的なトーンで、どちらの味方をするか迷っている様子を表します。)",
+            origin: "Sitting on a fence dividing two properties to avoid choosing a side. (2つの地所の境界であるフェンスの上に座り、どちら側に行くか選ばないことに由来します。)",
+            tips: "Pairs with the preposition 'about' (e.g. on the fence about something). (前置詞 'about' と組み合わせて使われることが多いです。)"
         };
     }
     if (key.includes('beans')) {

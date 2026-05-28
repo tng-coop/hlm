@@ -1221,65 +1221,49 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
     
     try {
       let attempts = 0;
-      let uniqueGenerated: Phrase[] = [];
+      let uniqueCandidates: string[] = [];
       let sessionExclusions: string[] = [];
       const existingSet = new Set(phrases.map(p => p.phrase.toLowerCase().trim()));
       
-      while (uniqueGenerated.length < countVal && attempts < 10) {
+      console.log(`[handleLocalCardGeneration] Starting Phase 1: Extracting ${countVal} unique target vocabulary candidates...`);
+      
+      while (uniqueCandidates.length < countVal && attempts < 10) {
         attempts++;
+        const neededCount = countVal - uniqueCandidates.length;
         
-        // To protect local LLM token windows and context limits,
-        // we only pass up to the 15 most recent vocabulary phrases in the exclusion list.
-        // Client-side deduplication handles the remaining database boundaries.
+        // Pass a larger subset of database exclusions (up to 50) since these are lightweight strings
         const dbExclusions = phrases.map(p => p.phrase);
-        const cappedDbExclusions = dbExclusions.slice(-15);
-        const combinedExclusions = [...new Set([...cappedDbExclusions, ...uniqueGenerated.map(p => p.phrase), ...sessionExclusions])];
+        const cappedDbExclusions = dbExclusions.slice(-50);
+        const combinedExclusions = [...new Set([...cappedDbExclusions, ...uniqueCandidates, ...sessionExclusions])];
         
         const exclusionBullets = combinedExclusions.length > 0
           ? combinedExclusions.map(p => `- ${p}`).join('\n')
           : '(None)';
         
-        const promptText = `You are a professional lexicographer and vocabulary assistant.
-Generate exactly 1 new English vocabulary card based on the following instructions:
+        const promptText = `You are a professional vocabulary teacher.
+Based on the following instructions, suggest exactly ${neededCount} unique English vocabulary words, idioms, or phrasal verbs that are highly relevant:
 Instructions: "${generationInstructions || 'General everyday idioms/phrases'}"
 
 CRITICAL DUPLICATE EXCLUSION RULE:
-DO NOT generate any of the following phrases as they already exist in my database. Under no circumstances should these phrases be returned:
+DO NOT suggest any of the following phrases. Under no circumstances should these phrases be returned:
 ${exclusionBullets}
 
-Return ONLY a single valid JSON object satisfying this exact schema:
-{
-  "phrase": "Example Phrase",
-  "meaning_en": "English definition",
-  "meaning_ja": "Japanese definition",
-  "example_en": "Authentic example sentence in English",
-  "example_ja": "Japanese translation of the example sentence",
-  "category": "Idiom", // choose from: Idiom, Slang, Phrasal Verb, Colloquial
-  "match_reason": "Explain briefly why this card matches the request instructions.",
-  "nuance": "Detailed context and usage nuances, including tone, register, and situational guidance.",
-  "origin": "Historical etymology, cultural origin story, or how the phrase came to be.",
-  "tips": "A practical study tip or collocation advice for language learners."
-}
-No other text, conversational intro, markdown fences, or wrap code. Return strictly the raw JSON object.`;
+Return ONLY a valid JSON array of strings containing the suggested phrases, like this:
+[
+  "suggested phrase 1",
+  "suggested phrase 2"
+]
+No other text, markdown fences, or conversational intro. Return strictly the raw JSON array of strings.`;
 
         const result = await aiPromptLocalLLM(promptText);
         
-        // Clean result text to extract strictly the JSON object or array block
+        // Clean result text to extract strictly the JSON array block
         let rawText = result.response.trim();
-        
-        let jsonStart = rawText.indexOf('{');
-        let jsonEnd = rawText.lastIndexOf('}') + 1;
-        
         const arrayStart = rawText.indexOf('[');
         const arrayEnd = rawText.lastIndexOf(']') + 1;
         
-        if (arrayStart !== -1 && (jsonStart === -1 || arrayStart < jsonStart)) {
-          jsonStart = arrayStart;
-          jsonEnd = arrayEnd;
-        }
-        
-        if (jsonStart !== -1 && jsonEnd !== -1) {
-          rawText = rawText.substring(jsonStart, jsonEnd);
+        if (arrayStart !== -1 && arrayEnd !== -1) {
+          rawText = rawText.substring(arrayStart, arrayEnd);
         } else {
           rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
         }
@@ -1287,55 +1271,72 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
         const parsed = JSON.parse(rawText);
         const parsedArray = Array.isArray(parsed) ? parsed : [parsed];
         
-        for (const card of parsedArray) {
-          const cleanedPhrase = (card.phrase || '').trim();
-          if (!cleanedPhrase) continue;
+        for (const item of parsedArray) {
+          const phraseStr = typeof item === 'string' ? item.trim() : (item.phrase || '').trim();
+          if (!phraseStr) continue;
           
-          sessionExclusions.push(cleanedPhrase);
+          sessionExclusions.push(phraseStr);
           
-          const isDuplicate = existingSet.has(cleanedPhrase.toLowerCase()) ||
-                              uniqueGenerated.some(u => u.phrase.toLowerCase().trim() === cleanedPhrase.toLowerCase());
+          const isDuplicate = existingSet.has(phraseStr.toLowerCase()) ||
+                              uniqueCandidates.some(c => c.toLowerCase() === phraseStr.toLowerCase());
           
-          if (!isDuplicate) {
-            const todayStr = new Date().toISOString().split('T')[0];
-            uniqueGenerated.push({
-              id: -9999 - uniqueGenerated.length,
-              phrase: cleanedPhrase,
-              meaning_en: card.meaning_en || '',
-              meaning_ja: card.meaning_ja || '',
-              category: card.category || 'Idiom',
-              example_en: card.example_en || '',
-              example_ja: card.example_ja || '',
-              difficulty: 'Intermediate',
-              next_review_date: todayStr,
-              interval_days: 0,
-              ease_factor: 2.5,
-              repetition_count: 0,
-              match_reason: card.match_reason || 'Matched request instructions.',
-              nuance: card.nuance || '',
-              origin: card.origin || '',
-              tips: card.tips || ''
-            });
+          if (!isDuplicate && uniqueCandidates.length < countVal) {
+            uniqueCandidates.push(phraseStr);
+            console.log(`[handleLocalCardGeneration] Candidate accepted: "${phraseStr}"`);
           } else {
-            console.log(`Detected duplicate generated phrase: "${cleanedPhrase}". Will retry/redo.`);
+            console.log(`[handleLocalCardGeneration] Candidate duplicate detected and skipped: "${phraseStr}"`);
           }
         }
       }
       
-      if (uniqueGenerated.length === 0) {
-        throw new Error('All generated cards were duplicates or generation failed.');
+      console.log(`[handleLocalCardGeneration] Phase 1 finished! Unique candidates found:`, uniqueCandidates);
+      
+      if (uniqueCandidates.length === 0) {
+        throw new Error('All generated candidate phrases were duplicates or extraction failed. Please try a different instructions preset.');
       }
       
-      setGeneratedPreviewCards(uniqueGenerated);
-      setSelectedPreviewIndices(new Set(uniqueGenerated.map((_, i) => i)));
-      if (uniqueGenerated.length < countVal) {
-        setGeneratorSuccess(`Generated ${uniqueGenerated.length} unique card(s) (fewer than requested due to duplicate avoidance).`);
+      // Phase 2: Generate high-fidelity bilingual etymological card details for each accepted unique candidate
+      console.log(`[handleLocalCardGeneration] Starting Phase 2: Generating details for each candidate...`);
+      const finalCards: Phrase[] = [];
+      
+      for (const phraseStr of uniqueCandidates) {
+        console.log(`[handleLocalCardGeneration] Phase 2: Querying local LLM details generator for "${phraseStr}"...`);
+        const cardDetails = await aiGenerateCardDetails(phraseStr);
+        const todayStr = new Date().toISOString().split('T')[0];
+        
+        finalCards.push({
+          id: -9999 - finalCards.length,
+          phrase: cardDetails.phrase || phraseStr,
+          meaning_en: cardDetails.meaning_en || '',
+          meaning_ja: cardDetails.meaning_ja || '',
+          category: cardDetails.category || 'Idiom',
+          example_en: cardDetails.example_en || '',
+          example_ja: cardDetails.example_ja || '',
+          difficulty: 'Intermediate',
+          next_review_date: todayStr,
+          interval_days: 0,
+          ease_factor: 2.5,
+          repetition_count: 0,
+          match_reason: cardDetails.match_reason || 'Matched request instructions.',
+          nuance: cardDetails.nuance || '',
+          origin: cardDetails.origin || '',
+          tips: cardDetails.tips || ''
+        });
+      }
+      
+      console.log(`[handleLocalCardGeneration] Phase 2 finished! Total cards created: ${finalCards.length}`);
+      
+      setGeneratedPreviewCards(finalCards);
+      setSelectedPreviewIndices(new Set(finalCards.map((_, i) => i)));
+      
+      if (finalCards.length < countVal) {
+        setGeneratorSuccess(`Generated ${finalCards.length} unique card(s) (fewer than requested due to candidate exclusions).`);
       } else {
-        setGeneratorSuccess(`Successfully generated ${uniqueGenerated.length} unique card(s) locally! Review them below.`);
+        setGeneratorSuccess(`Successfully generated ${finalCards.length} unique card(s) locally! Review them below.`);
       }
     } catch (err: any) {
       console.error('Local AI card generation failed', err);
-      setGeneratorError(`Failed to generate cards locally: ${err.message || 'Invalid JSON output from local model. Try copying the prompt to a commercial LLM.'}`);
+      setGeneratorError(`Failed to generate cards locally: ${err.message || 'Invalid output. Try copying the prompt to a commercial LLM.'}`);
     } finally {
       setIsGeneratingCards(false);
     }
