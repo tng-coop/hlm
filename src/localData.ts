@@ -6,7 +6,41 @@ const STORAGE_KEY = 'hlm_demo_data'; // Retained key to guarantee zero data loss
 
 const loadData = () => {
     const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : null;
+    if (!data) return null;
+    try {
+        const parsed = JSON.parse(data);
+        if (parsed && Array.isArray(parsed.phrases)) {
+            let maxId = 0;
+            const seenIds = new Set<number>();
+            parsed.phrases.forEach((p: any) => {
+                if (p.id && typeof p.id === 'number' && p.id > maxId) {
+                    maxId = p.id;
+                }
+            });
+            let nextId = parsed.nextId || (maxId + 1);
+            let hasChanged = false;
+
+            parsed.phrases = parsed.phrases.map((p: any) => {
+                if (!p.id || typeof p.id !== 'number' || seenIds.has(p.id)) {
+                    const newId = nextId++;
+                    console.log(`[Deduplicate] Reassigning duplicate/missing ID ${p.id} of phrase "${p.phrase}" to unique ID ${newId}`);
+                    p.id = newId;
+                    hasChanged = true;
+                }
+                seenIds.add(p.id);
+                return p;
+            });
+
+            if (hasChanged) {
+                parsed.nextId = nextId;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+            }
+        }
+        return parsed;
+    } catch (e) {
+        console.error('Failed to parse HLM local data', e);
+        return null;
+    }
 };
 
 const saveData = (data: any) => {

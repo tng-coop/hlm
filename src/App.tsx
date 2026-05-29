@@ -3,13 +3,13 @@ import './App.css';
 
 import { Fragment, useEffect, useState, useRef } from 'react';
 
-import { 
-  apiGetPhrases, 
-  apiAddPhrase, 
-  apiReviewPhrase, 
+import {
+  apiGetPhrases,
+  apiAddPhrase,
+  apiReviewPhrase,
   apiMasterPhrase,
-  apiDeletePhrase, 
-  apiGetStats, 
+  apiDeletePhrase,
+  apiGetStats,
   apiGetChartsData,
   apiImportPhrases,
   aiExplainNuances,
@@ -27,7 +27,6 @@ import {
   apiSyncPush,
   apiSyncPull,
   apiInitializeWebLLM,
-  apiSetPreferredEngine,
   type AIReviewResult,
   type AIExplanationResult
 } from './api';
@@ -71,13 +70,13 @@ const parseInlineMarkdown = (text: string): React.ReactNode[] => {
     }
     if (part.startsWith('`') && part.endsWith('`')) {
       return (
-        <code key={i} style={{ 
-          background: 'rgba(255,255,255,0.1)', 
-          padding: '0.1rem 0.35rem', 
-          borderRadius: '4px', 
-          fontSize: '0.85em', 
+        <code key={i} style={{
+          background: 'rgba(255,255,255,0.1)',
+          padding: '0.1rem 0.35rem',
+          borderRadius: '4px',
+          fontSize: '0.85em',
           fontFamily: 'monospace',
-          color: '#38bdf8' 
+          color: '#38bdf8'
         }}>
           {part.slice(1, -1)}
         </code>
@@ -210,6 +209,13 @@ const promptPresets = [
     label_en: 'Discussions',
     label_ja: '意見表明フレーズ',
     prompt: 'Useful vocabulary and phrases for expressing agreement, disagreement, offering suggestions, and structuring logical arguments.'
+  },
+  {
+    id: 'difficult_common',
+    icon: '🧠',
+    label_en: 'Difficult but Common',
+    label_ja: '難関・頻出表現',
+    prompt: 'Idioms and expressions that are structurally or nuancedly challenging for learners, yet are frequently used in native speakers\' everyday speech, media, and literature either in the US, the UK, or both.'
   }
 ];
 
@@ -277,13 +283,13 @@ function App() {
         const filtered = list.filter(v => v.lang.startsWith('en') || v.lang.startsWith('ja'));
         setVoices(filtered);
       };
-      
+
       loadVoices();
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
-  }, []);  const splitMixedTextIntoRuns = (text: string, defaultLang: 'en' | 'ja' = 'en'): { text: string; lang: 'en' | 'ja' }[] => {
+  }, []); const splitMixedTextIntoRuns = (text: string, defaultLang: 'en' | 'ja' = 'en'): { text: string; lang: 'en' | 'ja' }[] => {
     if (!text) return [];
-    
+
     // 1. Check if the text contains explicit language span tags
     const hasTags = /<span lang="[a-z]{2}">/.test(text);
     if (hasTags) {
@@ -347,14 +353,14 @@ function App() {
     if (!text) return [];
     const lines = text.split('\n');
     const sentences: string[] = [];
-    
+
     for (const line of lines) {
       const trimmedLine = line.trim();
       if (!trimmedLine) continue;
-      
+
       const regex = /[^.!?]+[.!?]+(?:\s|$)/g;
       const matches = trimmedLine.match(regex);
-      
+
       if (matches && matches.length > 0) {
         for (const m of matches) {
           const s = m.trim();
@@ -364,34 +370,34 @@ function App() {
         sentences.push(trimmedLine);
       }
     }
-    
+
     return sentences;
   };
 
   const playSentence = (index: number, sentencesList?: string[]) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    
+
     // Invalidate any previous asynchronous callbacks by incrementing the play session ID
     activeSentencePlayIdRef.current++;
     const currentSessionId = activeSentencePlayIdRef.current;
-    
+
     window.speechSynthesis.cancel();
-    
+
     const activeList = sentencesList || audioSentences;
     if (index < 0 || index >= activeList.length) {
       setIsAudioPlaying(false);
       setIsAudioPaused(false);
       return;
     }
-    
+
     setCurrentSentenceIndex(index);
     setActiveRunIndex(-1);
     setIsAudioPlaying(true);
     setIsAudioPaused(false);
-    
+
     const rawText = activeList[index];
     const cleanText = cleanTextForSpeech(rawText);
-    
+
     const hasJapanese = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/.test(cleanText);
     const defaultLang = hasJapanese ? 'ja' : 'en';
     const runs = splitMixedTextIntoRuns(cleanText, defaultLang);
@@ -470,11 +476,11 @@ function App() {
   const startAudioReader = (text: string, title: string) => {
     const sents = splitTextIntoSentences(text);
     if (sents.length === 0) return;
-    
+
     setAudioSentences(sents);
     setAudioSource(title);
     setIsAudioDrawerExpanded(true);
-    
+
     playSentence(0, sents);
   };
 
@@ -499,14 +505,14 @@ function App() {
     if (phrase.tips) {
       parts.push(`Language Coach Tip: ${phrase.tips}`);
     }
-    
+
     const fullText = parts.join('\n\n');
     startAudioReader(fullText, `Comprehensive Card Read: ${phrase.phrase}`);
   };
 
   const handleAudioPlay = () => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    
+
     if (isAudioPlaying) {
       if (isAudioPaused) {
         window.speechSynthesis.resume();
@@ -521,7 +527,7 @@ function App() {
 
   const handleAudioPause = () => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    
+
     if (isAudioPlaying && !isAudioPaused) {
       window.speechSynthesis.pause();
       setIsAudioPaused(true);
@@ -562,25 +568,25 @@ function App() {
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
-    
+
     isDraggingRef.current = true;
     dragStartRef.current = {
       x: e.clientX - dragOffset.x,
       y: e.clientY - dragOffset.y
     };
-    
+
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-    
+
     e.preventDefault();
   };
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!isDraggingRef.current) return;
-    
+
     const newX = e.clientX - dragStartRef.current.x;
     const newY = e.clientY - dragStartRef.current.y;
-    
+
     setDragOffset({ x: newX, y: newY });
   };
 
@@ -597,18 +603,18 @@ function App() {
       x: touch.clientX - dragOffset.x,
       y: touch.clientY - dragOffset.y
     };
-    
+
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleTouchEnd);
   };
 
   const handleTouchMove = (e: TouchEvent) => {
     if (!isDraggingRef.current) return;
-    
+
     const touch = e.touches[0];
     const newX = touch.clientX - dragStartRef.current.x;
     const newY = touch.clientY - dragStartRef.current.y;
-    
+
     setDragOffset({ x: newX, y: newY });
     e.preventDefault();
   };
@@ -668,24 +674,24 @@ function App() {
       if (!parsed.nuance || !parsed.origin) {
         throw new Error('JSON response must contain "nuance" and "origin" keys.');
       }
-      
+
       const existingCard = phrases.find(p => p.id === phraseId);
       if (!existingCard) {
         throw new Error('Phrase card not found in local deck');
       }
-      
+
       setLoadingBlogs(prev => ({ ...prev, [phraseId]: true }));
       setBlogErrors(prev => ({ ...prev, [phraseId]: null }));
-      
+
       await apiUpdatePhrase(phraseId, {
         ...existingCard,
         nuance: parsed.nuance,
         origin: parsed.origin,
         tips: parsed.tips || ''
       });
-      
+
       await refreshData();
-      
+
       if (!blogChats[phraseId]) {
         setBlogChats(prev => ({
           ...prev,
@@ -712,12 +718,12 @@ function App() {
       console.log(`[handleLoadBlog] Dispatching aiExplainNuances to generate etymology...`);
       const result = await aiExplainNuances(phraseText, instructions);
       console.log(`[handleLoadBlog] Etymology generation completed. Result nuance exists:`, result.nuance ? "YES" : "NO");
-      
+
       const existingCard = phrases.find(p => p.id === phraseId);
       if (!existingCard) {
         throw new Error('Phrase card not found in local deck');
       }
-      
+
       console.log(`[handleLoadBlog] Card details found in state. Initiating apiUpdatePhrase payload sync...`);
       // Save permanently to database
       await apiUpdatePhrase(phraseId, {
@@ -806,18 +812,6 @@ Provide a highly informative, encouraging, and clear response to help the user m
   const [sandboxPrompt, setSandboxPrompt] = useState('');
   const [sandboxResponse, setSandboxResponse] = useState('');
   const [sandboxResponseEngine, setSandboxResponseEngine] = useState('');
-  const [preferredEngine, setPreferredEngine] = useState(() => {
-    let saved = localStorage.getItem('hlm_preferred_llm_engine') || 'auto';
-    
-    // Automatically sanitize and map legacy preferences to the unified 'built_in' option!
-    if (saved === 'chrome_nano' || saved === 'edge_phi') {
-      saved = 'built_in';
-      localStorage.setItem('hlm_preferred_llm_engine', 'built_in');
-    }
-    
-    apiSetPreferredEngine(saved);
-    return saved;
-  });
   const [detectedEngine, setDetectedEngine] = useState('Detecting...');
   const isLLMUnavailable = detectedEngine.includes('No Local LLM') || detectedEngine.includes('No LLM Detected');
   const [isSendingPrompt, setIsSendingPrompt] = useState(false);
@@ -825,9 +819,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
   const [isWebLLMInitializing, setIsWebLLMInitializing] = useState(false);
   const [webLLMInitProgress, setWebLLMInitProgress] = useState('');
   const [webLLMInitError, setWebLLMInitError] = useState<string | null>(null);
-  const [selectedWebGPUModel, setSelectedWebGPUModel] = useState(() => {
-    return localStorage.getItem('hlm_selected_webgpu_model') || 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
-  });
+  const selectedWebGPUModel = 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
   const [autoActivateWebGPU, setAutoActivateWebGPU] = useState(() => {
     return localStorage.getItem('hlm_auto_activate_webgpu') === 'true';
   });
@@ -856,7 +848,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
 
   useEffect(() => {
     if (autoActivateWebGPU && !(window as any).webLLMEngine && !(window as any).webLLM) {
-      console.log(`[Auto-Activate] Found hlm_auto_activate_webgpu enabled on load. Auto-initializing ${selectedWebGPUModel}...`);
+      console.log(`[Auto-Activate] Found hlm_auto_activate_webgpu enabled on load. Auto-initializing Qwen2.5-0.5B-Instruct...`);
       handleActivateWebGPU();
     }
   }, []);
@@ -889,7 +881,8 @@ Provide a highly informative, encouraging, and clear response to help the user m
 
   // Card Manager AI Card Generator States
   const [isGeneratorExpanded, setIsGeneratorExpanded] = useState(false);
-  const [generationInstructions, setGenerationInstructions] = useState('');
+  const instructionsRef = useRef<HTMLTextAreaElement>(null);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [generationCount, setGenerationCount] = useState(3);
   const [isGeneratingCards, setIsGeneratingCards] = useState(false);
   const [copiedGenPrompt, setCopiedGenPrompt] = useState(false);
@@ -922,7 +915,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
   const [activeRunIndex, setActiveRunIndex] = useState<number>(-1);
   const [isAudioPlaying, setIsAudioPlayingState] = useState<boolean>(false);
   const [isAudioPaused, setIsAudioPausedState] = useState<boolean>(false);
-  
+
   const isAudioPlayingRef = useRef(false);
   const isAudioPausedRef = useRef(false);
   const activeSentencePlayIdRef = useRef(0);
@@ -1024,7 +1017,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
       const active = await apiGetPhrases();
       const archived = await apiGetArchivedPhrases();
       const allLocal = [...active, ...archived];
-      
+
       console.log(`[CloudSync] Initiating sync. Local deck size: ${allLocal.length} (Active: ${active.length}, Archived: ${archived.length})`);
       console.log(`[CloudSync] Local phrases inventory:`, allLocal.map(p => ({ id: p.id, phrase: p.phrase, reps: p.repetition_count, hasEtym: !!(p.nuance || p.origin) })));
 
@@ -1036,7 +1029,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
 
       if (pullResult && Array.isArray(pullResult.phrases)) {
         console.log(`[CloudSync] Pull succeeded. Pulled deck size: ${pullResult.phrases.length}`);
-        
+
         // Detailed analysis and logging of changes
         for (const pulled of pullResult.phrases) {
           const local = allLocal.find(p => p.phrase.toLowerCase() === pulled.phrase.toLowerCase());
@@ -1045,11 +1038,11 @@ Provide a highly informative, encouraging, and clear response to help the user m
           } else {
             const localHasEtym = !!(local.nuance || local.origin);
             const pulledHasEtym = !!(pulled.nuance || pulled.origin);
-            
+
             console.log(`[CloudSync] Merge Comparison for "${local.phrase}":`);
             console.log(`  - Local: reps=${local.repetition_count}, hasEtym=${localHasEtym ? 'YES' : 'NO'}`);
             console.log(`  - Pulled: reps=${pulled.repetition_count}, hasEtym=${pulledHasEtym ? 'YES' : 'NO'}`);
-            
+
             if (localHasEtym && !pulledHasEtym) {
               console.warn(`  ⚠️ WARNING: Local etymology for "${local.phrase}" is MISSING in pulled cloud data! Server might have discarded local updates.`);
             } else if (!localHasEtym && pulledHasEtym) {
@@ -1059,7 +1052,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
             }
           }
         }
-        
+
         console.log(`[CloudSync] Importing merged deck into local database...`);
         await apiImportPhrases(pullResult.phrases);
         setSyncSuccess(t('sync_msg_success').replace('{count}', String(pullResult.phrases.length)));
@@ -1124,7 +1117,7 @@ Provide a highly informative, encouraging, and clear response to help the user m
       setStats(latestStats);
       const latestCharts = apiGetChartsData();
       setChartsData(latestCharts);
-      
+
       if (showArchivedOnly) {
         const res = await apiGetArchivedPhrases();
         setArchivedPhrases(res);
@@ -1149,15 +1142,12 @@ Provide a highly informative, encouraging, and clear response to help the user m
 
   useEffect(() => {
     refreshData();
-  }, []);
-
-  useEffect(() => {
     const detect = async () => {
       const engine = await aiDetectLocalEngine();
       setDetectedEngine(engine);
     };
     detect();
-  }, [preferredEngine]);
+  }, []);
 
   // Card studies trigger automatically when activeCard changes
   useEffect(() => {
@@ -1232,18 +1222,16 @@ Respond in a friendly, professional, bilingual (English & Japanese) format to en
   };
 
   const buildGeneratorPrompt = (instructions: string, count: number): string => {
-    // To protect local LLM token windows and prevent clipboard bloat,
-    // we only pass up to the 100 most recent vocabulary phrases in the prompt exclusion list.
-    // Client-side deduplication handles the remaining database boundaries securely.
+    // Pass all existing vocabulary phrases in the prompt exclusion list
+    // to ensure commercial LLMs never suggest duplicates.
     const rawList = phrases.map(p => p.phrase);
-    const cappedList = rawList.slice(-100);
     return `You are a professional lexicographer and vocabulary assistant.
 Generate exactly ${count} English vocabulary cards based on the following instructions:
-Instructions: "${instructions || 'General everyday idioms/phrases'}"
+Instructions: "${instructions || 'Difficult but common idioms either in the US, the UK, or both'}"
 
 CRITICAL DUPLICATE EXCLUSION RULE:
 DO NOT generate any of the following phrases as they already exist in my database. Under no circumstances should these phrases be returned:
-${JSON.stringify(cappedList)}
+${JSON.stringify(rawList)}
 
 Return ONLY a valid JSON array of objects satisfying this exact schema:
 [
@@ -1254,9 +1242,11 @@ Return ONLY a valid JSON array of objects satisfying this exact schema:
     "example_en": "Authentic example sentence in English",
     "example_ja": "Japanese translation of the example sentence",
     "category": "Idiom", // choose from: Idiom, Slang, Phrasal Verb, Colloquial
+    "used_in_us": 1, // 1 if commonly used in American English, 0 otherwise
+    "used_in_uk": 1, // 1 if commonly used in British English, 0 otherwise
     "match_reason": "Explain briefly in 1 sentence why this word/idiom/phrase is relevant and matched the user's specific request/instructions.",
     "nuance": "Detailed context and usage nuances, including tone, register, and situational guidance.",
-    "origin": "Historical etymology, cultural origin story, or how the phrase came to be.",
+    "origin": "Historical etymology, cultural origin story, or how the phrase came to be. You MUST also include info on the latest appearance of this phrase on a reputable site or source (e.g., renowned media/news outlets, classic literature, or famous public speeches), explicitly including the specific citation and the exact date of appearance.",
     "tips": "A practical study tip or collocation advice for language learners."
   }
 ]
@@ -1266,9 +1256,10 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
   const handleCopyGeneratorPrompt = () => {
     setGeneratorError(null);
     setGeneratorSuccess(null);
-    const countVal = Math.min(Math.max(generationCount, 1), 5);
-    const promptText = buildGeneratorPrompt(generationInstructions, countVal);
-    
+    const countVal = Math.min(Math.max(generationCount, 1), 15);
+    const instructions = instructionsRef.current?.value || '';
+    const promptText = buildGeneratorPrompt(instructions, countVal);
+
     copyToClipboard(promptText)
       .then(() => {
         setCopiedGenPrompt(true);
@@ -1285,34 +1276,35 @@ No other text, conversational intro, markdown fences, or wrap code. Return stric
     setGeneratorError(null);
     setGeneratorSuccess(null);
     setGeneratedPreviewCards([]);
-    
-    const countVal = Math.min(Math.max(generationCount, 1), 5);
+
+    const instructions = instructionsRef.current?.value || '';
+    const countVal = Math.min(Math.max(generationCount, 1), 15);
     setIsGeneratingCards(true);
-    
+
     try {
       let attempts = 0;
       let uniqueCandidates: string[] = [];
       let sessionExclusions: string[] = [];
       const existingSet = new Set(phrases.map(p => p.phrase.toLowerCase().trim()));
-      
+
       console.log(`[handleLocalCardGeneration] Starting Phase 1: Extracting ${countVal} unique target vocabulary candidates...`);
-      
+
       while (uniqueCandidates.length < countVal && attempts < 10) {
         attempts++;
         const neededCount = countVal - uniqueCandidates.length;
-        
+
         // Pass a larger subset of database exclusions (up to 50) since these are lightweight strings
         const dbExclusions = phrases.map(p => p.phrase);
         const cappedDbExclusions = dbExclusions.slice(-50);
         const combinedExclusions = [...new Set([...cappedDbExclusions, ...uniqueCandidates, ...sessionExclusions])];
-        
+
         const exclusionBullets = combinedExclusions.length > 0
           ? combinedExclusions.map(p => `- ${p}`).join('\n')
           : '(None)';
-        
+
         const promptText = `You are a professional vocabulary teacher.
 Based on the following instructions, suggest exactly ${neededCount} unique English vocabulary words, idioms, or phrasal verbs that are highly relevant:
-Instructions: "${generationInstructions || 'General everyday idioms/phrases'}"
+Instructions: "${instructions || 'Difficult but common idioms either in the US, the UK, or both'}"
 
 CRITICAL DUPLICATE EXCLUSION RULE:
 DO NOT suggest any of the following phrases. Under no circumstances should these phrases be returned:
@@ -1326,18 +1318,18 @@ Return ONLY a valid JSON array of strings containing the suggested phrases, like
 No other text, markdown fences, or conversational intro. Return strictly the raw JSON array of strings.`;
 
         const result = await aiPromptLocalLLM(promptText);
-        
+
         // Clean result text to extract strictly the JSON array block
         let rawText = result.response.trim();
         const arrayStart = rawText.indexOf('[');
         const arrayEnd = rawText.lastIndexOf(']') + 1;
-        
+
         if (arrayStart !== -1 && arrayEnd !== -1) {
           rawText = rawText.substring(arrayStart, arrayEnd);
         } else {
           rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
         }
-        
+
         let parsedArray: any[] = [];
         try {
           const cleanedArray = rawText.replace(/,\s*([\]])/g, '$1').trim();
@@ -1350,16 +1342,16 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
             parsedArray = matches.map(m => m.slice(1, -1).replace(/\\"/g, '"').trim()).filter(Boolean);
           }
         }
-        
+
         for (const item of parsedArray) {
           const phraseStr = typeof item === 'string' ? item.trim() : (item.phrase || '').trim();
           if (!phraseStr) continue;
-          
+
           sessionExclusions.push(phraseStr);
-          
+
           const isDuplicate = existingSet.has(phraseStr.toLowerCase()) ||
-                              uniqueCandidates.some(c => c.toLowerCase() === phraseStr.toLowerCase());
-          
+            uniqueCandidates.some(c => c.toLowerCase() === phraseStr.toLowerCase());
+
           if (!isDuplicate && uniqueCandidates.length < countVal) {
             uniqueCandidates.push(phraseStr);
             console.log(`[handleLocalCardGeneration] Candidate accepted: "${phraseStr}"`);
@@ -1368,22 +1360,22 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
           }
         }
       }
-      
+
       console.log(`[handleLocalCardGeneration] Phase 1 finished! Unique candidates found:`, uniqueCandidates);
-      
+
       if (uniqueCandidates.length === 0) {
         throw new Error('All generated candidate phrases were duplicates or extraction failed. Please try a different instructions preset.');
       }
-      
+
       // Phase 2: Generate high-fidelity bilingual etymological card details for each accepted unique candidate
       console.log(`[handleLocalCardGeneration] Starting Phase 2: Generating details for each candidate...`);
       const finalCards: Phrase[] = [];
-      
+
       for (const phraseStr of uniqueCandidates) {
         console.log(`[handleLocalCardGeneration] Phase 2: Querying local LLM details generator for "${phraseStr}"...`);
         const cardDetails = await aiGenerateCardDetails(phraseStr);
         const todayStr = new Date().toISOString().split('T')[0];
-        
+
         finalCards.push({
           id: -9999 - finalCards.length,
           phrase: cardDetails.phrase || phraseStr,
@@ -1403,12 +1395,12 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
           tips: cardDetails.tips || ''
         });
       }
-      
+
       console.log(`[handleLocalCardGeneration] Phase 2 finished! Total cards created: ${finalCards.length}`);
-      
+
       setGeneratedPreviewCards(finalCards);
       setSelectedPreviewIndices(new Set(finalCards.map((_, i) => i)));
-      
+
       if (finalCards.length < countVal) {
         setGeneratorSuccess(`Generated ${finalCards.length} unique card(s) (fewer than requested due to candidate exclusions).`);
       } else {
@@ -1440,17 +1432,17 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
       if (!Array.isArray(parsedArray)) {
         return;
       }
-      
+
       const existingSet = new Set(phrases.map(p => p.phrase.toLowerCase().trim()));
       const uniqueGenerated: Phrase[] = [];
-      
+
       for (const card of parsedArray) {
         const cleanedPhrase = (card.phrase || '').trim();
         if (!cleanedPhrase) continue;
-        
+
         const isDuplicate = existingSet.has(cleanedPhrase.toLowerCase()) ||
-                            uniqueGenerated.some(u => u.phrase.toLowerCase().trim() === cleanedPhrase.toLowerCase());
-        
+          uniqueGenerated.some(u => u.phrase.toLowerCase().trim() === cleanedPhrase.toLowerCase());
+
         if (!isDuplicate) {
           const todayStr = new Date().toISOString().split('T')[0];
           uniqueGenerated.push({
@@ -1462,6 +1454,8 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
             example_en: card.example_en || '',
             example_ja: card.example_ja || '',
             difficulty: 'Intermediate',
+            used_in_us: card.used_in_us !== undefined ? (Number(card.used_in_us) === 1 ? 1 : 0) : 1,
+            used_in_uk: card.used_in_uk !== undefined ? (Number(card.used_in_uk) === 1 ? 1 : 0) : 1,
             next_review_date: todayStr,
             interval_days: 0,
             ease_factor: 2.5,
@@ -1473,7 +1467,7 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
           });
         }
       }
-      
+
       setGeneratedPreviewCards(uniqueGenerated);
       setSelectedPreviewIndices(new Set(uniqueGenerated.map((_, i) => i)));
       setGeneratorError(null);
@@ -1488,13 +1482,13 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
     if (generatedPreviewCards.length === 0) return;
     setGeneratorError(null);
     setGeneratorSuccess(null);
-    
+
     const cardsToSave = generatedPreviewCards.filter((_, idx) => selectedPreviewIndices.has(idx));
     if (cardsToSave.length === 0) {
       setGeneratorError('Please select at least one card to save.');
       return;
     }
-    
+
     try {
       let addedCount = 0;
       for (const card of cardsToSave) {
@@ -1502,7 +1496,7 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
         if (card.match_reason) {
           savedNuance = `Why Matched: ${card.match_reason}${savedNuance ? `\n\n${savedNuance}` : ''}`;
         }
-        
+
         // Build Phrase payload
         const payload: Omit<Phrase, 'id' | 'next_review_date' | 'interval_days' | 'ease_factor' | 'repetition_count'> = {
           phrase: card.phrase,
@@ -1512,6 +1506,8 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
           example_en: card.example_en,
           example_ja: card.example_ja,
           difficulty: card.difficulty,
+          used_in_us: card.used_in_us !== undefined ? card.used_in_us : 1,
+          used_in_uk: card.used_in_uk !== undefined ? card.used_in_uk : 1,
           nuance: savedNuance,
           origin: card.origin || '',
           tips: card.tips || ''
@@ -1519,12 +1515,15 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
         await apiAddPhrase(payload);
         addedCount++;
       }
-      
+
       setGeneratorSuccess(`Successfully added ${addedCount} card(s) to your study deck!`);
       setGeneratedPreviewCards([]);
       setSelectedPreviewIndices(new Set());
       setCommercialGenPaste('');
-      setGenerationInstructions('');
+      if (instructionsRef.current) {
+        instructionsRef.current.value = '';
+      }
+      setSelectedPresetId(null);
       refreshData();
       triggerAutoSync();
     } catch (err: any) {
@@ -1546,7 +1545,7 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
     const compressedStream = stream.pipeThrough(new (window as any).CompressionStream('gzip'));
     const response = new Response(compressedStream);
     const buffer = await response.arrayBuffer();
-    
+
     // Convert ArrayBuffer to Base64
     let binary = '';
     const bytes = new Uint8Array(buffer);
@@ -1561,7 +1560,7 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
     const cleanBase64 = base64Str
       .replace(/===[\s\S]*?===/g, '') // strip headers/footers
       .replace(/\s+/g, ''); // strip any whitespaces/newlines
-      
+
     const binary = atob(cleanBase64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
@@ -1586,12 +1585,12 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
     try {
       const phraseList = await apiGetPhrases();
       const base64Str = await compressBackupData(phraseList);
-      
+
       const headerText = "=== HLM COMPRESSED STUDY DECK BACKUP ===\n";
       const footerText = "\n=== END BACKUP ===";
       const fullText = `${headerText}${base64Str}${footerText}`;
       const emailBody = `To restore your study deck and progress, copy the entire text block below (including the markers) and paste it into the "Import Backup" panel inside your HLM Card Manager:\n\n${fullText}`;
-      
+
       const recipient = backupEmail ? encodeURIComponent(backupEmail) : '';
       window.location.href = `mailto:${recipient}?subject=HLM%20Study%20Deck%20Backup&body=${encodeURIComponent(emailBody)}`;
     } catch (err: any) {
@@ -1720,7 +1719,7 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
       if (!generated.phrase || !generated.meaning_en) {
         throw new Error('AI response did not contain valid phrase or English meaning.');
       }
-      
+
       const payload: Omit<Phrase, 'id' | 'next_review_date' | 'interval_days' | 'ease_factor' | 'repetition_count'> = {
         phrase: generated.phrase || newCard.phrase,
         meaning_en: generated.meaning_en || '',
@@ -1995,9 +1994,9 @@ Respond strictly in valid JSON format with the following keys:
 
   // Expanded card grid manager filter logic
   const filteredPhrases = (showArchivedOnly ? archivedPhrases : phrases).filter(p => {
-    const matchesSearch = p.phrase.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          p.meaning_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          p.meaning_ja.includes(searchQuery);
+    const matchesSearch = p.phrase.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.meaning_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.meaning_ja.includes(searchQuery);
     const matchesCategory = selectedCategoryFilter === 'All' || p.category === selectedCategoryFilter;
     const matchesDifficulty = selectedDifficultyFilter === 'All' || p.difficulty === selectedDifficultyFilter;
     return matchesSearch && matchesCategory && matchesDifficulty;
@@ -2026,7 +2025,7 @@ Respond strictly in valid JSON format with the following keys:
             🗑️ Card <strong>"{deletedCard.phrase}"</strong> archived.
           </span>
           <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
-            <button 
+            <button
               onClick={handleUndoDelete}
               style={{
                 background: 'rgba(245, 158, 11, 0.15)',
@@ -2042,7 +2041,7 @@ Respond strictly in valid JSON format with the following keys:
             >
               Undo
             </button>
-            <button 
+            <button
               onClick={() => setShowUndoToast(false)}
               style={{
                 background: 'transparent',
@@ -2165,38 +2164,6 @@ Respond strictly in valid JSON format with the following keys:
                     <option value="2" style={{ background: '#1e293b', color: '#fff' }}>2.0x</option>
                   </select>
                 </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#c084fc', fontWeight: 'bold' }}>🤖 Local AI:</span>
-                  <select
-                    value={preferredEngine}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setPreferredEngine(val);
-                      localStorage.setItem('hlm_preferred_llm_engine', val);
-                      apiSetPreferredEngine(val);
-                      aiDetectLocalEngine().then(setDetectedEngine);
-                    }}
-                    style={{
-                      background: 'rgba(0,0,0,0.3)',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      color: '#fff',
-                      padding: '0.35rem 0.6rem',
-                      borderRadius: '6px',
-                      fontSize: '0.8rem',
-                      cursor: 'pointer',
-                      outline: 'none',
-                      maxWidth: '170px',
-                      fontWeight: 'bold',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <option value="auto" style={{ background: '#1e293b', color: '#fff' }}>Auto-Detect (Built-in ➔ WebGPU ➔ Ollama)</option>
-                    <option value="built_in" style={{ background: '#1e293b', color: '#fff' }}>Browser Built-in (LanguageModel)</option>
-                    <option value="webgpu" style={{ background: '#1e293b', color: '#fff' }}>WebGPU WebLLM (On-Device Model)</option>
-                    <option value="ollama" style={{ background: '#1e293b', color: '#fff' }}>Ollama Local Server (localhost)</option>
-                  </select>
-                </div>
               </div>
             )}
             <button onClick={() => { const ny = lang === 'ja' ? 'en' : 'ja'; setLang(ny); localStorage.setItem('hlm_lang', ny); }} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', color: 'white', borderRadius: '4px', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>
@@ -2236,13 +2203,13 @@ Respond strictly in valid JSON format with the following keys:
               onFocus={(e) => e.target.style.borderColor = '#f59e0b'}
               onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
             />
-            <button 
-              data-testid="btn-email-backup" 
+            <button
+              data-testid="btn-email-backup"
               className="btn-backup-header"
               onClick={handleEmailBackup}
-              style={{ 
-                background: 'rgba(245, 158, 11, 0.12)', 
-                border: '1px solid #f59e0b', 
+              style={{
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid #f59e0b',
                 color: '#f59e0b',
                 fontWeight: 'bold',
                 borderRadius: '6px',
@@ -2264,7 +2231,7 @@ Respond strictly in valid JSON format with the following keys:
       </header>
 
       <main className="main-content">
-        
+
         {/* TAB 1: DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="dashboard-view fade-in">
@@ -2307,12 +2274,12 @@ Respond strictly in valid JSON format with the following keys:
                 <h4 style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
                   Study Queue: Card {activeCardIndex + 1} of {dueQueue.length} Due Today
                 </h4>
-                
+
                 {/* 3D Flipping Card */}
                 <div className="study-card-container">
                   <div className={`study-card ${isFlipped ? 'flipped' : ''}`} onClick={() => setIsFlipped(!isFlipped)}>
                     <div className="study-card-inner">
-                      
+
                       {/* FRONT CARD */}
                       <div className="study-card-front">
                         <span className={`difficulty-badge ${activeCard.difficulty.toLowerCase()}`} style={{ display: 'none' }}>{activeCard.difficulty}</span>
@@ -2399,7 +2366,7 @@ Respond strictly in valid JSON format with the following keys:
                             🔊
                           </button>
                         </h3>
-                        
+
                         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.2rem' }}>
                           <button
                             className="btn-speak-comprehensive"
@@ -2429,7 +2396,7 @@ Respond strictly in valid JSON format with the following keys:
                             🗣️ Speak Full Card
                           </button>
                         </div>
-                        
+
                         <div style={{ margin: '1rem 0', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                           <p style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#06b6d4' }}>{activeCard.meaning_en}</p>
                           {lang !== 'en' && <p style={{ fontSize: '1.1rem', color: '#f8fafc', fontWeight: 500 }}>{activeCard.meaning_ja}</p>}
@@ -2501,7 +2468,7 @@ Respond strictly in valid JSON format with the following keys:
                 {/* AI Interactive practices - Shows when card is flipped */}
                 {isFlipped && (
                   <div className="ai-section fade-in">
-                    
+
                     {/* A. Live Sentence Practice checker */}
                     <div className="ai-practice-box glass-card">
                       <h4>💡 {t('lbl_practice_sentence')}</h4>
@@ -2513,26 +2480,26 @@ Respond strictly in valid JSON format with the following keys:
                           style={{ flex: 1, padding: '0.8rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff', resize: 'vertical', minHeight: '60px', fontFamily: 'inherit' }}
                         />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', justifyContent: 'stretch' }}>
-                          <button 
-                            className="btn-primary" 
-                            onClick={checkSentence} 
+                          <button
+                            className="btn-primary"
+                            onClick={checkSentence}
                             disabled={isCheckingSentence || !userSentence.trim()}
                             style={{ flex: 1, padding: '0 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap', minHeight: '34px' }}
                           >
                             {isCheckingSentence ? <span className="spinner" /> : 'AI Check'}
                           </button>
-                          <button 
+                          <button
                             type="button"
-                            className="btn-secondary" 
-                            onClick={handleRealityCheck} 
+                            className="btn-secondary"
+                            onClick={handleRealityCheck}
                             disabled={!userSentence.trim()}
-                            style={{ 
-                              flex: 1, 
-                              padding: '0 1.2rem', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center', 
-                              whiteSpace: 'nowrap', 
+                            style={{
+                              flex: 1,
+                              padding: '0 1.2rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              whiteSpace: 'nowrap',
                               fontSize: '0.8rem',
                               background: 'rgba(255,255,255,0.06)',
                               border: '1px solid rgba(255,255,255,0.12)',
@@ -2642,18 +2609,18 @@ Respond strictly in valid JSON format with the following keys:
                       <div style={{ marginTop: '1.2rem', borderTop: '1px dashed var(--border)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                         <button
                           className="btn-secondary btn-know-already-deck"
-                          style={{ 
-                            background: 'rgba(16, 185, 129, 0.15)', 
-                            border: '1px solid #10b981', 
-                            color: '#10b981', 
-                            padding: '0.6rem 1.5rem', 
-                            width: '100%', 
-                            borderRadius: '8px', 
-                            cursor: 'pointer', 
-                            fontWeight: 'bold', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center', 
+                          style={{
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            border: '1px solid #10b981',
+                            color: '#10b981',
+                            padding: '0.6rem 1.5rem',
+                            width: '100%',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             gap: '0.5rem',
                             transition: 'all 0.2s ease-in-out'
                           }}
@@ -2664,18 +2631,18 @@ Respond strictly in valid JSON format with the following keys:
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', width: '100%' }}>
                           <button
                             className="btn-secondary btn-never-heard-deck"
-                            style={{ 
-                              background: 'rgba(239, 68, 68, 0.15)', 
-                              border: '1px solid #ef4444', 
-                              color: '#ef4444', 
-                              padding: '0.6rem 1.2rem', 
-                              width: '100%', 
-                              borderRadius: '8px', 
-                              cursor: 'pointer', 
-                              fontWeight: 'bold', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center', 
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              border: '1px solid #ef4444',
+                              color: '#ef4444',
+                              padding: '0.6rem 1.2rem',
+                              width: '100%',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              fontWeight: 'bold',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
                               gap: '0.4rem',
                               fontSize: '0.85rem',
                               transition: 'all 0.2s ease-in-out'
@@ -2686,18 +2653,18 @@ Respond strictly in valid JSON format with the following keys:
                           </button>
                           <button
                             className="btn-secondary btn-vague-memory-deck"
-                            style={{ 
-                              background: 'rgba(245, 158, 11, 0.15)', 
-                              border: '1px solid #f59e0b', 
-                              color: '#f59e0b', 
-                              padding: '0.6rem 1.2rem', 
-                              width: '100%', 
-                              borderRadius: '8px', 
-                              cursor: 'pointer', 
-                              fontWeight: 'bold', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center', 
+                            style={{
+                              background: 'rgba(245, 158, 11, 0.15)',
+                              border: '1px solid #f59e0b',
+                              color: '#f59e0b',
+                              padding: '0.6rem 1.2rem',
+                              width: '100%',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              fontWeight: 'bold',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
                               gap: '0.4rem',
                               fontSize: '0.85rem',
                               transition: 'all 0.2s ease-in-out'
@@ -2720,18 +2687,18 @@ Respond strictly in valid JSON format with the following keys:
         {/* TAB 3: CARD MANAGER */}
         {activeTab === 'manager' && (
           <div className="manager-view fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            
+
             {/* Import Backup Form Accordion */}
             <div className="glass-card" style={{ padding: '1.2rem' }}>
-              <div 
-                onClick={() => setIsImportExpanded(!isImportExpanded)} 
+              <div
+                onClick={() => setIsImportExpanded(!isImportExpanded)}
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
                 data-testid="import-card-header"
               >
                 <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#38bdf8' }}>
                   📥 {t('btn_import_backup')}
                 </h3>
-                <button 
+                <button
                   type="button"
                   className="btn-secondary btn-toggle-import-form"
                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
@@ -2745,7 +2712,7 @@ Respond strictly in valid JSON format with the following keys:
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
                     {t('lbl_import_desc')}
                   </p>
-                  
+
                   <textarea
                     data-testid="import-textarea"
                     placeholder={t('lbl_import_placeholder')}
@@ -2815,14 +2782,14 @@ Respond strictly in valid JSON format with the following keys:
                   ☁️ {t('sync_title')}
                 </h3>
                 {syncKey && (
-                  <span style={{ 
-                    background: 'rgba(16, 185, 129, 0.15)', 
-                    border: '1px solid #10b981', 
-                    color: '#10b981', 
-                    borderRadius: '20px', 
-                    padding: '0.2rem 0.6rem', 
-                    fontSize: '0.75rem', 
-                    fontWeight: 'bold' 
+                  <span style={{
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid #10b981',
+                    color: '#10b981',
+                    borderRadius: '20px',
+                    padding: '0.2rem 0.6rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold'
                   }}>
                     ● Linked
                   </span>
@@ -3055,15 +3022,15 @@ Respond strictly in valid JSON format with the following keys:
 
             {/* AI Card Generator Accordion */}
             <div className="glass-card" style={{ padding: '1.2rem' }}>
-              <div 
-                onClick={() => setIsGeneratorExpanded(!isGeneratorExpanded)} 
+              <div
+                onClick={() => setIsGeneratorExpanded(!isGeneratorExpanded)}
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
                 data-testid="ai-generator-header"
               >
                 <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f59e0b' }}>
                   ✨ {t('btn_ai_generator') || 'AI Card Generator'}
                 </h3>
-                <button 
+                <button
                   type="button"
                   className="btn-secondary btn-toggle-generator-form"
                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
@@ -3080,12 +3047,17 @@ Respond strictly in valid JSON format with the following keys:
                     </label>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.4rem', marginTop: '0.2rem' }}>
                       {promptPresets.map((preset) => {
-                        const isSelected = generationInstructions === preset.prompt;
+                        const isSelected = selectedPresetId === preset.id;
                         return (
                           <button
                             key={preset.id}
                             type="button"
-                            onClick={() => setGenerationInstructions(preset.prompt)}
+                            onClick={() => {
+                              setSelectedPresetId(preset.id);
+                              if (instructionsRef.current) {
+                                instructionsRef.current.value = preset.prompt;
+                              }
+                            }}
                             style={{
                               padding: '0.35rem 0.7rem',
                               fontSize: '0.78rem',
@@ -3108,10 +3080,10 @@ Respond strictly in valid JSON format with the following keys:
                       })}
                     </div>
                     <textarea
+                      ref={instructionsRef}
                       data-testid="generator-instructions-textarea"
                       placeholder={t('ph_ai_gen_instructions')}
-                      value={generationInstructions}
-                      onChange={(e) => setGenerationInstructions(e.target.value)}
+                      defaultValue=""
                       style={{
                         width: '100%',
                         minHeight: '80px',
@@ -3125,8 +3097,6 @@ Respond strictly in valid JSON format with the following keys:
                         outline: 'none',
                         transition: 'border-color 0.2s'
                       }}
-                      onFocus={(e) => e.target.style.borderColor = '#f59e0b'}
-                      onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
                     />
                   </div>
 
@@ -3324,15 +3294,15 @@ Respond strictly in valid JSON format with the following keys:
 
             {/* A. Card creation form */}
             <div className="glass-card" style={{ padding: '1.2rem' }}>
-              <div 
-                onClick={() => setIsAddFormExpanded(!isAddFormExpanded)} 
+              <div
+                onClick={() => setIsAddFormExpanded(!isAddFormExpanded)}
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
                 data-testid="add-card-header"
               >
                 <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   ✨ {t('lbl_add_vocab_card') || 'Add New Vocabulary Card'}
                 </h3>
-                <button 
+                <button
                   type="button"
                   className="btn-secondary btn-toggle-add-form"
                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
@@ -3504,7 +3474,7 @@ Respond strictly in valid JSON format with the following keys:
                             🔊
                           </button>
                         </h3>
-                        
+
                         <div>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', fontWeight: 'bold' }}>MEANING (EN)</span>
                           <span style={{ color: '#06b6d4', fontSize: '0.95rem' }}>{generatedPreview.meaning_en}</span>
@@ -3519,7 +3489,7 @@ Respond strictly in valid JSON format with the following keys:
 
                         <div style={{ background: 'rgba(0,0,0,0.15)', padding: '0.8rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)', marginTop: '0.2rem' }}>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Example Sentence</span>
-                          
+
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
                             <p style={{ fontStyle: 'italic', fontSize: '0.9rem', color: '#fff', flex: 1, margin: 0 }}>"{generatedPreview.example_en}"</p>
                             <button
@@ -3736,7 +3706,7 @@ Respond strictly in valid JSON format with the following keys:
             <div className="glass-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '1.5rem' }}>
                 <h3>{showArchivedOnly ? '🗑️ Trash Bin / Archived' : '📦 Card Repository'} ({filteredPhrases.length} Cards)</h3>
-                
+
                 {/* Filters */}
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                   <input
@@ -3799,7 +3769,7 @@ Respond strictly in valid JSON format with the following keys:
                       const isExpanded = expandedPhraseId === phrase.id;
                       return (
                         <Fragment key={phrase.id}>
-                          <tr 
+                          <tr
                             onClick={() => setExpandedPhraseId(isExpanded ? null : phrase.id)}
                             style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer', background: isExpanded ? 'rgba(255,255,255,0.03)' : 'transparent' }}
                           >
@@ -3814,8 +3784,8 @@ Respond strictly in valid JSON format with the following keys:
                               <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
                                 {showArchivedOnly ? (
                                   <>
-                                    <button 
-                                      className="btn-secondary" 
+                                    <button
+                                      className="btn-secondary"
                                       style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', background: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -3824,7 +3794,7 @@ Respond strictly in valid JSON format with the following keys:
                                     >
                                       ♻️ Restore
                                     </button>
-                                    
+
                                     {pendingDeleteId === phrase.id ? (
                                       <div style={{ display: 'flex', gap: '0.3rem' }} onClick={(e) => e.stopPropagation()}>
                                         <button
@@ -3864,14 +3834,14 @@ Respond strictly in valid JSON format with the following keys:
                                       </div>
                                     ) : (
                                       <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                        <button 
-                                          className="btn-secondary btn-edit-card" 
-                                          style={{ 
-                                            padding: '0.3rem 0.8rem', 
-                                            fontSize: '0.8rem', 
-                                            background: 'rgba(245, 158, 11, 0.15)', 
-                                            color: '#f59e0b', 
-                                            border: '1px solid #f59e0b', 
+                                        <button
+                                          className="btn-secondary btn-edit-card"
+                                          style={{
+                                            padding: '0.3rem 0.8rem',
+                                            fontSize: '0.8rem',
+                                            background: 'rgba(245, 158, 11, 0.15)',
+                                            color: '#f59e0b',
+                                            border: '1px solid #f59e0b',
                                             borderRadius: '4px',
                                             cursor: 'pointer',
                                             fontWeight: 'bold'
@@ -3883,8 +3853,8 @@ Respond strictly in valid JSON format with the following keys:
                                         >
                                           ✏️ {t('btn_edit')}
                                         </button>
-                                        <button 
-                                          className="btn-secondary" 
+                                        <button
+                                          className="btn-secondary"
                                           style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', background: '#cc0000', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -3899,13 +3869,13 @@ Respond strictly in valid JSON format with the following keys:
                                 ) : (
                                   <>
                                     {phrase.repetition_count < 5 && (
-                                      <button 
-                                        className="btn-secondary btn-know-already-mgr" 
-                                        style={{ 
-                                          padding: '0.3rem 0.6rem', 
-                                          fontSize: '0.75rem', 
-                                          background: 'rgba(16, 185, 129, 0.15)', 
-                                          color: '#10b981', 
+                                      <button
+                                        className="btn-secondary btn-know-already-mgr"
+                                        style={{
+                                          padding: '0.3rem 0.6rem',
+                                          fontSize: '0.75rem',
+                                          background: 'rgba(16, 185, 129, 0.15)',
+                                          color: '#10b981',
                                           border: '1px solid #10b981',
                                           borderRadius: '4px',
                                           cursor: 'pointer',
@@ -3957,37 +3927,37 @@ Respond strictly in valid JSON format with the following keys:
                                         </button>
                                       </div>
                                     ) : (
-                                       <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                         <button 
-                                           className="btn-secondary btn-edit-card" 
-                                           style={{ 
-                                             padding: '0.3rem 0.8rem', 
-                                             fontSize: '0.8rem', 
-                                             background: 'rgba(245, 158, 11, 0.15)', 
-                                             color: '#f59e0b', 
-                                             border: '1px solid #f59e0b', 
-                                             borderRadius: '4px',
-                                             cursor: 'pointer',
-                                             fontWeight: 'bold'
-                                           }}
-                                           onClick={(e) => {
-                                             e.stopPropagation();
-                                             handleStartEdit(phrase);
-                                           }}
-                                         >
-                                           ✏️ {t('btn_edit')}
-                                         </button>
-                                         <button 
-                                           className="btn-secondary" 
-                                           style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', background: '#cc0000', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                                           onClick={(e) => {
-                                             e.stopPropagation();
-                                             setPendingDeleteId(phrase.id);
-                                           }}
-                                         >
-                                           {t('btn_delete')}
-                                         </button>
-                                       </div>
+                                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                        <button
+                                          className="btn-secondary btn-edit-card"
+                                          style={{
+                                            padding: '0.3rem 0.8rem',
+                                            fontSize: '0.8rem',
+                                            background: 'rgba(245, 158, 11, 0.15)',
+                                            color: '#f59e0b',
+                                            border: '1px solid #f59e0b',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontWeight: 'bold'
+                                          }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStartEdit(phrase);
+                                          }}
+                                        >
+                                          ✏️ {t('btn_edit')}
+                                        </button>
+                                        <button
+                                          className="btn-secondary"
+                                          style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', background: '#cc0000', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setPendingDeleteId(phrase.id);
+                                          }}
+                                        >
+                                          {t('btn_delete')}
+                                        </button>
+                                      </div>
                                     )}
                                   </>
                                 )}
@@ -4124,7 +4094,7 @@ Respond strictly in valid JSON format with the following keys:
                                           >
                                             {loadingBlogs[phrase.id] ? '⏳ Generating Editorial...' : isLLMUnavailable ? '📖 Local AI Unavailable' : '📖 Generate with Local AI'}
                                           </button>
-                                          
+
                                           <button
                                             type="button"
                                             style={{
@@ -4142,7 +4112,7 @@ Respond strictly in valid JSON format with the following keys:
                                               transition: 'all 0.2s'
                                             }}
                                             onClick={() => {
-                                              const prompt = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase.phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips". In each key, provide detailed explanations in BOTH English and Japanese (bilingual format, e.g., English text followed by its Japanese translation) to ensure full comprehension for learners.`;
+                                              const prompt = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase.phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips". In each key, provide detailed explanations in BOTH English and Japanese (bilingual format, e.g., English text followed by its Japanese translation) to ensure full comprehension for learners. Additionally, in the 'origin' or 'nuance' key, you MUST provide info on the latest appearance of this phrase on a reputable site or source (e.g. renowned media/news outlets, classic literature, or famous public speeches), explicitly including the specific citation and the exact date of appearance.`;
                                               copyToClipboard(prompt);
                                               setCopiedBlogPrompt(phrase.id);
                                               setTimeout(() => setCopiedBlogPrompt(null), 2000);
@@ -4295,7 +4265,7 @@ Respond strictly in valid JSON format with the following keys:
                                                 <span>🔄 Refine or Regenerate Etymology & Nuance with AI</span>
                                                 <span style={{ textDecoration: 'underline' }}>{etymologyUpdateExpanded[phrase.id] ? '▲ Collapse' : '▼ Expand Controls'}</span>
                                               </div>
-                                              
+
                                               {etymologyUpdateExpanded[phrase.id] && (
                                                 <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem', width: '100%' }}>
                                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%' }}>
@@ -4344,7 +4314,7 @@ Respond strictly in valid JSON format with the following keys:
                                                     >
                                                       {loadingBlogs[phrase.id] ? '⏳ Regenerating...' : '🤖 Regenerate with Local AI'}
                                                     </button>
-                                                    
+
                                                     <button
                                                       type="button"
                                                       style={{
@@ -4420,7 +4390,7 @@ Respond strictly in valid JSON format with the following keys:
                                           <h5 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                             💬 Community Q&A Board & AI Language Coach
                                           </h5>
-                                          
+
                                           {/* Message Log */}
                                           <div style={{
                                             display: 'flex',
@@ -4512,11 +4482,11 @@ Respond strictly in valid JSON format with the following keys:
                                         {phrase.repetition_count < 5 && (
                                           <button
                                             className="btn-secondary btn-know-already-mgr-exp"
-                                            style={{ 
-                                              padding: '0.4rem 0.8rem', 
-                                              fontSize: '0.8rem', 
-                                              background: 'rgba(16, 185, 129, 0.15)', 
-                                              color: '#10b981', 
+                                            style={{
+                                              padding: '0.4rem 0.8rem',
+                                              fontSize: '0.8rem',
+                                              background: 'rgba(16, 185, 129, 0.15)',
+                                              color: '#10b981',
                                               border: '1px solid #10b981',
                                               borderRadius: '6px',
                                               cursor: 'pointer',
@@ -4533,11 +4503,11 @@ Respond strictly in valid JSON format with the following keys:
                                         )}
                                         <button
                                           className="btn-secondary btn-never-heard-mgr-exp"
-                                          style={{ 
-                                            padding: '0.4rem 0.8rem', 
-                                            fontSize: '0.8rem', 
-                                            background: 'rgba(239, 68, 68, 0.12)', 
-                                            color: '#ef4444', 
+                                          style={{
+                                            padding: '0.4rem 0.8rem',
+                                            fontSize: '0.8rem',
+                                            background: 'rgba(239, 68, 68, 0.12)',
+                                            color: '#ef4444',
                                             border: '1px solid #ef4444',
                                             borderRadius: '6px',
                                             cursor: 'pointer',
@@ -4557,11 +4527,11 @@ Respond strictly in valid JSON format with the following keys:
                                         </button>
                                         <button
                                           className="btn-secondary btn-vague-memory-mgr-exp"
-                                          style={{ 
-                                            padding: '0.4rem 0.8rem', 
-                                            fontSize: '0.8rem', 
-                                            background: 'rgba(245, 158, 11, 0.12)', 
-                                            color: '#f59e0b', 
+                                          style={{
+                                            padding: '0.4rem 0.8rem',
+                                            fontSize: '0.8rem',
+                                            background: 'rgba(245, 158, 11, 0.12)',
+                                            color: '#f59e0b',
                                             border: '1px solid #f59e0b',
                                             borderRadius: '6px',
                                             cursor: 'pointer',
@@ -4605,7 +4575,7 @@ Respond strictly in valid JSON format with the following keys:
               <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem', fontSize: '0.95rem' }}>
                 {t('lbl_sandbox_description')}
               </p>
-              
+
               {/* Active Engine Badge */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.2rem', padding: '0.8rem 1.2rem', background: isLLMUnavailable ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255,255,255,0.02)', border: isLLMUnavailable ? '1px solid #ef4444' : '1px solid var(--border)', borderRadius: '8px', width: 'fit-content' }}>
                 <span style={{ width: '8px', height: '8px', background: isLLMUnavailable ? '#ef4444' : '#10b981', borderRadius: '50%', display: 'inline-block', boxShadow: isLLMUnavailable ? '0 0 8px #ef4444' : '0 0 8px #10b981' }} />
@@ -4613,8 +4583,6 @@ Respond strictly in valid JSON format with the following keys:
                   <strong>{t('lbl_detected_llm')}:</strong> <span style={{ color: isLLMUnavailable ? '#ef4444' : '#fff', marginLeft: '0.3rem' }}>{detectedEngine}</span>
                 </span>
               </div>
-
-
 
               {isLLMUnavailable && (
                 <div style={{
@@ -4637,35 +4605,11 @@ Respond strictly in valid JSON format with the following keys:
                     </p>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    <label htmlFor="webgpu-model-select" style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#c084fc' }}>
-                      Select On-Device Model:
-                    </label>
-                    <select
-                      id="webgpu-model-select"
-                      value={selectedWebGPUModel}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSelectedWebGPUModel(val);
-                        localStorage.setItem('hlm_selected_webgpu_model', val);
-                      }}
-                      disabled={isWebLLMInitializing}
-                      style={{
-                        padding: '0.4rem',
-                        background: 'rgba(0, 0, 0, 0.4)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '6px',
-                        color: '#fff',
-                        fontSize: '0.82rem',
-                        cursor: isWebLLMInitializing ? 'not-allowed' : 'pointer',
-                        outline: 'none',
-                        width: '100%',
-                        fontFamily: 'inherit'
-                      }}
-                    >
-                      <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen2.5-0.5B-Instruct (🌟 Ultra-Stable Mobile) [~350MB]</option>
-                      <option value="gemma-2-2b-it-q4f16_1-MLC">Gemma-2-2b-it (Google Gemma 2 2B - High Accuracy) [~1.4GB]</option>
-                    </select>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#c084fc' }}>Selected On-Device Model:</span>
+                    <span style={{ fontSize: '0.82rem', color: '#fff', fontWeight: '500' }}>
+                      Qwen2.5-0.5B-Instruct (🌟 Ultra-Stable Mobile Optimized) [~350MB]
+                    </span>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '-0.3rem' }}>
@@ -4741,14 +4685,14 @@ Respond strictly in valid JSON format with the following keys:
                     value={sandboxPrompt}
                     onChange={(e) => setSandboxPrompt(e.target.value)}
                     disabled={isLLMUnavailable}
-                    style={{ 
-                      padding: '1rem', 
-                      background: 'rgba(0,0,0,0.2)', 
-                      border: '1px solid var(--border)', 
-                      borderRadius: '8px', 
-                      color: '#fff', 
-                      resize: 'vertical', 
-                      minHeight: '120px', 
+                    style={{
+                      padding: '1rem',
+                      background: 'rgba(0,0,0,0.2)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      resize: 'vertical',
+                      minHeight: '120px',
                       fontFamily: 'inherit',
                       fontSize: '1rem',
                       lineHeight: '1.5',
@@ -4758,10 +4702,10 @@ Respond strictly in valid JSON format with the following keys:
                   />
                 </div>
 
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   data-testid="sandbox-submit"
-                  className="btn-primary" 
+                  className="btn-primary"
                   disabled={isSendingPrompt || isLLMUnavailable || !sandboxPrompt.trim()}
                   style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '0.5rem', background: isLLMUnavailable ? '#333' : 'var(--primary)', borderColor: isLLMUnavailable ? '#444' : 'var(--primary)', color: isLLMUnavailable ? '#888' : '#fff', cursor: isLLMUnavailable ? 'not-allowed' : 'pointer' }}
                 >
@@ -4799,7 +4743,7 @@ Respond strictly in valid JSON format with the following keys:
                     🔊
                   </button>
                 </h4>
-                
+
                 {isSendingPrompt ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
                     <span className="spinner" />
@@ -4807,9 +4751,9 @@ Respond strictly in valid JSON format with the following keys:
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div 
+                    <div
                       data-testid="sandbox-response"
-                      style={{ 
+                      style={{
                         color: '#f8fafc',
                         fontSize: '1rem'
                       }}
@@ -4828,14 +4772,14 @@ Respond strictly in valid JSON format with the following keys:
 
             {/* Collapsible Local LLM Configuration Guide */}
             <div className="glass-card" style={{ padding: '1.2rem' }}>
-              <div 
-                onClick={() => setIsLlmGuideExpanded(!isLlmGuideExpanded)} 
+              <div
+                onClick={() => setIsLlmGuideExpanded(!isLlmGuideExpanded)}
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
               >
                 <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#8b5cf6', fontSize: '1.1rem', fontWeight: 'bold' }}>
                   💡 {lang === 'ja' ? 'ローカルLLM設定ガイド' : 'Local LLM Setup Guide'}
                 </h4>
-                <button 
+                <button
                   type="button"
                   className="btn-secondary"
                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
@@ -4846,7 +4790,7 @@ Respond strictly in valid JSON format with the following keys:
 
               {isLlmGuideExpanded && (
                 <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1.5rem', fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-primary)' }}>
-                  
+
                   {/* Chrome Guide */}
                   <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                     <h4 style={{ color: '#f59e0b', margin: '0 0 0.5rem 0', fontSize: '1rem' }}>🌐 Google Chrome (Gemini Nano)</h4>
@@ -4959,14 +4903,14 @@ Respond strictly in valid JSON format with the following keys:
 
             {/* Collapsible Local API Playground & Explorer */}
             <div className="glass-card" style={{ padding: '1.5rem', marginTop: '0.2rem' }} data-testid="api-playground-panel">
-              <div 
-                onClick={() => setIsApiPlaygroundExpanded(!isApiPlaygroundExpanded)} 
+              <div
+                onClick={() => setIsApiPlaygroundExpanded(!isApiPlaygroundExpanded)}
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
               >
                 <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#38bdf8', fontSize: '1.1rem', fontWeight: 'bold' }}>
                   🔌 {lang === 'ja' ? '開発者向けローカルAPIプレイグラウンド' : 'Developer Local API Playground'}
                 </h4>
-                <button 
+                <button
                   type="button"
                   className="btn-secondary"
                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
@@ -4978,8 +4922,8 @@ Respond strictly in valid JSON format with the following keys:
               {isApiPlaygroundExpanded && (
                 <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1.5rem', fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-primary)' }}>
                   <p style={{ color: 'var(--text-muted)', margin: 0 }}>
-                    {lang === 'ja' 
-                      ? 'HLMのローカルデータ操作およびサーバー同期APIを、ブラウザ上で直接呼び出してレスポンス（JSON）をリアルタイム検証できる対話型コンソールです。' 
+                    {lang === 'ja'
+                      ? 'HLMのローカルデータ操作およびサーバー同期APIを、ブラウザ上で直接呼び出してレスポンス（JSON）をリアルタイム検証できる対話型コンソールです。'
                       : 'An interactive console to directly execute HLM\'s local data actions and synchronizations, inspecting live JSON responses in real-time.'}
                   </p>
 
@@ -5093,8 +5037,8 @@ Respond strictly in valid JSON format with the following keys:
                         apiResultJson
                       ) : (
                         <span style={{ color: '#64748b' }}>
-                          {lang === 'ja' 
-                            ? '// 「APIを実行」をクリックすると、JSON形式のレスポンスデータがここに表示されます。' 
+                          {lang === 'ja'
+                            ? '// 「APIを実行」をクリックすると、JSON形式のレスポンスデータがここに表示されます。'
                             : '// Click "Execute API Call" to see the live JSON response payload here.'}
                         </span>
                       )}
@@ -5144,8 +5088,8 @@ Respond strictly in valid JSON format with the following keys:
       </main>
 
       {audioSource && (
-        <div 
-          className="glass-card" 
+        <div
+          className="glass-card"
           style={{
             position: 'fixed',
             bottom: '1.5rem',
@@ -5166,7 +5110,7 @@ Respond strictly in valid JSON format with the following keys:
           }}
         >
           {/* Drag Handle Top Bar */}
-          <div 
+          <div
             onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
             onDoubleClick={() => setDragOffset({ x: 0, y: 0 })}
@@ -5192,7 +5136,7 @@ Respond strictly in valid JSON format with the following keys:
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <span style={{ opacity: 0.5 }}>[ Double-click to center ]</span>
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); handleAudioStop(); }}
                 style={{
                   background: 'transparent',
@@ -5225,7 +5169,7 @@ Respond strictly in valid JSON format with the following keys:
 
             {/* Media Controls */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-              <button 
+              <button
                 onClick={handleAudioBackward}
                 disabled={currentSentenceIndex === 0}
                 style={{
@@ -5247,7 +5191,7 @@ Respond strictly in valid JSON format with the following keys:
                 ⏮️
               </button>
 
-              <button 
+              <button
                 onClick={handleAudioPlay}
                 disabled={isAudioPlaying && !isAudioPaused}
                 style={{
@@ -5271,7 +5215,7 @@ Respond strictly in valid JSON format with the following keys:
                 ▶️
               </button>
 
-              <button 
+              <button
                 onClick={handleAudioPause}
                 disabled={!isAudioPlaying || isAudioPaused}
                 style={{
@@ -5295,7 +5239,7 @@ Respond strictly in valid JSON format with the following keys:
                 ⏸️
               </button>
 
-              <button 
+              <button
                 onClick={handleAudioForward}
                 disabled={currentSentenceIndex === audioSentences.length - 1}
                 style={{
@@ -5317,7 +5261,7 @@ Respond strictly in valid JSON format with the following keys:
                 ⏭️
               </button>
 
-              <button 
+              <button
                 onClick={handleAudioStop}
                 style={{
                   background: 'rgba(239, 68, 68, 0.1)',
@@ -5397,22 +5341,22 @@ Respond strictly in valid JSON format with the following keys:
           </div>
 
           <div style={{ width: '100%', background: 'rgba(255,255,255,0.05)', height: '4px', borderRadius: '2px', overflow: 'hidden' }}>
-            <div 
-              style={{ 
-                width: `${((currentSentenceIndex + 1) / audioSentences.length) * 100}%`, 
-                background: '#f59e0b', 
-                height: '100%', 
+            <div
+              style={{
+                width: `${((currentSentenceIndex + 1) / audioSentences.length) * 100}%`,
+                background: '#f59e0b',
+                height: '100%',
                 transition: 'width 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
                 boxShadow: '0 0 8px #f59e0b'
-              }} 
+              }}
             />
           </div>
 
           {isAudioDrawerExpanded && (
-            <div 
-              style={{ 
-                maxHeight: '200px', 
-                overflowY: 'auto', 
+            <div
+              style={{
+                maxHeight: '200px',
+                overflowY: 'auto',
                 padding: '0.5rem',
                 background: 'rgba(0, 0, 0, 0.3)',
                 borderRadius: '8px',
@@ -5425,14 +5369,14 @@ Respond strictly in valid JSON format with the following keys:
             >
               {audioSentences.map((sent, idx) => {
                 const isActive = idx === currentSentenceIndex;
-                
+
                 let content: React.ReactNode = sent;
                 if (isActive) {
                   const cleanText = cleanTextForSpeech(sent);
                   const hasJapanese = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/.test(cleanText);
                   const defaultLang = hasJapanese ? 'ja' : 'en';
                   const runs = splitMixedTextIntoRuns(cleanText, defaultLang);
-                  
+
                   if (runs.length > 0) {
                     content = (
                       <span>
@@ -5502,7 +5446,7 @@ Respond strictly in valid JSON format with the following keys:
 
       {/* ✏️ Premium Card Editing Overlay Modal */}
       {editingCard && (
-        <div 
+        <div
           style={{
             position: 'fixed',
             top: 0,
@@ -5520,7 +5464,7 @@ Respond strictly in valid JSON format with the following keys:
           }}
           onClick={() => setEditingCard(null)}
         >
-          <div 
+          <div
             style={{
               width: '100%',
               maxWidth: '950px',
@@ -5536,7 +5480,7 @@ Respond strictly in valid JSON format with the following keys:
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div 
+            <div
               style={{
                 padding: '1.2rem 1.5rem',
                 borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
@@ -5549,7 +5493,7 @@ Respond strictly in valid JSON format with the following keys:
               <h3 style={{ margin: 0, color: '#fff', fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 ✏️ {t('lbl_edit_vocab_card') || 'Edit Vocabulary Card'}
               </h3>
-              <button 
+              <button
                 onClick={() => setEditingCard(null)}
                 style={{
                   background: 'none',

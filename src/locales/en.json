@@ -84,7 +84,7 @@
   "btn_cancel_bulk": "Cancel",
   "btn_ai_generator": "AI Card Generator",
   "lbl_ai_gen_instructions": "What kind of idioms/phrases are you looking for?",
-  "lbl_ai_gen_count": "Number of cards to generate (max 5)",
+  "lbl_ai_gen_count": "Number of cards to generate (max 15)",
   "ph_ai_gen_instructions": "E.g., Business negotiations, food-related slang, Gen-Z expressions...",
   "btn_generate_local": "Generate with Local AI",
   "btn_copy_gen_prompt": "Copy Prompt for Commercial LLM",

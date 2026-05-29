@@ -7,7 +7,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     open: true,
-    host: true
+    host: true,
+    https: false
   },
   build: {
     rollupOptions: {

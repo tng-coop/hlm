@@ -84,7 +84,7 @@
   "btn_cancel_bulk": "キャンセル",
   "btn_ai_generator": "AIカード生成 (Card Generator)",
   "lbl_ai_gen_instructions": "どのような表現やイディオムをお探しですか？",
-  "lbl_ai_gen_count": "生成するカード数 (最大5)",
+  "lbl_ai_gen_count": "生成するカード数 (最大15)",
   "ph_ai_gen_instructions": "例: ビジネス交渉、食べ物に関する表現、Z世代の日常会話スラング...",
   "btn_generate_local": "ローカルAIで生成",
   "btn_copy_gen_prompt": "商用AI用プロンプトをコピー",
