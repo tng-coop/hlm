@@ -3107,10 +3107,10 @@ Respond strictly in valid JSON format with the following keys:
                     <input
                       type="number"
                       min="1"
-                      max="5"
+                      max="15"
                       data-testid="generator-count-input"
                       value={generationCount}
-                      onChange={(e) => setGenerationCount(Math.min(Math.max(parseInt(e.target.value) || 1, 1), 5))}
+                      onChange={(e) => setGenerationCount(Math.min(Math.max(parseInt(e.target.value) || 1, 1), 15))}
                       style={{
                         padding: '0.5rem',
                         background: 'rgba(0, 0, 0, 0.2)',
