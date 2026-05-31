@@ -229,7 +229,7 @@ const robustJsonParse = (rawText: string, expectedKeys: string[]): any => {
 
 // 2. Main Local AI Explainer Client
 export const aiExplainNuances = async (phrase: string, instructions?: string): Promise<AIExplanationResult> => {
-    let promptText = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips". In each key, provide detailed explanations in BOTH English and Japanese (bilingual format, e.g., English text followed by its Japanese translation) to ensure full comprehension for learners. Additionally, in the 'origin' or 'nuance' key, you MUST provide info on the latest appearance of this phrase on a reputable site or source (e.g. renowned media/news outlets, classic literature, or famous public speeches), explicitly including the specific citation and the exact date of appearance.`;
+    let promptText = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips". In each key, provide detailed explanations in BOTH English and Japanese (bilingual format, e.g., English text followed by its Japanese translation) to ensure full comprehension for learners. Additionally, in the 'origin' or 'nuance' key, you MUST provide info on the latest appearance of this phrase on a reputable site or source (e.g. renowned media/news outlets, classic literature, or famous public speeches), explicitly including where on the internet it can be found (e.g., website name, publisher, or URL), the specific citation (an example quote of its appearance), and the exact date of appearance (which MUST be a recent date, preferably within the last few years to demonstrate modern usage).`;
     if (instructions && instructions.trim()) {
         promptText += `\nAdditional user instructions for this generation/refinement: "${instructions.trim()}"`;
     }
@@ -628,7 +628,7 @@ Respond strictly in valid JSON format with the following keys:
   "example_en": "An extremely natural, modern, and contextually correct English example sentence using this phrase.",
   "example_ja": "A natural and accurate Japanese translation of that English example sentence.",
   "nuance": "Detailed context and usage nuances, including tone, register, and situational guidance.",
-  "origin": "Historical etymology, cultural origin story, or how the phrase came to be. You MUST also include info on the latest appearance of this phrase on a reputable site or source (e.g., renowned media/news outlets, classic literature, or famous public speeches), explicitly including the specific citation and the exact date of appearance.",
+  "origin": "Historical etymology, cultural origin story, or how the phrase came to be. You MUST also include info on the latest appearance of this phrase on a reputable site or source (e.g., renowned media/news outlets, classic literature, or famous public speeches), explicitly including where on the internet it can be found (e.g., website name, publisher, or URL), the specific citation (an example quote of its appearance), and the exact date of appearance (which MUST be a recent date, preferably within the last few years to demonstrate modern usage).",
   "tips": "A practical study tip or collocation advice for language learners."
 }`;
 

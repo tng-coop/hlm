@@ -322,7 +322,14 @@ test.describe('HLM Study Deck E2E Suite', () => {
 
     const countInput = page.getByTestId('generator-count-input');
     await expect(countInput).toBeVisible();
+
+    // Verify support for up to 15 and clamping logic (guarding the bug fix)
+    await countInput.fill('12');
+    await expect(countInput).toHaveValue('12');
+    await countInput.fill('20');
+    await expect(countInput).toHaveValue('15');
     await countInput.fill('2');
+    await expect(countInput).toHaveValue('2');
 
     // 4. Mock clipboard and verify "Copy Prompt" button
     await page.evaluate(() => {

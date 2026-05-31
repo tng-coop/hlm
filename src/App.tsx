@@ -174,6 +174,83 @@ const copyToClipboard = (text: string): Promise<void> => {
   });
 };
 
+const robustParseCommercialJson = (rawText: string): any => {
+  let cleaned = rawText.trim();
+  const startBrace = cleaned.indexOf('{');
+  const endBrace = cleaned.lastIndexOf('}');
+  if (startBrace !== -1 && endBrace !== -1) {
+    cleaned = cleaned.substring(startBrace, endBrace + 1);
+  }
+
+  // Clean trailing commas in objects and arrays before parsing
+  cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+
+  try {
+    return JSON.parse(cleaned);
+  } catch (e) {
+    console.warn("[robustParseCommercialJson] Standard JSON.parse failed, running resilient key extractor...", e);
+  }
+
+  const keys = [
+    'phrase', 'category', 'used_in_us', 'used_in_uk',
+    'meaning_en', 'meaning_ja', 'example_en', 'example_ja',
+    'nuance', 'origin', 'tips'
+  ];
+  const result: any = {};
+
+  for (let i = 0; i < keys.length; i++) {
+    const currentKey = keys[i];
+    const keyRegex = new RegExp(`["']?${currentKey}["']?\\s*:\\s*`, 'i');
+    const match = cleaned.match(keyRegex);
+    if (!match) continue;
+
+    const startValIndex = match.index! + match[0].length;
+    let minNextIndex = cleaned.length;
+
+    // Find the next key of the JSON object
+    for (let j = 0; j < keys.length; j++) {
+      if (keys[j] === currentKey) continue;
+      const nextKeyRegex = new RegExp(`["']?${keys[j]}["']?\\s*:\\s*`, 'i');
+      const nextMatch = cleaned.match(nextKeyRegex);
+      if (nextMatch && nextMatch.index! > startValIndex && nextMatch.index! < minNextIndex) {
+        minNextIndex = nextMatch.index!;
+      }
+    }
+
+    // Also bound by the closing brace of the JSON object
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (lastBrace > startValIndex && lastBrace < minNextIndex) {
+      minNextIndex = lastBrace;
+    }
+
+    let rawVal = cleaned.substring(startValIndex, minNextIndex).trim();
+
+    if (rawVal.endsWith(',')) {
+      rawVal = rawVal.substring(0, rawVal.length - 1).trim();
+    }
+
+    if (rawVal.startsWith('"') || rawVal.startsWith("'")) {
+      const quoteChar = rawVal[0];
+      rawVal = rawVal.substring(1);
+      if (rawVal.endsWith(quoteChar)) {
+        rawVal = rawVal.substring(0, rawVal.length - 1);
+      }
+      // Unescape unescaped double quotes inside value
+      rawVal = rawVal.replace(/\\"/g, '"');
+    } else {
+      const num = parseInt(rawVal);
+      if (!isNaN(num)) {
+        result[currentKey] = num;
+        continue;
+      }
+    }
+
+    result[currentKey] = rawVal.trim();
+  }
+
+  return result;
+};
+
 const promptPresets = [
   {
     id: 'biz',
@@ -668,9 +745,7 @@ function App() {
   const handlePasteCommercialBlog = async (phraseId: number, rawText: string) => {
     if (!rawText.trim()) return;
     try {
-      const cleanJson = rawText.substring(rawText.indexOf('{'), rawText.lastIndexOf('}') + 1);
-      if (!cleanJson) throw new Error('No valid JSON block found in paste');
-      const parsed = JSON.parse(cleanJson);
+      const parsed = robustParseCommercialJson(rawText);
       if (!parsed.nuance || !parsed.origin) {
         throw new Error('JSON response must contain "nuance" and "origin" keys.');
       }
@@ -1246,7 +1321,7 @@ Return ONLY a valid JSON array of objects satisfying this exact schema:
     "used_in_uk": 1, // 1 if commonly used in British English, 0 otherwise
     "match_reason": "Explain briefly in 1 sentence why this word/idiom/phrase is relevant and matched the user's specific request/instructions.",
     "nuance": "Detailed context and usage nuances, including tone, register, and situational guidance.",
-    "origin": "Historical etymology, cultural origin story, or how the phrase came to be. You MUST also include info on the latest appearance of this phrase on a reputable site or source (e.g., renowned media/news outlets, classic literature, or famous public speeches), explicitly including the specific citation and the exact date of appearance.",
+    "origin": "Historical etymology, cultural origin story, or how the phrase came to be. You MUST also include info on the latest appearance of this phrase on a reputable site or source (e.g., renowned media/news outlets, classic literature, or famous public speeches), explicitly including where on the internet it can be found (e.g., website name, publisher, or URL), the specific citation (an example quote of its appearance), and the exact date of appearance (which MUST be a recent date, preferably within the last few years to demonstrate modern usage).",
     "tips": "A practical study tip or collocation advice for language learners."
   }
 ]
@@ -1765,7 +1840,7 @@ Respond strictly in valid JSON format with the following keys:
   "example_en": "An extremely natural, modern, and contextually correct English example sentence using this phrase.",
   "example_ja": "A natural and accurate Japanese translation of that English example sentence.",
   "nuance": "Detailed context and usage nuances, including tone, register, and situational guidance. Additionally, perform a search or draw upon the latest authoritative usage statistics and include a section titled '\\n\\n### 📰 Modern Usage & Frequency Report\\n' describing how frequently it appears today on reputable sites like Merriam-Webster, Oxford, or in recent news publications.",
-  "origin": "Historical etymology, cultural origin story, or how the phrase came to be.",
+  "origin": "Historical etymology, cultural origin story, or how the phrase came to be. You MUST also include info on the latest appearance of this phrase on a reputable site or source (e.g., renowned media/news outlets, classic literature, or famous public speeches), explicitly including where on the internet it can be found (e.g., website name, publisher, or URL), the specific citation (an example quote of its appearance), and the exact date of appearance (which MUST be a recent date, preferably within the last few years to demonstrate modern usage).",
   "tips": "A practical study tip or collocation advice for language learners."
 }`;
     copyToClipboard(promptText)
@@ -1785,13 +1860,7 @@ Respond strictly in valid JSON format with the following keys:
       return;
     }
     try {
-      const startIdx = value.indexOf('{');
-      const endIdx = value.lastIndexOf('}');
-      if (startIdx === -1 || endIdx === -1 || endIdx < startIdx) {
-        return;
-      }
-      const cleanJson = value.substring(startIdx, endIdx + 1);
-      const parsed = JSON.parse(cleanJson);
+      const parsed = robustParseCommercialJson(value);
       if (parsed.phrase && parsed.meaning_en) {
         if (phrases.some(p => p.phrase.toLowerCase().trim() === parsed.phrase.toLowerCase().trim())) {
           setFormError(`Duplicate phrase detected! "${parsed.phrase}" already exists in your deck. Please query the commercial LLM again to generate a unique phrase.`);
@@ -4112,7 +4181,7 @@ Respond strictly in valid JSON format with the following keys:
                                               transition: 'all 0.2s'
                                             }}
                                             onClick={() => {
-                                              const prompt = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase.phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips". In each key, provide detailed explanations in BOTH English and Japanese (bilingual format, e.g., English text followed by its Japanese translation) to ensure full comprehension for learners. Additionally, in the 'origin' or 'nuance' key, you MUST provide info on the latest appearance of this phrase on a reputable site or source (e.g. renowned media/news outlets, classic literature, or famous public speeches), explicitly including the specific citation and the exact date of appearance.`;
+                                              const prompt = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase.phrase}". Keep it concise, professional and easy to understand for language learners. Respond strictly in valid JSON format with three keys: "nuance", "origin", and "tips". In each key, provide detailed explanations in BOTH English and Japanese (bilingual format, e.g., English text followed by its Japanese translation) to ensure full comprehension for learners. Additionally, in the 'origin' or 'nuance' key, you MUST provide info on the latest appearance of this phrase on a reputable site or source (e.g. renowned media/news outlets, classic literature, or famous public speeches), explicitly including where on the internet it can be found (e.g., website name, publisher, or URL), the specific citation (an example quote of its appearance), and the exact date of appearance (which MUST be a recent date, preferably within the last few years to demonstrate modern usage).`;
                                               copyToClipboard(prompt);
                                               setCopiedBlogPrompt(phrase.id);
                                               setTimeout(() => setCopiedBlogPrompt(null), 2000);
@@ -4333,7 +4402,7 @@ Respond strictly in valid JSON format with the following keys:
                                                       }}
                                                       onClick={() => {
                                                         const userInstructions = etymologyInstructions[phrase.id] || '';
-                                                        const prompt = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase.phrase}". Keep it concise, professional and easy to understand for language learners.${userInstructions ? `\nAdditional user instructions: ${userInstructions}` : ''}\nRespond strictly in valid JSON format with three keys: "nuance", "origin", and "tips". In each key, provide detailed explanations in BOTH English and Japanese (bilingual format, e.g., English text followed by its Japanese translation) to ensure full comprehension for learners.`;
+                                                        const prompt = `Explain the origin, nuance, and usage of the English idiom/phrase: "${phrase.phrase}". Keep it concise, professional and easy to understand for language learners.${userInstructions ? `\nAdditional user instructions: ${userInstructions}` : ''}\nRespond strictly in valid JSON format with three keys: "nuance", "origin", and "tips". In each key, provide detailed explanations in BOTH English and Japanese (bilingual format, e.g., English text followed by its Japanese translation) to ensure full comprehension for learners. Additionally, in the 'origin' or 'nuance' key, you MUST provide info on the latest appearance of this phrase on a reputable site or source (e.g. renowned media/news outlets, classic literature, or famous public speeches), explicitly including where on the internet it can be found (e.g., website name, publisher, or URL), the specific citation (an example quote of its appearance), and the exact date of appearance (which MUST be a recent date, preferably within the last few years to demonstrate modern usage).`;
                                                         copyToClipboard(prompt);
                                                         setCopiedBlogPrompt(phrase.id);
                                                         setTimeout(() => setCopiedBlogPrompt(null), 2000);
