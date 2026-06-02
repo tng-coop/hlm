@@ -1316,7 +1316,7 @@ Return ONLY a valid JSON array of objects satisfying this exact schema:
     "meaning_ja": "Japanese definition",
     "example_en": "Authentic example sentence in English",
     "example_ja": "Japanese translation of the example sentence",
-    "category": "Idiom", // choose from: Idiom, Slang, Phrasal Verb, Colloquial
+    "category": "Idiom", // Choose from: Idiom, Slang, Phrasal Verb, Colloquial, Standard Vocabulary, Noun, Verb, Adjective, Adverb (e.g., Idiom for 'Bite the bullet', Slang for 'Hit the sack', Standard Vocabulary or Adjective for 'Defiant', Noun for 'Precedent')
     "used_in_us": 1, // 1 if commonly used in American English, 0 otherwise
     "used_in_uk": 1, // 1 if commonly used in British English, 0 otherwise
     "match_reason": "Explain briefly in 1 sentence why this word/idiom/phrase is relevant and matched the user's specific request/instructions.",
@@ -1832,7 +1832,7 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
 Respond strictly in valid JSON format with the following keys:
 {
   "phrase": "${newCard.phrase}",
-  "category": "One of: Idiom, Slang, Phrasal Verb, Colloquial",
+  "category": "The grammatical or lexical classification of the phrase. Choose from: Idiom (e.g. 'Bite the bullet'), Slang (e.g. 'Hit the sack'), Phrasal Verb (e.g. 'Give up'), Colloquial (e.g. 'Hang in there'), Standard Vocabulary (e.g. 'Intricate'), Noun (e.g. 'Precedent'), Verb (e.g. 'Mitigate'), Adjective (e.g. 'Defiant'), or Adverb (e.g. 'Reluctantly').",
   "used_in_us": 1,
   "used_in_uk": 1,
   "meaning_en": "A clear, concise, and professional English definition/meaning suitable for language learners.",
@@ -2060,6 +2060,19 @@ Respond strictly in valid JSON format with the following keys:
       console.error('Failed to delete card permanently', err);
     }
   };
+
+  // Dynamic categories list based on defaults + whatever exists in phrases
+  const availableCategories = ['Idiom', 'Slang', 'Phrasal Verb', 'Colloquial', 'Standard Vocabulary', 'Noun', 'Verb', 'Adjective', 'Adverb'];
+  phrases.forEach(p => {
+    if (p.category && !availableCategories.includes(p.category)) {
+      availableCategories.push(p.category);
+    }
+  });
+  archivedPhrases.forEach(p => {
+    if (p.category && !availableCategories.includes(p.category)) {
+      availableCategories.push(p.category);
+    }
+  });
 
   // Expanded card grid manager filter logic
   const filteredPhrases = (showArchivedOnly ? archivedPhrases : phrases).filter(p => {
@@ -3791,10 +3804,9 @@ Respond strictly in valid JSON format with the following keys:
                     style={{ padding: '0.5rem 1rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff' }}
                   >
                     <option value="All">All Categories</option>
-                    <option value="Idiom">Idiom</option>
-                    <option value="Slang">Slang</option>
-                    <option value="Phrasal Verb">Phrasal Verb</option>
-                    <option value="Colloquial">Colloquial</option>
+                    {availableCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
                   </select>
                   <select
                     value={selectedDifficultyFilter}
@@ -5599,10 +5611,9 @@ Respond strictly in valid JSON format with the following keys:
                       onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
                       style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', fontSize: '0.85rem' }}
                     >
-                      <option value="Idiom">Idiom</option>
-                      <option value="Slang">Slang</option>
-                      <option value="Phrasal Verb">Phrasal Verb</option>
-                      <option value="Colloquial">Colloquial</option>
+                      {availableCategories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="form-group" style={{ display: 'none' }}>

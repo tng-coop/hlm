@@ -620,7 +620,7 @@ Instructions:
 Respond strictly in valid JSON format with the following keys:
 {
   "phrase": "The cleanly extracted target vocabulary word, idiom, or phrase (e.g. 'Cross', 'Double-cross', 'Piece of cake')",
-  "category": "One of: Idiom, Slang, Phrasal Verb, Colloquial",
+  "category": "The grammatical or lexical classification of the phrase. Choose the most appropriate from: Idiom (figurative phrases like 'Bite the bullet'), Slang (informal expressions like 'Hit the sack'), Phrasal Verb (verb + preposition like 'Give up'), Colloquial (conversational expressions like 'Hang in there'), Standard Vocabulary (standard English words like 'Intricate'), Noun (standard nouns like 'Precedent'), Verb (standard verbs like 'Mitigate'), Adjective (standard adjectives like 'Defiant'), or Adverb (standard adverbs like 'Reluctantly'). Select the exact classification that best represents the word/phrase.",
   "used_in_us": 1 or 0 (1 if widely used in American English, 0 otherwise),
   "used_in_uk": 1 or 0 (1 if widely used in British English, 0 otherwise),
   "meaning_en": "A clear, concise, and professional English definition/meaning suitable for language learners.",

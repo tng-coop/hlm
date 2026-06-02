@@ -295,7 +295,12 @@ export const localGetChartsData = () => {
     const phrases: Phrase[] = db.phrases.filter((p: Phrase) => p.is_archived !== 1);
     const today = new Date();
 
-    const cats = ['Idiom', 'Slang', 'Phrasal Verb', 'Colloquial'];
+    const cats = ['Idiom', 'Slang', 'Phrasal Verb', 'Colloquial', 'Standard Vocabulary', 'Noun', 'Verb', 'Adjective', 'Adverb'];
+    phrases.forEach(p => {
+        if (p.category && !cats.includes(p.category)) {
+            cats.push(p.category);
+        }
+    });
     const categoryStats = cats.map(cat => ({
         name: cat,
         value: phrases.filter(p => p.category === cat).length
