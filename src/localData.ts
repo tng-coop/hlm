@@ -161,8 +161,38 @@ export const localAddPhrase = async (phraseData: Partial<Phrase>): Promise<Phras
     await delay();
     const db = loadData();
 
-    if (db.phrases.some((p: Phrase) => p.phrase.toLowerCase() === phraseData.phrase?.toLowerCase())) {
-        throw new Error('This phrase already exists in your deck');
+    const existingIndex = db.phrases.findIndex((p: Phrase) => p.phrase.toLowerCase() === phraseData.phrase?.toLowerCase());
+    if (existingIndex !== -1) {
+        const existingCard = db.phrases[existingIndex];
+        if (existingCard.is_archived === 1) {
+            // Restore and update with the newly drafted etymology, category, and details, and reset spaced repetition progress
+            const todayStr = new Date().toISOString().split('T')[0];
+            const updatedCard: Phrase = {
+                ...existingCard,
+                phrase: phraseData.phrase || existingCard.phrase,
+                meaning_en: phraseData.meaning_en || existingCard.meaning_en,
+                meaning_ja: phraseData.meaning_ja || existingCard.meaning_ja,
+                category: phraseData.category || existingCard.category,
+                example_en: phraseData.example_en || existingCard.example_en,
+                example_ja: phraseData.example_ja || existingCard.example_ja,
+                difficulty: phraseData.difficulty || existingCard.difficulty,
+                used_in_us: phraseData.used_in_us !== undefined ? phraseData.used_in_us : existingCard.used_in_us,
+                used_in_uk: phraseData.used_in_uk !== undefined ? phraseData.used_in_uk : existingCard.used_in_uk,
+                is_archived: 0,
+                next_review_date: todayStr,
+                interval_days: 0,
+                ease_factor: 2.5,
+                repetition_count: 0,
+                nuance: phraseData.nuance !== undefined ? phraseData.nuance : existingCard.nuance,
+                origin: phraseData.origin !== undefined ? phraseData.origin : existingCard.origin,
+                tips: phraseData.tips !== undefined ? phraseData.tips : existingCard.tips
+            };
+            db.phrases[existingIndex] = updatedCard;
+            saveData(db);
+            return updatedCard;
+        } else {
+            throw new Error('This phrase already exists in your deck');
+        }
     }
 
     const todayStr = new Date().toISOString().split('T')[0];
