@@ -249,7 +249,7 @@ export const aiExplainNuances = async (phrase: string, instructions?: string): P
             console.log(`[aiExplainNuances] Session created successfully. Prompting Gemini Nano (25s timeout)...`);
             const rawResponse = await withTimeout<string>(
                 session.prompt(promptText),
-                25000,
+                60000,
                 'window.ai prompt response timed out'
             );
             console.log(`[aiExplainNuances] Gemini Nano responded successfully! Parsing output...`);
@@ -341,7 +341,7 @@ Respond strictly in valid JSON format with the following keys:
             );
             const rawResponse = await withTimeout<string>(
                 session.prompt(promptText),
-                25000,
+                60000,
                 'window.ai prompt response timed out'
             );
             if (session && typeof session.destroy === 'function') {
@@ -424,7 +424,7 @@ export const aiPromptLocalLLM = async (promptText: string): Promise<{ response: 
             );
             const rawResponse = await withTimeout<string>(
                 session.prompt(promptText),
-                25000,
+                60000,
                 'window.ai prompt response timed out'
             );
             if (session && typeof session.destroy === 'function') {
@@ -509,7 +509,7 @@ Respond strictly in valid JSON format with precisely the corrected values:
             );
             const rawResponse = await withTimeout<string>(
                 session.prompt(promptText),
-                25000,
+                60000,
                 'window.ai prompt response timed out'
             );
             if (session && typeof session.destroy === 'function') {
@@ -643,7 +643,7 @@ Respond strictly in valid JSON format with the following keys:
             );
             const rawResponse = await withTimeout<string>(
                 session.prompt(promptText),
-                25000,
+                60000,
                 'window.ai prompt response timed out'
             );
             if (session && typeof session.destroy === 'function') {

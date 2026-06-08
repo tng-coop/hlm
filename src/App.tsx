@@ -1447,28 +1447,32 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
       const finalCards: Phrase[] = [];
 
       for (const phraseStr of uniqueCandidates) {
-        console.log(`[handleLocalCardGeneration] Phase 2: Querying local LLM details generator for "${phraseStr}"...`);
-        const cardDetails = await aiGenerateCardDetails(phraseStr);
-        const todayStr = new Date().toISOString().split('T')[0];
+        try {
+          console.log(`[handleLocalCardGeneration] Phase 2: Querying local LLM details generator for "${phraseStr}"...`);
+          const cardDetails = await aiGenerateCardDetails(phraseStr);
+          const todayStr = new Date().toISOString().split('T')[0];
 
-        finalCards.push({
-          id: -9999 - finalCards.length,
-          phrase: cardDetails.phrase || phraseStr,
-          meaning_en: cardDetails.meaning_en || '',
-          meaning_ja: cardDetails.meaning_ja || '',
-          category: cardDetails.category || 'Idiom',
-          example_en: cardDetails.example_en || '',
-          example_ja: cardDetails.example_ja || '',
-          difficulty: 'Intermediate',
-          next_review_date: todayStr,
-          interval_days: 0,
-          ease_factor: 2.5,
-          repetition_count: 0,
-          match_reason: cardDetails.match_reason || 'Matched request instructions.',
-          nuance: cardDetails.nuance || '',
-          origin: cardDetails.origin || '',
-          tips: cardDetails.tips || ''
-        });
+          finalCards.push({
+            id: -9999 - finalCards.length,
+            phrase: cardDetails.phrase || phraseStr,
+            meaning_en: cardDetails.meaning_en || '',
+            meaning_ja: cardDetails.meaning_ja || '',
+            category: cardDetails.category || 'Idiom',
+            example_en: cardDetails.example_en || '',
+            example_ja: cardDetails.example_ja || '',
+            difficulty: 'Intermediate',
+            next_review_date: todayStr,
+            interval_days: 0,
+            ease_factor: 2.5,
+            repetition_count: 0,
+            match_reason: cardDetails.match_reason || 'Matched request instructions.',
+            nuance: cardDetails.nuance || '',
+            origin: cardDetails.origin || '',
+            tips: cardDetails.tips || ''
+          });
+        } catch (cardErr: any) {
+          console.error(`[handleLocalCardGeneration] Failed to generate details for "${phraseStr}":`, cardErr);
+        }
       }
 
       console.log(`[handleLocalCardGeneration] Phase 2 finished! Total cards created: ${finalCards.length}`);
@@ -1476,10 +1480,19 @@ No other text, markdown fences, or conversational intro. Return strictly the raw
       setGeneratedPreviewCards(finalCards);
       setSelectedPreviewIndices(new Set(finalCards.map((_, i) => i)));
 
-      if (finalCards.length < countVal) {
-        setGeneratorSuccess(`Generated ${finalCards.length} unique card(s) (fewer than requested due to candidate exclusions).`);
+      if (finalCards.length === 0) {
+        throw new Error('All generated candidate phrases failed to generate details.');
+      }
+
+      const failedCount = uniqueCandidates.length - finalCards.length;
+      if (failedCount > 0) {
+        setGeneratorSuccess(`Generated ${finalCards.length} card(s) locally, but ${failedCount} card(s) failed due to AI timeouts/errors.`);
       } else {
-        setGeneratorSuccess(`Successfully generated ${finalCards.length} unique card(s) locally! Review them below.`);
+        if (finalCards.length < countVal) {
+          setGeneratorSuccess(`Generated ${finalCards.length} unique card(s) (fewer than requested due to candidate exclusions).`);
+        } else {
+          setGeneratorSuccess(`Successfully generated ${finalCards.length} unique card(s) locally! Review them below.`);
+        }
       }
     } catch (err: any) {
       console.error('Local AI card generation failed', err);
